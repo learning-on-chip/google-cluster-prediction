@@ -59,15 +59,12 @@ fn read<T: AsRef<Path>>(path: T) -> Result<Vec<f64>> {
     use sqlite::State;
 
     let connection = ok!(Connection::open(path));
-    let query = ok!(select_from("job_events").columns(&["time"])
-                                             .so_that("`time` > 0")
-                                             .so_that("`event type` == 0")
-                                             .order_by(column("time")).compile());
-    let mut statement = ok!(connection.prepare(query));
+    let sql = ok!(select_from("arrivals").columns(&["time"]).order_by(column("time")).compile());
+    let mut statement = ok!(connection.prepare(sql));
     let mut data = vec![];
     let mut past = None;
     while let State::Row = ok!(statement.next()) {
-        let present = ok!(statement.read::<i64>(0)) as f64 * 1e-6;
+        let present = ok!(statement.read::<f64>(0));
         if let Some(past) = past {
             data.push(present - past);
         }
