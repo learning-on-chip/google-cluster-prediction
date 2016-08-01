@@ -5,6 +5,7 @@ dependencies = [
  "arguments 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "sql 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sqlite 0.23.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "statistics 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -66,4 +67,9 @@ dependencies = [
  "libc 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "sqlite3-src 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "statistics"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 

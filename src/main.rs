@@ -1,6 +1,7 @@
 extern crate arguments;
 extern crate sql;
 extern crate sqlite;
+extern crate statistics;
 
 use sqlite::Connection;
 use std::path::Path;
@@ -46,20 +47,11 @@ fn start() -> Result<()> {
         _ => usage!(),
     };
 
-    let (mean, variance) = (mean(&data), variance(&data));
+    let (mean, variance) = (statistics::mean(&data), statistics::variance(&data));
     println!("Samples: {}", data.len());
     println!("Average: {:.4} ± {:.4} s", mean, variance.sqrt());
 
     Ok(())
-}
-
-fn mean(data: &[f64]) -> f64 {
-    let n = data.len() as f64;
-    let mut sum = 0.0;
-    for &point in data {
-        sum += point;
-    }
-    sum / n
 }
 
 fn read<T: AsRef<Path>>(path: T) -> Result<Vec<f64>> {
@@ -86,16 +78,4 @@ fn read<T: AsRef<Path>>(path: T) -> Result<Vec<f64>> {
 
 fn usage() {
     println!("Usage: predictor --database <path>");
-}
-
-fn variance(data: &[f64]) -> f64 {
-    let n = data.len() as f64;
-    let mean = mean(data);
-    let (mut sum1, mut sum2) = (0.0, 0.0);
-    for &point in data {
-        let delta = point - mean;
-        sum1 += delta;
-        sum2 += delta * delta;
-    }
-    (sum2 - sum1 * sum1 / n) / (n - 1.0)
 }
