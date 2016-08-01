@@ -5,7 +5,7 @@ authors = ["Ivan Ukhov <ivan.ukhov@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/learning-on-chip/predictor"
 homepage = "https://github.com/learning-on-chip/predictor"
-description = "Predictor is a tool for predicting workload."
+description = "Predictor is a tool for traffic prediction."
 
 [dependencies]
 arguments = "*"

@@ -1,0 +1,16 @@
+language: rust
+sudo: false
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+script:
+  - make
+
+after_success:
+  - curl https://learning-on-chip.github.io/travis/documentation.sh | bash
+
+notifications:
+  email: false
