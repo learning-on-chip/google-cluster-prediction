@@ -3,9 +3,9 @@
 import os, sys
 sys.path.append(os.path.dirname(__file__))
 
-import logging, support
 import matplotlib.pyplot as pp
 import numpy as np
+import support
 import tensorflow as tf
 
 from tensorflow.contrib import learn
@@ -16,16 +16,12 @@ def assess(data, window=5):
     model_fn = model(window, [{'window': window}])
     regressor = learn.TensorFlowEstimator(model_fn=model_fn,
                                           n_classes=0,
-                                          verbose=2,
                                           steps=1000,
                                           optimizer='Adagrad',
                                           learning_rate=0.03,
                                           batch_size=10)
 
-    monitor = learn.monitors.ValidationMonitor(x['validation'], y['validation'],
-                                               every_n_steps=100)
-
-    regressor.fit(x['train'], y['train'], monitors=[monitor])
+    regressor.fit(x['train'], y['train'])
 
     predicted = regressor.predict(x['test'])
     predicted = np.reshape(predicted, y['test'].shape)
@@ -47,14 +43,14 @@ def model(window, rnn):
         x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, window, x)]
         h, _ = tf.nn.rnn(stack, x, dtype=tf.float32)
         return regression(h[-1], y)
+
+    def regression(x, y):
+        w, b = tf.Variable(tf.zeros([x.get_shape()[1], 1])), tf.Variable(0.0)
+        y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
+        loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
+        return y_hat, loss
+
     return create
 
-def regression(x, y):
-    w, b = tf.Variable(tf.zeros([x.get_shape()[1], 1])), tf.Variable(0.0)
-    y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
-    loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
-    return y_hat, loss
-
-logging.basicConfig(level=logging.INFO)
 data = np.sin(np.linspace(0, 100, 10000))
 assess(data)
