@@ -40,7 +40,7 @@ def assess(data, window=5):
 
 def model(window, rnn, dnn=None):
     def create(x, y):
-        x = learn.ops.split_squeeze(1, window, x)
+        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, window, x)]
         stack = []
         for layer in rnn:
             stack.append(tf.nn.rnn_cell.BasicLSTMCell(layer['window'], state_is_tuple=True))
@@ -51,8 +51,14 @@ def model(window, rnn, dnn=None):
             output = tf.ops.dnn(output, dnn['layers'],
                                 activation=dnn.get('activation'),
                                 dropout=dnn.get('dropout'))
-        return learn.models.linear_regression(output, y)
+        return regression(output, y)
     return create
+
+def regression(x, y):
+    w, b = tf.Variable(tf.zeros([x.get_shape()[1], 1])), tf.Variable(0.0)
+    y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
+    loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
+    return y_hat, loss
 
 logging.basicConfig(level=logging.INFO)
 data = np.sin(np.linspace(0, 100, 10000))
