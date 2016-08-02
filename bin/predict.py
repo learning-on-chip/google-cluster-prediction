@@ -38,20 +38,15 @@ def assess(data, window=5):
     pp.legend(['Observed', 'Predicted'])
     pp.show()
 
-def model(window, rnn, dnn=None):
+def model(window, rnn):
     def create(x, y):
-        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, window, x)]
         stack = []
         for layer in rnn:
             stack.append(tf.nn.rnn_cell.BasicLSTMCell(layer['window'], state_is_tuple=True))
         stack = tf.nn.rnn_cell.MultiRNNCell(stack, state_is_tuple=True)
-        output, _ = tf.nn.rnn(stack, x, dtype=tf.float32)
-        output = output[-1]
-        if dnn is not None:
-            output = tf.ops.dnn(output, dnn['layers'],
-                                activation=dnn.get('activation'),
-                                dropout=dnn.get('dropout'))
-        return regression(output, y)
+        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, window, x)]
+        h, _ = tf.nn.rnn(stack, x, dtype=tf.float32)
+        return regression(h[-1], y)
     return create
 
 def regression(x, y):
