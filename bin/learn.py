@@ -14,17 +14,18 @@ def assess(f):
     layer_size = 100
     cell_type = 'lstm'
 
-    batch_size = 5
-    train_steps = 10000
+    batch_size = 2
+    train_count = 50000
     report_period = 100
-    learning_rate = 0.05
-    learning_rate_decay = 0.999
-    learning_rate_threshold = 1e-6
+
+    learning_rate_start = 0.05
+    learning_rate_decay = 1.0 - 1e-3
+    learning_rate_bound = 1e-4
 
     predict_count = 1000
     imagine_count = 1000
 
-    decay_fn = decay(learning_rate, learning_rate_decay)
+    decay_fn = decay(learning_rate_start, learning_rate_decay, learning_rate_bound)
     model_fn = model(input_size, layer_count, layer_size, cell_type)
     batch_fn = batch(f, input_size, 1, batch_size)
 
@@ -48,19 +49,18 @@ def assess(f):
         initialize.run()
         cursor = 0
 
-        print('%10s %10s %10s' % ('Step', 'Rate', 'Loss'))
-        for i in range(train_steps):
+        print('%10s %10s %10s' % ('Samples', 'Rate', 'Loss'))
+        for i in range(train_count // batch_size):
             r_current = decay_fn(i)
-            if r_current < learning_rate_threshold:
-                break
             x_observed, y_observed, cursor = batch_fn(cursor)
             l_current, _ = session.run([l, train], {
                 r: r_current,
                 x: x_observed,
                 y: y_observed,
             })
-            if (i + 1) % report_period == 0:
-                print('%10s %10.2e %10.2e' % (i + 1, r_current, l_current))
+            sample_count = (i + 1) * batch_size
+            if sample_count % report_period == 0:
+                print('%10d %10.2e %10.2e' % (sample_count, r_current, l_current))
 
         Y_observed = np.zeros([predict_count, 1])
         Y_predicted = np.zeros([predict_count, 1])
@@ -108,9 +108,9 @@ def compare(y, y_hat, name='Predicted'):
     pp.plot(y_hat)
     pp.legend(['Observed', name])
 
-def decay(start, rate):
+def decay(start, rate, bound):
     def compute(i):
-        return start * (rate ** i)
+        return max(bound, start * (rate ** i))
 
     return compute
 
