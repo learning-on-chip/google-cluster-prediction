@@ -17,6 +17,7 @@ def assess(f):
 
     train_batch_count = 1000
     predict_batch_count = 100
+    imagine_batch_count = 10
     report_each = 100
     batch_size = 10
     start_learning_rate = 0.03
@@ -28,8 +29,8 @@ def assess(f):
 
     graph = tf.Graph()
     with graph.as_default():
-        x = tf.placeholder(tf.float32, [batch_size, input_size, 1])
-        y = tf.placeholder(tf.float32, [batch_size, 1, 1])
+        x = tf.placeholder(tf.float32, [None, input_size, 1])
+        y = tf.placeholder(tf.float32, [None, 1, 1])
         r = tf.Variable(0.0, trainable=False)
 
         y_hat, l = model_fn(x, y)
@@ -61,17 +62,27 @@ def assess(f):
         Y_observed = np.zeros([predict_batch_count * batch_size, 1])
         Y_predicted = np.zeros([predict_batch_count * batch_size, 1])
         for i in range(predict_batch_count):
+            j, k = i * batch_size, (i + 1) * batch_size
             x_observed, y_observed, cursor = batch_fn(cursor)
-            y_predicted = session.run(y_hat, {x: x_observed})
-            j = i * batch_size
-            k = j + batch_size
             Y_observed[j:k] = np.reshape(y_observed, [batch_size, 1])
+            y_predicted = session.run(y_hat, {x: x_observed})
             Y_predicted[j:k] = np.reshape(y_predicted, [batch_size, 1])
+        compare(Y_observed, Y_predicted)
 
-    support.figure(height=6)
-    pp.plot(Y_observed)
-    pp.plot(Y_predicted)
-    pp.legend(['Observed', 'Predicted'])
+        x_observed = np.reshape(Y_observed[-input_size:], [1, input_size, 1])
+        Y_observed = np.zeros([imagine_batch_count * batch_size, 1])
+        Y_imagined = np.zeros([imagine_batch_count * batch_size, 1])
+        for i in range(imagine_batch_count):
+            j, k = i * batch_size, (i + 1) * batch_size
+            _, y_observed, cursor = batch_fn(cursor)
+            Y_observed[j:k] = np.reshape(y_observed, [batch_size, 1])
+            for l in range(batch_size):
+                y_predicted = session.run(y_hat, {x: x_observed})
+                Y_imagined[j + l] = y_predicted[-1]
+                x_observed[0, 0:(input_size - 1), 0] = x_observed[0, 1:, 0]
+                x_observed[0, -1, 0 ] = y_predicted[-1]
+        compare(Y_observed, Y_imagined, name='Imagined')
+
     pp.show()
 
 def batch(f, time_step, input_size, output_size, batch_size):
@@ -88,6 +99,12 @@ def batch(f, time_step, input_size, output_size, batch_size):
         return x, y, cursor + batch_size
 
     return compute
+
+def compare(y, y_hat, name='Predicted'):
+    support.figure(height=6)
+    pp.plot(y)
+    pp.plot(y_hat)
+    pp.legend(['Observed', name])
 
 def decay(start, rate):
     def compute(i):
