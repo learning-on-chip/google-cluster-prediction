@@ -124,7 +124,8 @@ def model(input_size, layer_count, layer_size, cell_type):
         return regress(h[-1], y)
 
     def regress(x, y):
-        w, b = tf.Variable(tf.zeros([x.get_shape()[1], 1])), tf.Variable(0.0)
+        w = tf.Variable(tf.truncated_normal([layer_size, 1]))
+        b = tf.Variable(tf.zeros([1]))
         y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
         loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
