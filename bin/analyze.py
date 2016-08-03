@@ -9,15 +9,12 @@ import numpy as np
 
 def display(data, limit=10000):
     limit = len(data) if limit is None else limit
-    figure()
+    support.figure()
     pp.semilogy(data[:limit])
     pp.title('Interarrivals, %d of %d samples' % (limit, len(data)))
 
-def figure():
-    pp.figure(figsize=(12, 8), dpi=80, facecolor='w', edgecolor='k')
-
 def histogram(data):
-    figure()
+    support.figure()
     pp.hist(np.log10(data), bins=1000, log=True)
     pp.title('Histogram of interarrivals')
     pp.xlabel('log(time)')
