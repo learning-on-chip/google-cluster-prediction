@@ -15,13 +15,14 @@ def assess(f):
     cell_type = 'lstm'
 
     batch_size = 5
-    train_step_count = 10000
+    train_count = 10000
     report_period = 100
-    predict_count = 1000
-    imagine_count = 100
     learning_rate = 0.05
     learning_rate_decay = 0.999
     learning_rate_threshold = 1e-6
+
+    predict_count = 1000
+    imagine_count = 1000
 
     decay_fn = decay(learning_rate, learning_rate_decay)
     model_fn = model(input_size, layer_count, layer_size, cell_type)
@@ -48,7 +49,7 @@ def assess(f):
         cursor = 0
 
         print('%10s %10s %10s' % ('Step', 'Rate', 'Loss'))
-        for i in range(train_step_count):
+        for i in range(train_count):
             r_current = decay_fn(i)
             if r_current < learning_rate_threshold:
                 break
