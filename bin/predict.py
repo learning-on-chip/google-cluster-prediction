@@ -14,11 +14,11 @@ def assess(f):
     layer_size = 20
     cell_type = 'lstm'
 
+    batch_size = 10
     train_batch_count = 10000
+    train_report_period = 100
     predict_batch_count = 100
     imagine_batch_count = 10
-    report_each = 100
-    batch_size = 10
     start_learning_rate = 0.03
     learning_rate_decay = 1.0
 
@@ -55,7 +55,7 @@ def assess(f):
                 x: x_observed,
                 y: y_observed,
             })
-            if (i + 1) % report_each == 0:
+            if (i + 1) % train_report_period == 0:
                 print('%10s %10.2e %10.2f' % (i + 1, r_current, l_current))
 
         Y_observed = np.zeros([predict_batch_count * batch_size, 1])
