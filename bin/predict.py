@@ -14,17 +14,18 @@ def assess(f):
     input_size = 5
     layer_count = 1
     layer_size = 20
+    cell_type = 'lstm'
 
-    train_batch_count = 1000
+    train_batch_count = 10000
     predict_batch_count = 100
     imagine_batch_count = 10
     report_each = 100
     batch_size = 10
     start_learning_rate = 0.03
-    learning_rate_decay = 0.999
+    learning_rate_decay = 1.0
 
     decay_fn = decay(start_learning_rate, learning_rate_decay)
-    model_fn = model(layer_count, layer_size, input_size)
+    model_fn = model(input_size, layer_count, layer_size, cell_type)
     batch_fn = batch(f, time_step, input_size, 1, batch_size)
 
     graph = tf.Graph()
@@ -112,9 +113,14 @@ def decay(start, rate):
 
     return compute
 
-def model(layer_count, layer_size, input_size):
+def model(input_size, layer_count, layer_size, cell_type):
     def compute(x, y):
-        cell = tf.nn.rnn_cell.BasicLSTMCell(layer_size, state_is_tuple=True)
+        if cell_type == 'rnn':
+            cell = tf.nn.rnn_cell.BasicRNNCell(layer_size)
+        elif cell_type == 'gru':
+            cell = tf.nn.rnn_cell.GRUCell(layer_size)
+        elif cell_type == 'lstm':
+            cell = tf.nn.rnn_cell.BasicLSTMCell(layer_size, state_is_tuple=True)
         cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
         x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, input_size, x)]
         h, _ = tf.nn.rnn(cell, x, dtype=tf.float32)
