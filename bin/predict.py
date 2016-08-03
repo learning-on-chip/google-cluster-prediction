@@ -9,20 +9,21 @@ import support
 import tensorflow as tf
 
 def assess(f):
-    input_size = 5
+    input_size = 10
     layer_count = 1
-    layer_size = 20
+    layer_size = 100
     cell_type = 'lstm'
 
-    batch_size = 10
-    train_batch_count = 10000
-    train_report_period = 100
-    predict_batch_count = 100
-    imagine_batch_count = 10
-    start_learning_rate = 0.03
-    learning_rate_decay = 1.0
+    batch_size = 5
+    train_step_count = 10000
+    report_period = 100
+    predict_count = 1000
+    imagine_count = 100
+    learning_rate = 0.05
+    learning_rate_decay = 0.999
+    learning_rate_threshold = 1e-6
 
-    decay_fn = decay(start_learning_rate, learning_rate_decay)
+    decay_fn = decay(learning_rate, learning_rate_decay)
     model_fn = model(input_size, layer_count, layer_size, cell_type)
     batch_fn = batch(f, input_size, 1, batch_size)
 
@@ -47,20 +48,22 @@ def assess(f):
         cursor = 0
 
         print('%10s %10s %10s' % ('Step', 'Rate', 'Loss'))
-        for i in range(train_batch_count):
-            x_observed, y_observed, cursor = batch_fn(cursor)
+        for i in range(train_step_count):
             r_current = decay_fn(i)
+            if r_current < learning_rate_threshold:
+                break
+            x_observed, y_observed, cursor = batch_fn(cursor)
             l_current, _ = session.run([l, train], {
                 r: r_current,
                 x: x_observed,
                 y: y_observed,
             })
-            if (i + 1) % train_report_period == 0:
-                print('%10s %10.2e %10.2f' % (i + 1, r_current, l_current))
+            if (i + 1) % report_period == 0:
+                print('%10s %10.2e %10.2e' % (i + 1, r_current, l_current))
 
-        Y_observed = np.zeros([predict_batch_count * batch_size, 1])
-        Y_predicted = np.zeros([predict_batch_count * batch_size, 1])
-        for i in range(predict_batch_count):
+        Y_observed = np.zeros([predict_count, 1])
+        Y_predicted = np.zeros([predict_count, 1])
+        for i in range(predict_count // batch_size):
             j, k = i * batch_size, (i + 1) * batch_size
             x_observed, y_observed, cursor = batch_fn(cursor)
             Y_observed[j:k] = np.reshape(y_observed, [batch_size, 1])
@@ -69,9 +72,9 @@ def assess(f):
         compare(Y_observed, Y_predicted)
 
         x_observed = np.reshape(Y_observed[-input_size:], [1, input_size, 1])
-        Y_observed = np.zeros([imagine_batch_count * batch_size, 1])
-        Y_imagined = np.zeros([imagine_batch_count * batch_size, 1])
-        for i in range(imagine_batch_count):
+        Y_observed = np.zeros([imagine_count, 1])
+        Y_imagined = np.zeros([imagine_count, 1])
+        for i in range(imagine_count // batch_size):
             j, k = i * batch_size, (i + 1) * batch_size
             _, y_observed, cursor = batch_fn(cursor)
             Y_observed[j:k] = np.reshape(y_observed, [batch_size, 1])
