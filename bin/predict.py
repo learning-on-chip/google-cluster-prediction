@@ -9,8 +9,6 @@ import support
 import tensorflow as tf
 
 def assess(f):
-    time_step = 0.1
-
     input_size = 5
     layer_count = 1
     layer_size = 20
@@ -26,7 +24,7 @@ def assess(f):
 
     decay_fn = decay(start_learning_rate, learning_rate_decay)
     model_fn = model(input_size, layer_count, layer_size, cell_type)
-    batch_fn = batch(f, time_step, input_size, 1, batch_size)
+    batch_fn = batch(f, input_size, 1, batch_size)
 
     graph = tf.Graph()
     with graph.as_default():
@@ -86,10 +84,9 @@ def assess(f):
 
     pp.show()
 
-def batch(f, time_step, input_size, output_size, batch_size):
+def batch(f, input_size, output_size, batch_size):
     def compute(cursor):
-        indices = np.arange(cursor, cursor + input_size + batch_size - 1 + output_size)
-        data = f(time_step * indices)
+        data = f(np.arange(cursor, cursor + input_size + batch_size - 1 + output_size))
         x = np.zeros([batch_size, input_size, 1], dtype=np.float32)
         y = np.zeros([batch_size, output_size, 1], dtype=np.float32)
         for i in range(batch_size):
@@ -135,6 +132,6 @@ def model(input_size, layer_count, layer_size, cell_type):
     return compute
 
 def target(x):
-    return np.sin(x)
+    return np.sin(0.1 * x)
 
 assess(target)
