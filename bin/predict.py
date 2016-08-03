@@ -19,8 +19,10 @@ def assess(f):
     predict_batch_count = 100
     report_each = 100
     batch_size = 10
-    learning_rate = 0.03
+    start_learning_rate = 0.03
+    learning_rate_decay = 0.999
 
+    decay_fn = decay(start_learning_rate, learning_rate_decay)
     model_fn = model(layer_count, layer_size, input_size)
     batch_fn = batch(f, time_step, input_size, 1, batch_size)
 
@@ -28,12 +30,14 @@ def assess(f):
     with graph.as_default():
         x = tf.placeholder(tf.float32, [batch_size, input_size, 1])
         y = tf.placeholder(tf.float32, [batch_size, 1, 1])
+        r = tf.Variable(0.0, trainable=False)
 
-        y_hat, loss = model_fn(x, y)
+        y_hat, l = model_fn(x, y)
 
         trainees = tf.trainable_variables()
-        gradient = tf.gradients(loss, trainees)
-        optimizer = tf.train.AdamOptimizer(learning_rate)
+        gradient = tf.gradients(l, trainees)
+
+        optimizer = tf.train.AdamOptimizer(r)
         train = optimizer.apply_gradients(zip(gradient, trainees))
 
         initialize = tf.initialize_all_variables()
@@ -42,12 +46,17 @@ def assess(f):
         initialize.run()
         cursor = 0
 
-        print('%10s %10s' % ('Step', 'Loss'))
+        print('%10s %10s %10s' % ('Step', 'Rate', 'Loss'))
         for i in range(train_batch_count):
             x_observed, y_observed, cursor = batch_fn(cursor)
-            error, _ = session.run([loss, train], {x: x_observed, y: y_observed})
+            r_current = decay_fn(i)
+            l_current, _ = session.run([l, train], {
+                r: r_current,
+                x: x_observed,
+                y: y_observed,
+            })
             if (i + 1) % report_each == 0:
-                print('%10s %10.2f' % (i + 1, error))
+                print('%10s %10.2e %10.2f' % (i + 1, r_current, l_current))
 
         Y_observed = np.zeros([predict_batch_count * batch_size, 1])
         Y_predicted = np.zeros([predict_batch_count * batch_size, 1])
@@ -65,8 +74,29 @@ def assess(f):
     pp.legend(['Observed', 'Predicted'])
     pp.show()
 
+def batch(f, time_step, input_size, output_size, batch_size):
+    def compute(cursor):
+        indices = np.arange(cursor, cursor + input_size + batch_size - 1 + output_size)
+        data = f(time_step * indices)
+        x = np.zeros([batch_size, input_size, 1], dtype=np.float32)
+        y = np.zeros([batch_size, output_size, 1], dtype=np.float32)
+        for i in range(batch_size):
+            j = i + input_size
+            k = j + output_size
+            x[i, :, 0] = data[i:j]
+            y[i, :, 0] = data[j:k]
+        return x, y, cursor + batch_size
+
+    return compute
+
+def decay(start, rate):
+    def compute(i):
+        return start * (rate ** i)
+
+    return compute
+
 def model(layer_count, layer_size, input_size):
-    def create(x, y):
+    def compute(x, y):
         cell = tf.nn.rnn_cell.BasicLSTMCell(layer_size, state_is_tuple=True)
         cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
         x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, input_size, x)]
@@ -79,22 +109,7 @@ def model(layer_count, layer_size, input_size):
         loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
 
-    return create
-
-def batch(f, time_step, input_size, output_size, batch_size):
-    def create(cursor):
-        indices = np.arange(cursor, cursor + input_size + batch_size - 1 + output_size)
-        data = f(time_step * indices)
-        x = np.zeros([batch_size, input_size, 1], dtype=np.float32)
-        y = np.zeros([batch_size, output_size, 1], dtype=np.float32)
-        for i in range(batch_size):
-            j = i + input_size
-            k = j + output_size
-            x[i, :, 0] = data[i:j]
-            y[i, :, 0] = data[j:k]
-        return x, y, cursor + batch_size
-
-    return create
+    return compute
 
 def target(x):
     return np.sin(x)
