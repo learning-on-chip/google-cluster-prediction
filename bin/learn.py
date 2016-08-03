@@ -15,7 +15,7 @@ def assess(f):
     cell_type = 'lstm'
 
     batch_size = 5
-    train_count = 10000
+    train_steps = 10000
     report_period = 100
     learning_rate = 0.05
     learning_rate_decay = 0.999
@@ -30,9 +30,9 @@ def assess(f):
 
     graph = tf.Graph()
     with graph.as_default():
+        r = tf.Variable(0.0, trainable=False)
         x = tf.placeholder(tf.float32, [None, input_size, 1])
         y = tf.placeholder(tf.float32, [None, 1, 1])
-        r = tf.Variable(0.0, trainable=False)
 
         y_hat, l = model_fn(x, y)
 
@@ -49,7 +49,7 @@ def assess(f):
         cursor = 0
 
         print('%10s %10s %10s' % ('Step', 'Rate', 'Loss'))
-        for i in range(train_count):
+        for i in range(train_steps):
             r_current = decay_fn(i)
             if r_current < learning_rate_threshold:
                 break
