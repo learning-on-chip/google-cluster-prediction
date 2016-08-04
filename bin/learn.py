@@ -10,21 +10,20 @@ import tensorflow as tf
 
 def assess(f):
     layer_count = 1
-    layer_size = 100
+    layer_size = 200
     unroll_count = 10
 
     batch_size = 2
     train_count = 50000
     report_period = 1000
 
-    learning_rate_start = 0.05
-    learning_rate_decay = 1.0 - 1e-3
-    learning_rate_bound = 1e-3
+    learning_rate_start = 0.0001
+    learning_rate_decay = 1.0
 
     predict_count = 1000
     imagine_count = 1000
 
-    decay_fn = decay(learning_rate_start, learning_rate_decay, learning_rate_bound)
+    decay_fn = decay(learning_rate_start, learning_rate_decay)
     model_fn = model(layer_count, layer_size, unroll_count)
     batch_fn = batch(f, batch_size, unroll_count)
 
@@ -106,15 +105,15 @@ def compare(y, y_hat, name='Predicted'):
     pp.plot(y_hat)
     pp.legend(['Observed', name])
 
-def decay(start, rate, bound):
+def decay(start, rate):
     def compute(i):
-        return max(bound, start * (rate ** i))
+        return start * (rate ** i)
 
     return compute
 
 def model(layer_count, layer_size, unroll_count):
     def compute(x, y):
-        c = tf.nn.rnn_cell.BasicLSTMCell(layer_size, forget_bias=1.0, state_is_tuple=True)
+        c = tf.nn.rnn_cell.LSTMCell(layer_size, forget_bias=0.0, state_is_tuple=True)
         c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
         x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
         h, _ = tf.nn.rnn(c, x, dtype=tf.float32)
