@@ -16,24 +16,20 @@ def assess(f):
     train_count = 10000
     report_period = 1000
     imagine_count = 1000
+    learning_rate = 0.0001
 
-    learning_rate_start = 0.0001
-    learning_rate_decay = 1.0
-
-    decay_fn = decay(learning_rate_start, learning_rate_decay)
     model_fn = model(layer_count, layer_size, unroll_count)
     batch_fn = batch(f, unroll_count)
 
     graph = tf.Graph()
     with graph.as_default():
-        r = tf.Variable(0.0, trainable=False)
         x = tf.placeholder(tf.float32, [None, unroll_count, 1])
         y = tf.placeholder(tf.float32, [None, 1, 1])
         y_hat, l = model_fn(x, y)
 
         trainees = tf.trainable_variables()
         gradient = tf.gradients(l, trainees)
-        optimizer = tf.train.AdamOptimizer(r)
+        optimizer = tf.train.AdamOptimizer(learning_rate)
         train = optimizer.apply_gradients(zip(gradient, trainees))
 
         initialize = tf.initialize_all_variables()
@@ -42,17 +38,12 @@ def assess(f):
         session.run(initialize)
         cursor = 0
 
-        print('%10s %10s %10s' % ('Samples', 'Rate', 'Loss'))
+        print('%10s %10s' % ('Samples', 'Loss'))
         for i in range(train_count):
-            r_current = decay_fn(i)
             x_observed, y_observed, cursor = batch_fn(cursor)
-            l_current, _ = session.run([l, train], {
-                r: r_current,
-                x: x_observed,
-                y: y_observed,
-            })
+            l_current, _ = session.run([l, train], {x: x_observed, y: y_observed})
             if (i + 1) % report_period != 0: continue
-            print('%10d %10.2e %10.2e' % (i + 1, r_current, l_current))
+            print('%10d %10.2e' % (i + 1, l_current))
 
         x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
         x_observed[0, -1, 0] = y_observed[0]
@@ -88,12 +79,6 @@ def compare(y, y_hat, name):
     pp.plot(y)
     pp.plot(y_hat)
     pp.legend(['Reality', name])
-
-def decay(start, rate):
-    def compute(i):
-        return start * (rate ** i)
-
-    return compute
 
 def model(layer_count, layer_size, unroll_count):
     def compute(x, y):
