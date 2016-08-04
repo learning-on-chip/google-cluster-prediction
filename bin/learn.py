@@ -9,10 +9,9 @@ import support
 import tensorflow as tf
 
 def assess(f):
-    window_size = 10
     layer_count = 1
-    cell_size = 100
-    cell_type = 'lstm'
+    layer_size = 100
+    unroll_count = 10
 
     batch_size = 2
     train_count = 50000
@@ -26,13 +25,13 @@ def assess(f):
     imagine_count = 1000
 
     decay_fn = decay(learning_rate_start, learning_rate_decay, learning_rate_bound)
-    model_fn = model(window_size, layer_count, cell_size, cell_type)
-    batch_fn = batch(f, window_size, batch_size)
+    model_fn = model(layer_count, layer_size, unroll_count)
+    batch_fn = batch(f, batch_size, unroll_count)
 
     graph = tf.Graph()
     with graph.as_default():
         r = tf.Variable(0.0, trainable=False)
-        x = tf.placeholder(tf.float32, [None, window_size, 1])
+        x = tf.placeholder(tf.float32, [None, unroll_count, 1])
         y = tf.placeholder(tf.float32, [None, 1, 1])
 
         y_hat, l = model_fn(x, y)
@@ -72,7 +71,7 @@ def assess(f):
             Y_predicted[j:k] = np.reshape(y_predicted, [batch_size, 1])
         compare(Y_observed, Y_predicted)
 
-        x_observed = np.reshape(Y_observed[-window_size:], [1, window_size, 1])
+        x_observed = np.reshape(Y_observed[-unroll_count:], [1, unroll_count, 1])
         Y_observed = np.zeros([imagine_count, 1])
         Y_imagined = np.zeros([imagine_count, 1])
         for i in range(imagine_count // batch_size):
@@ -82,19 +81,19 @@ def assess(f):
             for l in range(batch_size):
                 y_predicted = session.run(y_hat, {x: x_observed})
                 Y_imagined[j + l] = y_predicted[-1]
-                x_observed[0, 0:(window_size - 1), 0] = x_observed[0, 1:, 0]
+                x_observed[0, 0:(unroll_count - 1), 0] = x_observed[0, 1:, 0]
                 x_observed[0, -1, 0 ] = y_predicted[-1]
         compare(Y_observed, Y_imagined, name='Imagined')
 
     pp.show()
 
-def batch(f, window_size, batch_size):
+def batch(f, batch_size, unroll_count):
     def compute(cursor):
-        data = f(np.arange(cursor, cursor + window_size + batch_size - 1 + 1))
-        x = np.zeros([batch_size, window_size, 1], dtype=np.float32)
+        data = f(np.arange(cursor, cursor + unroll_count + batch_size - 1 + 1))
+        x = np.zeros([batch_size, unroll_count, 1], dtype=np.float32)
         y = np.zeros([batch_size, 1, 1], dtype=np.float32)
         for i in range(batch_size):
-            j = i + window_size
+            j = i + unroll_count
             x[i, :, 0] = data[i:j]
             y[i, 0, 0] = data[j]
         return x, y, cursor + batch_size
@@ -113,25 +112,19 @@ def decay(start, rate, bound):
 
     return compute
 
-def model(window_size, layer_count, cell_size, cell_type):
+def model(layer_count, layer_size, unroll_count):
     def compute(x, y):
-        if cell_type == 'rnn':
-            cell = tf.nn.rnn_cell.BasicRNNCell(cell_size)
-        elif cell_type == 'gru':
-            cell = tf.nn.rnn_cell.GRUCell(cell_size)
-        elif cell_type == 'lstm':
-            cell = tf.nn.rnn_cell.BasicLSTMCell(cell_size, forget_bias=0.0, state_is_tuple=True)
-        cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
-        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, window_size, x)]
-        h, _ = tf.nn.rnn(cell, x, dtype=tf.float32)
+        c = tf.nn.rnn_cell.BasicLSTMCell(layer_size, forget_bias=1.0, state_is_tuple=True)
+        c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
+        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
+        h, _ = tf.nn.rnn(c, x, dtype=tf.float32)
         return regress(h[-1], y)
 
     def regress(x, y):
-        w = tf.Variable(tf.truncated_normal([cell_size, 1]))
+        w = tf.Variable(tf.truncated_normal([layer_size, 1]))
         b = tf.Variable(tf.zeros([1]))
         y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
-        loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
-        return y_hat, loss
+        return y_hat, tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
 
     return compute
 
