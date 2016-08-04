@@ -113,11 +113,15 @@ def decay(start, rate):
 
 def model(layer_count, layer_size, unroll_count):
     def compute(x, y):
-        c = tf.nn.rnn_cell.LSTMCell(layer_size, forget_bias=0.0, state_is_tuple=True)
-        c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
-        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
-        h, _ = tf.nn.rnn(c, x, dtype=tf.float32)
-        return regress(h[-1], y)
+        with tf.variable_scope("model") as scope:
+            x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
+            c = tf.nn.rnn_cell.LSTMCell(layer_size, forget_bias=0.0, state_is_tuple=True)
+            c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
+            s = c.zero_state(tf.shape(x[0])[0], tf.float32)
+            for i in range(unroll_count):
+                h, s = c(x[i], s)
+                scope.reuse_variables()
+        return regress(h, y)
 
     def regress(x, y):
         w = tf.Variable(tf.truncated_normal([layer_size, 1]))
