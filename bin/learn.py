@@ -13,31 +13,28 @@ def assess(f):
     layer_size = 200
     unroll_count = 10
 
-    batch_size = 2
     train_count = 50000
     report_period = 1000
 
     learning_rate_start = 0.0001
     learning_rate_decay = 1.0
 
-    predict_count = 1000
-    imagine_count = 1000
+    track_count = 1000
+    synthesize_count = 1000
 
     decay_fn = decay(learning_rate_start, learning_rate_decay)
     model_fn = model(layer_count, layer_size, unroll_count)
-    batch_fn = batch(f, batch_size, unroll_count)
+    batch_fn = batch(f, unroll_count)
 
     graph = tf.Graph()
     with graph.as_default():
         r = tf.Variable(0.0, trainable=False)
         x = tf.placeholder(tf.float32, [None, unroll_count, 1])
         y = tf.placeholder(tf.float32, [None, 1, 1])
-
         y_hat, l = model_fn(x, y)
 
         trainees = tf.trainable_variables()
         gradient = tf.gradients(l, trainees)
-
         optimizer = tf.train.AdamOptimizer(r)
         train = optimizer.apply_gradients(zip(gradient, trainees))
 
@@ -48,7 +45,7 @@ def assess(f):
         cursor = 0
 
         print('%10s %10s %10s' % ('Samples', 'Rate', 'Loss'))
-        for i in range(train_count // batch_size):
+        for i in range(train_count):
             r_current = decay_fn(i)
             x_observed, y_observed, cursor = batch_fn(cursor)
             l_current, _ = session.run([l, train], {
@@ -56,54 +53,46 @@ def assess(f):
                 x: x_observed,
                 y: y_observed,
             })
-            sample_count = (i + 1) * batch_size
-            if sample_count % report_period == 0:
-                print('%10d %10.2e %10.2e' % (sample_count, r_current, l_current))
+            if (i + 1) % report_period != 0: continue
+            print('%10d %10.2e %10.2e' % (i + 1, r_current, l_current))
 
-        Y_observed = np.zeros([predict_count, 1])
-        Y_predicted = np.zeros([predict_count, 1])
-        for i in range(predict_count // batch_size):
-            j, k = i * batch_size, (i + 1) * batch_size
+        Y_observed = np.zeros([track_count, 1])
+        Y_imagined = np.zeros([track_count, 1])
+        for i in range(track_count):
             x_observed, y_observed, cursor = batch_fn(cursor)
-            Y_observed[j:k] = np.reshape(y_observed, [batch_size, 1])
-            y_predicted = session.run(y_hat, {x: x_observed})
-            Y_predicted[j:k] = np.reshape(y_predicted, [batch_size, 1])
-        compare(Y_observed, Y_predicted)
+            y_imagined = session.run(y_hat, {x: x_observed})
+            Y_observed[i] = y_observed[0]
+            Y_imagined[i] = y_imagined[0]
+        compare(Y_observed, Y_imagined, 'Tracking')
 
         x_observed = np.reshape(Y_observed[-unroll_count:], [1, unroll_count, 1])
-        Y_observed = np.zeros([imagine_count, 1])
-        Y_imagined = np.zeros([imagine_count, 1])
-        for i in range(imagine_count // batch_size):
-            j, k = i * batch_size, (i + 1) * batch_size
+        Y_observed = np.zeros([synthesize_count, 1])
+        Y_imagined = np.zeros([synthesize_count, 1])
+        for i in range(synthesize_count):
             _, y_observed, cursor = batch_fn(cursor)
-            Y_observed[j:k] = np.reshape(y_observed, [batch_size, 1])
-            for l in range(batch_size):
-                y_predicted = session.run(y_hat, {x: x_observed})
-                Y_imagined[j + l] = y_predicted[-1]
-                x_observed[0, 0:(unroll_count - 1), 0] = x_observed[0, 1:, 0]
-                x_observed[0, -1, 0 ] = y_predicted[-1]
-        compare(Y_observed, Y_imagined, name='Imagined')
+            y_imagined = session.run(y_hat, {x: x_observed})
+            Y_observed[i] = y_observed[0]
+            Y_imagined[i] = y_imagined[0]
+            x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
+            x_observed[0, -1, 0 ] = y_imagined[0]
+        compare(Y_observed, Y_imagined, 'Synthesis')
 
     pp.show()
 
-def batch(f, batch_size, unroll_count):
+def batch(f, unroll_count):
     def compute(cursor):
-        data = f(np.arange(cursor, cursor + unroll_count + batch_size - 1 + 1))
-        x = np.zeros([batch_size, unroll_count, 1], dtype=np.float32)
-        y = np.zeros([batch_size, 1, 1], dtype=np.float32)
-        for i in range(batch_size):
-            j = i + unroll_count
-            x[i, :, 0] = data[i:j]
-            y[i, 0, 0] = data[j]
-        return x, y, cursor + batch_size
+        data = f(np.arange(cursor, cursor + unroll_count + 1))
+        x = np.reshape(data[:unroll_count], [1, unroll_count, 1])
+        y = np.reshape(data[-1], [1, 1, 1])
+        return x, y, cursor + unroll_count
 
     return compute
 
-def compare(y, y_hat, name='Predicted'):
+def compare(y, y_hat, name):
     support.figure(height=6)
     pp.plot(y)
     pp.plot(y_hat)
-    pp.legend(['Observed', name])
+    pp.legend(['Reality', name])
 
 def decay(start, rate):
     def compute(i):
