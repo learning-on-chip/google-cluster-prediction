@@ -13,14 +13,12 @@ def assess(f):
     layer_size = 200
     unroll_count = 10
 
-    train_count = 50000
+    train_count = 10000
     report_period = 1000
+    imagine_count = 1000
 
     learning_rate_start = 0.0001
     learning_rate_decay = 1.0
-
-    track_count = 1000
-    synthesize_count = 1000
 
     decay_fn = decay(learning_rate_start, learning_rate_decay)
     model_fn = model(layer_count, layer_size, unroll_count)
@@ -41,7 +39,7 @@ def assess(f):
         initialize = tf.initialize_all_variables()
 
     with tf.Session(graph=graph) as session:
-        initialize.run()
+        session.run(initialize)
         cursor = 0
 
         print('%10s %10s %10s' % ('Samples', 'Rate', 'Loss'))
@@ -56,25 +54,22 @@ def assess(f):
             if (i + 1) % report_period != 0: continue
             print('%10d %10.2e %10.2e' % (i + 1, r_current, l_current))
 
-        Y_observed = np.zeros([track_count, 1])
-        Y_imagined = np.zeros([track_count, 1])
-        for i in range(track_count):
-            x_observed, y_observed, cursor = batch_fn(cursor)
+        x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
+        x_observed[0, -1, 0] = y_observed[0]
+        Y_imagined = np.zeros([imagine_count, 1])
+        for i in range(imagine_count):
             y_imagined = session.run(y_hat, {x: x_observed})
-            Y_observed[i] = y_observed[0]
-            Y_imagined[i] = y_imagined[0]
-        compare(Y_observed, Y_imagined, 'Tracking')
-
-        x_observed = np.reshape(Y_observed[-unroll_count:], [1, unroll_count, 1])
-        Y_observed = np.zeros([synthesize_count, 1])
-        Y_imagined = np.zeros([synthesize_count, 1])
-        for i in range(synthesize_count):
-            _, y_observed, cursor = batch_fn(cursor)
-            y_imagined = session.run(y_hat, {x: x_observed})
-            Y_observed[i] = y_observed[0]
             Y_imagined[i] = y_imagined[0]
             x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
-            x_observed[0, -1, 0 ] = y_imagined[0]
+            x_observed[0, -1, 0] = y_imagined[0]
+
+        Y_observed = np.zeros([imagine_count, 1])
+        for i in range(imagine_count // unroll_count):
+            l, k = i * unroll_count, (i + 1) * unroll_count
+            x_observed, y_predicted, cursor = batch_fn(cursor)
+            Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0], [unroll_count - 1, 1])
+            Y_observed[k - 1] = y_predicted[0]
+
         compare(Y_observed, Y_imagined, 'Synthesis')
 
     pp.show()
