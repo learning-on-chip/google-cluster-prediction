@@ -61,7 +61,8 @@ def assess(f):
         for i in range(predict_count // unroll_count):
             l, k = i * unroll_count, (i + 1) * unroll_count
             x_observed, y_predicted, sample_count = stream_fn(sample_count)
-            Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0], [unroll_count - 1, 1])
+            Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0],
+                                               [unroll_count - 1, 1])
             Y_observed[k - 1] = y_predicted[0]
 
         compare(Y_observed, Y_predicted)
@@ -85,10 +86,12 @@ def compare(y, y_hat):
 
 def model(layer_count, unit_count, unroll_count):
     def compute(x, y):
-        with tf.variable_scope("network") as scope:
+        with tf.variable_scope('network') as scope:
             x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
-            cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0, state_is_tuple=True)
-            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
+            cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0,
+                                                state_is_tuple=True)
+            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
+                                               state_is_tuple=True)
             state = initiate()
             for i in range(unroll_count):
                 h, state = cell(x[i], state)
@@ -98,13 +101,15 @@ def model(layer_count, unit_count, unroll_count):
     def initiate():
         state = []
         for i in range(layer_count):
-            c = tf.Variable(tf.zeros([1, unit_count]), trainable=False, name='c-{}-0'.format(i))
-            h = tf.Variable(tf.zeros([1, unit_count]), trainable=False, name='h-{}-0'.format(i))
+            c = tf.Variable(tf.zeros([1, unit_count]), trainable=False,
+                            name='c-{}-0'.format(i))
+            h = tf.Variable(tf.zeros([1, unit_count]), trainable=False,
+                            name='h-{}-0'.format(i))
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
         return state
 
     def regress(x, y):
-        with tf.variable_scope("regression") as scope:
+        with tf.variable_scope('regression') as scope:
             w = tf.Variable(tf.truncated_normal([unit_count, 1]), name='w')
             b = tf.Variable(tf.zeros([1]), name='b')
             y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
