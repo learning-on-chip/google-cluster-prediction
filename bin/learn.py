@@ -10,7 +10,7 @@ import tensorflow as tf
 
 def assess(f):
     layer_count = 1
-    unit_count = 200
+    unit_count = 50
     unroll_count = 10
 
     learning_rate = 1e-4
