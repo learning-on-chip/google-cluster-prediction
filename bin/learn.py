@@ -18,12 +18,12 @@ def assess(f):
     monitor_period = int(1e4)
     predict_count = int(1e3)
 
+    stream_fn = stream(f)
     model_fn = model(layer_count, unit_count, unroll_count)
-    stream_fn = stream(f, unroll_count)
 
     graph = tf.Graph()
     with graph.as_default():
-        x = tf.placeholder(tf.float32, [None, unroll_count, 1], name='x')
+        x = tf.placeholder(tf.float32, [None, None, 1], name='x')
         y = tf.placeholder(tf.float32, [None, 1, 1], name='y')
         y_hat, l = model_fn(x, y)
 
@@ -39,16 +39,16 @@ def assess(f):
     with tf.Session(graph=graph) as session:
         tf.train.SummaryWriter('log', graph)
         session.run(initialize)
-        sample_count = 0
+        taken_count = 0
 
         parameter_count = np.sum([int(np.prod(trainee.get_shape())) for trainee in trainees])
         print('Learning {} parameters...'.format(parameter_count))
         print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
         for i in range(train_count // unroll_count):
-            x_observed, y_observed, sample_count = stream_fn(sample_count)
+            x_observed, y_observed, taken_count = stream_fn(unroll_count, taken_count)
             l_now, _ = session.run([l, train], {x: x_observed, y: y_observed})
-            if sample_count % monitor_period != 0: continue
-            print('%12d %12d %12.2e' % (i + 1, sample_count, l_now))
+            if taken_count % monitor_period != 0: continue
+            print('%12d %12d %12.2e' % (i + 1, taken_count, l_now))
 
         x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
         x_observed[0, -1, 0] = y_observed[0]
@@ -62,7 +62,7 @@ def assess(f):
         Y_observed = np.zeros([predict_count, 1])
         for i in range(predict_count // unroll_count):
             l, k = i * unroll_count, (i + 1) * unroll_count
-            x_observed, y_predicted, sample_count = stream_fn(sample_count)
+            x_observed, y_predicted, taken_count = stream_fn(unroll_count, taken_count)
             Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0],
                                                [unroll_count - 1, 1])
             Y_observed[k - 1] = y_predicted[0]
@@ -71,12 +71,12 @@ def assess(f):
 
     pp.show()
 
-def stream(f, unroll_count):
-    def compute(sample_count):
-        data = f(np.arange(sample_count, sample_count + unroll_count + 1))
-        x = np.reshape(data[:unroll_count], [1, unroll_count, 1])
+def stream(f):
+    def compute(needed_count, taken_count):
+        data = f(np.arange(taken_count, taken_count + needed_count + 1))
+        x = np.reshape(data[:needed_count], [1, needed_count, 1])
         y = np.reshape(data[-1], [1, 1, 1])
-        return x, y, sample_count + unroll_count
+        return x, y, taken_count + needed_count
 
     return compute
 
