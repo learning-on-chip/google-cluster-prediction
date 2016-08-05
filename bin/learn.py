@@ -101,17 +101,17 @@ def model(layer_count, unit_count, unroll_count):
     def initiate():
         state = []
         for i in range(layer_count):
-            c = tf.Variable(tf.zeros([1, unit_count]), trainable=False,
-                            name='c-{}-0'.format(i))
-            h = tf.Variable(tf.zeros([1, unit_count]), trainable=False,
-                            name='h-{}-0'.format(i))
+            c = tf.get_variable('c{}0'.format(i), [1, unit_count],
+                                trainable=False)
+            h = tf.get_variable('h{}0'.format(i), [1, unit_count],
+                                trainable=False)
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
         return state
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
-            w = tf.Variable(tf.truncated_normal([unit_count, 1]), name='w')
-            b = tf.Variable(tf.zeros([1]), name='b')
+            w = tf.get_variable('w', initializer=tf.truncated_normal([unit_count, 1]))
+            b = tf.get_variable('b', [1])
             y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
