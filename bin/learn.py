@@ -23,8 +23,8 @@ def assess(f):
 
     graph = tf.Graph()
     with graph.as_default():
-        x = tf.placeholder(tf.float32, [None, unroll_count, 1])
-        y = tf.placeholder(tf.float32, [None, 1, 1])
+        x = tf.placeholder(tf.float32, [None, unroll_count, 1], name='x')
+        y = tf.placeholder(tf.float32, [None, 1, 1], name='y')
         y_hat, l = model_fn(x, y)
 
         trainees = tf.trainable_variables()
@@ -35,6 +35,7 @@ def assess(f):
         initialize = tf.initialize_all_variables()
 
     with tf.Session(graph=graph) as session:
+        tf.train.SummaryWriter('log', graph)
         session.run(initialize)
         sample_count = 0
 
@@ -43,9 +44,9 @@ def assess(f):
         print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
         for i in range(train_count // unroll_count):
             x_observed, y_observed, sample_count = stream_fn(sample_count)
-            l_current, _ = session.run([l, train], {x: x_observed, y: y_observed})
+            l_now, _ = session.run([l, train], {x: x_observed, y: y_observed})
             if sample_count % monitor_period != 0: continue
-            print('%12d %12d %12.2e' % (i + 1, sample_count, l_current))
+            print('%12d %12d %12.2e' % (i + 1, sample_count, l_now))
 
         x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
         x_observed[0, -1, 0] = y_observed[0]
@@ -84,11 +85,11 @@ def compare(y, y_hat):
 
 def model(layer_count, unit_count, unroll_count):
     def compute(x, y):
-        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
-        cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0, state_is_tuple=True)
-        cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
-        state = initiate()
-        with tf.variable_scope("model") as scope:
+        with tf.variable_scope("network") as scope:
+            x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
+            cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0, state_is_tuple=True)
+            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
+            state = initiate()
             for i in range(unroll_count):
                 h, state = cell(x[i], state)
                 scope.reuse_variables()
@@ -96,17 +97,19 @@ def model(layer_count, unit_count, unroll_count):
 
     def initiate():
         state = []
-        for _ in range(layer_count):
-            c = tf.zeros([1, unit_count])
-            h = tf.zeros([1, unit_count])
+        for i in range(layer_count):
+            c = tf.Variable(tf.zeros([1, unit_count]), trainable=False, name='c-{}-0'.format(i))
+            h = tf.Variable(tf.zeros([1, unit_count]), trainable=False, name='h-{}-0'.format(i))
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
         return state
 
     def regress(x, y):
-        w = tf.Variable(tf.truncated_normal([unit_count, 1]))
-        b = tf.Variable(tf.zeros([1]))
-        y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
-        return y_hat, tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
+        with tf.variable_scope("regression") as scope:
+            w = tf.Variable(tf.truncated_normal([unit_count, 1]), name='w')
+            b = tf.Variable(tf.zeros([1]), name='b')
+            y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
+            loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
+        return y_hat, loss
 
     return compute
 
