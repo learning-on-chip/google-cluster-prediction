@@ -101,10 +101,8 @@ def model(layer_count, unit_count, unroll_count):
     def initiate():
         state = []
         for i in range(layer_count):
-            c = tf.get_variable('c{}0'.format(i), [1, unit_count],
-                                trainable=False)
-            h = tf.get_variable('h{}0'.format(i), [1, unit_count],
-                                trainable=False)
+            c = tf.zeros([1, unit_count])
+            h = tf.zeros([1, unit_count])
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
         return state
 
