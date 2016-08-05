@@ -16,10 +16,10 @@ def assess(f):
     learning_rate = 1e-4
     train_count = int(1e5)
     monitor_period = int(1e4)
-    predict_count = int(1e3)
+    imagine_count = int(1e3)
 
     stream_fn = stream(f)
-    model_fn = model(layer_count, unit_count, unroll_count)
+    model_fn = model(layer_count, unit_count)
 
     graph = tf.Graph()
     with graph.as_default():
@@ -46,28 +46,24 @@ def assess(f):
         print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
         for i in range(train_count // unroll_count):
             x_observed, y_observed, taken_count = stream_fn(unroll_count, taken_count)
-            l_now, _ = session.run([l, train], {x: x_observed, y: y_observed})
+            l_observed, _ = session.run([l, train], {x: x_observed, y: y_observed})
             if taken_count % monitor_period != 0: continue
-            print('%12d %12d %12.2e' % (i + 1, taken_count, l_now))
+            print('%12d %12d %12.2e' % (i + 1, taken_count, l_observed))
 
-        x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
-        x_observed[0, -1, 0] = y_observed[0]
-        Y_predicted = np.zeros([predict_count, 1])
-        for i in range(predict_count):
-            y_predicted = session.run(y_hat, {x: x_observed})
-            Y_predicted[i] = y_predicted[0]
-            x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
-            x_observed[0, -1, 0] = y_predicted[0]
+        Y_observed = np.zeros([imagine_count, 1])
+        Y_imagined = np.zeros([imagine_count, 1])
+        x_imagined = x_observed
+        x_imagined[0, :(unroll_count - 1), 0] = x_imagined[0, 1:, 0]
+        x_imagined[0, -1, 0] = y_observed[0]
+        for i in range(imagine_count):
+            _, y_observed, taken_count = stream_fn(1, taken_count)
+            Y_observed[i] = y_observed[0]
+            y_imagined = session.run(y_hat, {x: x_imagined})
+            Y_imagined[i] = y_imagined[0]
+            x_imagined[0, :(unroll_count - 1), 0] = x_imagined[0, 1:, 0]
+            x_imagined[0, -1, 0] = y_imagined[0]
 
-        Y_observed = np.zeros([predict_count, 1])
-        for i in range(predict_count // unroll_count):
-            l, k = i * unroll_count, (i + 1) * unroll_count
-            x_observed, y_predicted, taken_count = stream_fn(unroll_count, taken_count)
-            Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0],
-                                               [unroll_count - 1, 1])
-            Y_observed[k - 1] = y_predicted[0]
-
-        compare(Y_observed, Y_predicted)
+        compare(Y_observed, Y_imagined)
 
     pp.show()
 
@@ -84,30 +80,20 @@ def compare(y, y_hat):
     support.figure(height=6)
     pp.plot(y)
     pp.plot(y_hat)
-    pp.legend(['Observed', 'Predicted'])
+    pp.legend(['Observed', 'Imagined'])
 
-def model(layer_count, unit_count, unroll_count):
+def model(layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
             cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0,
                                                 state_is_tuple=True)
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
                                                state_is_tuple=True)
-            outputs, state = [], initiate()
-            for i in range(unroll_count):
-                output, state = cell(x[i], state)
-                outputs.append(output)
-                scope.reuse_variables()
-        return regress(outputs[-1], y)
-
-    def initiate():
-        state = []
-        for i in range(layer_count):
-            c = tf.zeros([1, unit_count])
-            h = tf.zeros([1, unit_count])
-            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
-        return state
+            outputs, _ = tf.nn.dynamic_rnn(cell, x, dtype=tf.float32)
+            outputs = tf.reverse(outputs, [False, True, False])
+            outputs = tf.slice(outputs, [0, 0, 0], [1, 1, unit_count])
+            outputs = tf.reshape(outputs, [1, unit_count])
+        return regress(outputs, y)
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
