@@ -85,14 +85,22 @@ def compare(y, y_hat):
 def model(layer_count, unit_count, unroll_count):
     def compute(x, y):
         x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
-        c = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0, state_is_tuple=True)
-        c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
-        s = c.zero_state(tf.shape(x[0])[0], tf.float32)
+        cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0, state_is_tuple=True)
+        cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
+        state = initiate()
         with tf.variable_scope("model") as scope:
             for i in range(unroll_count):
-                h, s = c(x[i], s)
+                h, state = cell(x[i], state)
                 scope.reuse_variables()
         return regress(h, y)
+
+    def initiate():
+        state = []
+        for _ in range(layer_count):
+            c = tf.zeros([1, unit_count])
+            h = tf.zeros([1, unit_count])
+            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
+        return state
 
     def regress(x, y):
         w = tf.Variable(tf.truncated_normal([unit_count, 1]))
