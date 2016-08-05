@@ -10,15 +10,15 @@ import tensorflow as tf
 
 def assess(f):
     layer_count = 1
-    layer_size = 200
+    unit_count = 200
     unroll_count = 10
 
-    learning_rate = 0.0001
-    iteration_count = 10000
-    report_period = 1000
-    predict_count = 1000
+    learning_rate = 1e-4
+    train_count = int(1e5)
+    monitor_period = int(1e4)
+    predict_count = int(1e3)
 
-    model_fn = model(layer_count, layer_size, unroll_count)
+    model_fn = model(layer_count, unit_count, unroll_count)
     stream_fn = stream(f, unroll_count)
 
     graph = tf.Graph()
@@ -34,19 +34,18 @@ def assess(f):
 
         initialize = tf.initialize_all_variables()
 
-    parameter_count = np.sum([int(np.prod(trainee.get_shape())) for trainee in trainees])
-
     with tf.Session(graph=graph) as session:
         session.run(initialize)
-        cursor = 0
+        sample_count = 0
 
+        parameter_count = np.sum([int(np.prod(trainee.get_shape())) for trainee in trainees])
         print('Learning {} parameters...'.format(parameter_count))
-        print('%10s %10s' % ('Iteration', 'Loss'))
-        for i in range(iteration_count):
-            x_observed, y_observed, cursor = stream_fn(cursor)
+        print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
+        for i in range(train_count // unroll_count):
+            x_observed, y_observed, sample_count = stream_fn(sample_count)
             l_current, _ = session.run([l, train], {x: x_observed, y: y_observed})
-            if (i + 1) % report_period != 0: continue
-            print('%10d %10.2e' % (i + 1, l_current))
+            if sample_count % monitor_period != 0: continue
+            print('%12d %12d %12.2e' % (i + 1, sample_count, l_current))
 
         x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
         x_observed[0, -1, 0] = y_observed[0]
@@ -60,7 +59,7 @@ def assess(f):
         Y_observed = np.zeros([predict_count, 1])
         for i in range(predict_count // unroll_count):
             l, k = i * unroll_count, (i + 1) * unroll_count
-            x_observed, y_predicted, cursor = stream_fn(cursor)
+            x_observed, y_predicted, sample_count = stream_fn(sample_count)
             Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0], [unroll_count - 1, 1])
             Y_observed[k - 1] = y_predicted[0]
 
@@ -69,11 +68,11 @@ def assess(f):
     pp.show()
 
 def stream(f, unroll_count):
-    def compute(cursor):
-        data = f(np.arange(cursor, cursor + unroll_count + 1))
+    def compute(sample_count):
+        data = f(np.arange(sample_count, sample_count + unroll_count + 1))
         x = np.reshape(data[:unroll_count], [1, unroll_count, 1])
         y = np.reshape(data[-1], [1, 1, 1])
-        return x, y, cursor + unroll_count
+        return x, y, sample_count + unroll_count
 
     return compute
 
@@ -83,20 +82,20 @@ def compare(y, y_hat):
     pp.plot(y_hat)
     pp.legend(['Observed', 'Predicted'])
 
-def model(layer_count, layer_size, unroll_count):
+def model(layer_count, unit_count, unroll_count):
     def compute(x, y):
+        x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
+        c = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0, state_is_tuple=True)
+        c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
+        s = c.zero_state(tf.shape(x[0])[0], tf.float32)
         with tf.variable_scope("model") as scope:
-            x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
-            c = tf.nn.rnn_cell.BasicLSTMCell(layer_size, forget_bias=0.0, state_is_tuple=True)
-            c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
-            s = c.zero_state(tf.shape(x[0])[0], tf.float32)
             for i in range(unroll_count):
                 h, s = c(x[i], s)
                 scope.reuse_variables()
         return regress(h, y)
 
     def regress(x, y):
-        w = tf.Variable(tf.truncated_normal([layer_size, 1]))
+        w = tf.Variable(tf.truncated_normal([unit_count, 1]))
         b = tf.Variable(tf.zeros([1]))
         y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
         return y_hat, tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
