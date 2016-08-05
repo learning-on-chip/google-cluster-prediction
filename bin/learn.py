@@ -13,10 +13,10 @@ def assess(f):
     layer_size = 200
     unroll_count = 10
 
-    train_count = 10000
-    report_period = 1000
-    imagine_count = 1000
     learning_rate = 0.0001
+    iteration_count = 10000
+    report_period = 1000
+    predict_count = 1000
 
     model_fn = model(layer_count, layer_size, unroll_count)
     stream_fn = stream(f, unroll_count)
@@ -34,12 +34,15 @@ def assess(f):
 
         initialize = tf.initialize_all_variables()
 
+    parameter_count = np.sum([int(np.prod(trainee.get_shape())) for trainee in trainees])
+
     with tf.Session(graph=graph) as session:
         session.run(initialize)
         cursor = 0
 
-        print('%10s %10s' % ('Samples', 'Loss'))
-        for i in range(train_count):
+        print('Learning {} parameters...'.format(parameter_count))
+        print('%10s %10s' % ('Iteration', 'Loss'))
+        for i in range(iteration_count):
             x_observed, y_observed, cursor = stream_fn(cursor)
             l_current, _ = session.run([l, train], {x: x_observed, y: y_observed})
             if (i + 1) % report_period != 0: continue
@@ -47,21 +50,21 @@ def assess(f):
 
         x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
         x_observed[0, -1, 0] = y_observed[0]
-        Y_imagined = np.zeros([imagine_count, 1])
-        for i in range(imagine_count):
-            y_imagined = session.run(y_hat, {x: x_observed})
-            Y_imagined[i] = y_imagined[0]
+        Y_predicted = np.zeros([predict_count, 1])
+        for i in range(predict_count):
+            y_predicted = session.run(y_hat, {x: x_observed})
+            Y_predicted[i] = y_predicted[0]
             x_observed[0, :(unroll_count - 1), 0] = x_observed[0, 1:, 0]
-            x_observed[0, -1, 0] = y_imagined[0]
+            x_observed[0, -1, 0] = y_predicted[0]
 
-        Y_observed = np.zeros([imagine_count, 1])
-        for i in range(imagine_count // unroll_count):
+        Y_observed = np.zeros([predict_count, 1])
+        for i in range(predict_count // unroll_count):
             l, k = i * unroll_count, (i + 1) * unroll_count
             x_observed, y_predicted, cursor = stream_fn(cursor)
             Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0], [unroll_count - 1, 1])
             Y_observed[k - 1] = y_predicted[0]
 
-        compare(Y_observed, Y_imagined, 'Synthesis')
+        compare(Y_observed, Y_predicted)
 
     pp.show()
 
@@ -74,17 +77,17 @@ def stream(f, unroll_count):
 
     return compute
 
-def compare(y, y_hat, name):
+def compare(y, y_hat):
     support.figure(height=6)
     pp.plot(y)
     pp.plot(y_hat)
-    pp.legend(['Reality', name])
+    pp.legend(['Observed', 'Predicted'])
 
 def model(layer_count, layer_size, unroll_count):
     def compute(x, y):
         with tf.variable_scope("model") as scope:
             x = [tf.squeeze(x, squeeze_dims=[1]) for x in tf.split(1, unroll_count, x)]
-            c = tf.nn.rnn_cell.LSTMCell(layer_size, forget_bias=0.0, state_is_tuple=True)
+            c = tf.nn.rnn_cell.BasicLSTMCell(layer_size, forget_bias=0.0, state_is_tuple=True)
             c = tf.nn.rnn_cell.MultiRNNCell([c] * layer_count, state_is_tuple=True)
             s = c.zero_state(tf.shape(x[0])[0], tf.float32)
             for i in range(unroll_count):
