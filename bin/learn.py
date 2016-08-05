@@ -42,7 +42,7 @@ def assess(f):
 
         learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
         print('Learning {} parameters...'.format(learn_count))
-        print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
+        print('%10s %10s' % ('Steps', 'Loss'))
         fetches = {'finish': finish, 'train': train, 'loss': loss}
         feeds = {start: np.zeros(start.get_shape(), dtype=np.float32)}
         for i in range(train_count):
@@ -50,7 +50,7 @@ def assess(f):
             results = session.run(fetches, feeds)
             feeds[start] = results['finish']
             if taken_count % monitor_period != 0: continue
-            print('%12d %12d %12.2e' % (i + 1, taken_count, results['loss']))
+            print('%10d %10.2e' % (taken_count, results['loss']))
 
         Y_observed = np.zeros([imagine_count, 1])
         Y_imagined = np.zeros([imagine_count, 1])
