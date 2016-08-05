@@ -25,7 +25,7 @@ def assess(f):
     with graph.as_default():
         x = tf.placeholder(tf.float32, [None, None, 1], name='x')
         y = tf.placeholder(tf.float32, [None, 1, 1], name='y')
-        y_hat, l = model_fn(x, y)
+        (y_hat, l), updates = model_fn(x, y)
 
         with tf.variable_scope('optimization'):
             trainees = tf.trainable_variables()
@@ -46,22 +46,19 @@ def assess(f):
         print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
         for i in range(train_count // unroll_count):
             x_observed, y_observed, taken_count = stream_fn(unroll_count, taken_count)
-            l_observed, _ = session.run([l, train], {x: x_observed, y: y_observed})
+            results = session.run([l, train] + updates, {x: x_observed, y: y_observed})
             if taken_count % monitor_period != 0: continue
-            print('%12d %12d %12.2e' % (i + 1, taken_count, l_observed))
+            print('%12d %12d %12.2e' % (i + 1, taken_count, results[0]))
 
         Y_observed = np.zeros([imagine_count, 1])
         Y_imagined = np.zeros([imagine_count, 1])
-        x_imagined = x_observed
-        x_imagined[0, :(unroll_count - 1), 0] = x_imagined[0, 1:, 0]
-        x_imagined[0, -1, 0] = y_observed[0]
+        x_imagined = y_observed
         for i in range(imagine_count):
             _, y_observed, taken_count = stream_fn(1, taken_count)
             Y_observed[i] = y_observed[0]
-            y_imagined = session.run(y_hat, {x: x_imagined})
-            Y_imagined[i] = y_imagined[0]
-            x_imagined[0, :(unroll_count - 1), 0] = x_imagined[0, 1:, 0]
-            x_imagined[0, -1, 0] = y_imagined[0]
+            results = session.run([y_hat] + updates, {x: x_imagined})
+            Y_imagined[i] = results[0][0]
+            x_imagined[0] = results[0][0]
 
         compare(Y_observed, Y_imagined)
 
@@ -85,15 +82,28 @@ def compare(y, y_hat):
 def model(layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            cell = tf.nn.rnn_cell.BasicLSTMCell(unit_count, forget_bias=0.0,
-                                                state_is_tuple=True)
+            initializer = tf.random_uniform_initializer(-0.5, 0.5)
+            cell = tf.nn.rnn_cell.LSTMCell(unit_count, forget_bias=0.0,
+                                           initializer=initializer,
+                                           state_is_tuple=True)
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
                                                state_is_tuple=True)
-            outputs, _ = tf.nn.dynamic_rnn(cell, x, dtype=tf.float32)
+            start = initiate()
+            outputs, finish = tf.nn.dynamic_rnn(cell, x, initial_state=start,
+                                                parallel_iterations=1)
             outputs = tf.reverse(outputs, [False, True, False])
             outputs = tf.slice(outputs, [0, 0, 0], [1, 1, unit_count])
             outputs = tf.reshape(outputs, [1, unit_count])
-        return regress(outputs, y)
+            updates = shortcut(start, finish)
+        return regress(outputs, y), updates
+
+    def initiate():
+        state = []
+        for i in range(layer_count):
+            c = tf.get_variable('c{}0'.format(i + 1), initializer=tf.zeros([1, unit_count]))
+            h = tf.get_variable('h{}0'.format(i + 1), initializer=tf.zeros([1, unit_count]))
+            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
+        return state
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
@@ -102,6 +112,15 @@ def model(layer_count, unit_count):
             y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
+
+    def shortcut(start, finish):
+        updates = []
+        for i in range(layer_count):
+            updates.append(tf.assign(start[i].c, finish[i].c,
+                                     name="c{}0-update".format(i + 1)))
+            updates.append(tf.assign(start[i].h, finish[i].h,
+                                     name="h{}0-update".format(i + 1)))
+        return updates
 
     return compute
 
