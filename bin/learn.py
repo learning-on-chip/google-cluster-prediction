@@ -11,7 +11,6 @@ import tensorflow as tf
 def assess(f):
     layer_count = 1
     unit_count = 100
-    unroll_count = 10
 
     learning_rate = 1e-4
     train_count = int(1e5)
@@ -23,8 +22,8 @@ def assess(f):
 
     graph = tf.Graph()
     with graph.as_default():
-        x = tf.placeholder(tf.float32, [None, None, 1], name='x')
-        y = tf.placeholder(tf.float32, [None, 1, 1], name='y')
+        x = tf.placeholder(tf.float32, [1, 1, 1], name='x')
+        y = tf.placeholder(tf.float32, [1, 1, 1], name='y')
         (y_hat, l), updates = model_fn(x, y)
 
         with tf.variable_scope('optimization'):
@@ -44,8 +43,8 @@ def assess(f):
         parameter_count = np.sum([int(np.prod(trainee.get_shape())) for trainee in trainees])
         print('Learning {} parameters...'.format(parameter_count))
         print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
-        for i in range(train_count // unroll_count):
-            x_observed, y_observed, taken_count = stream_fn(unroll_count, taken_count)
+        for i in range(train_count):
+            x_observed, y_observed, taken_count = stream_fn(taken_count)
             results = session.run([l, train] + updates, {x: x_observed, y: y_observed})
             if taken_count % monitor_period != 0: continue
             print('%12d %12d %12.2e' % (i + 1, taken_count, results[0]))
@@ -54,7 +53,7 @@ def assess(f):
         Y_imagined = np.zeros([imagine_count, 1])
         x_imagined = y_observed
         for i in range(imagine_count):
-            _, y_observed, taken_count = stream_fn(1, taken_count)
+            _, y_observed, taken_count = stream_fn(taken_count)
             Y_observed[i] = y_observed[0]
             results = session.run([y_hat] + updates, {x: x_imagined})
             Y_imagined[i] = results[0][0]
@@ -65,11 +64,11 @@ def assess(f):
     pp.show()
 
 def stream(f):
-    def compute(needed_count, taken_count):
-        data = f(np.arange(taken_count, taken_count + needed_count + 1))
-        x = np.reshape(data[:needed_count], [1, needed_count, 1])
-        y = np.reshape(data[-1], [1, 1, 1])
-        return x, y, taken_count + needed_count
+    def compute(taken_count):
+        data = f(np.arange(taken_count, taken_count + 1 + 1))
+        x = np.reshape(data[0], [1, 1, 1])
+        y = np.reshape(data[1], [1, 1, 1])
+        return x, y, taken_count + 1
 
     return compute
 
@@ -89,19 +88,17 @@ def model(layer_count, unit_count):
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
                                                state_is_tuple=True)
             start = initiate()
-            outputs, finish = tf.nn.dynamic_rnn(cell, x, initial_state=start,
-                                                parallel_iterations=1)
-            outputs = tf.reverse(outputs, [False, True, False])
-            outputs = tf.slice(outputs, [0, 0, 0], [1, 1, unit_count])
-            outputs = tf.reshape(outputs, [1, unit_count])
+            h, finish = cell(tf.squeeze(x, squeeze_dims=[1]), start)
             updates = shortcut(start, finish)
-        return regress(outputs, y), updates
+        return regress(h, y), updates
 
     def initiate():
         state = []
         for i in range(layer_count):
-            c = tf.get_variable('c{}0'.format(i + 1), initializer=tf.zeros([1, unit_count]))
-            h = tf.get_variable('h{}0'.format(i + 1), initializer=tf.zeros([1, unit_count]))
+            c = tf.get_variable('c{}0'.format(i + 1),
+                                initializer=tf.zeros([1, unit_count]))
+            h = tf.get_variable('h{}0'.format(i + 1),
+                                initializer=tf.zeros([1, unit_count]))
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
         return state
 
