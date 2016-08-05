@@ -10,7 +10,7 @@ import tensorflow as tf
 
 def assess(f):
     layer_count = 1
-    unit_count = 50
+    unit_count = 100
     unroll_count = 10
 
     learning_rate = 1e-4
@@ -27,12 +27,14 @@ def assess(f):
         y = tf.placeholder(tf.float32, [None, 1, 1], name='y')
         y_hat, l = model_fn(x, y)
 
-        trainees = tf.trainable_variables()
-        gradient = tf.gradients(l, trainees)
-        optimizer = tf.train.AdamOptimizer(learning_rate)
-        train = optimizer.apply_gradients(zip(gradient, trainees))
+        with tf.variable_scope('optimization'):
+            trainees = tf.trainable_variables()
+            gradient = tf.gradients(l, trainees)
+            optimizer = tf.train.AdamOptimizer(learning_rate)
+            train = optimizer.apply_gradients(zip(gradient, trainees))
 
-        initialize = tf.initialize_all_variables()
+        initialize = tf.initialize_variables(tf.all_variables(),
+                                             name='initialize')
 
     with tf.Session(graph=graph) as session:
         tf.train.SummaryWriter('log', graph)
@@ -92,11 +94,12 @@ def model(layer_count, unit_count, unroll_count):
                                                 state_is_tuple=True)
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
                                                state_is_tuple=True)
-            state = initiate()
+            outputs, state = [], initiate()
             for i in range(unroll_count):
-                h, state = cell(x[i], state)
+                output, state = cell(x[i], state)
+                outputs.append(output)
                 scope.reuse_variables()
-        return regress(h, y)
+        return regress(outputs[-1], y)
 
     def initiate():
         state = []
