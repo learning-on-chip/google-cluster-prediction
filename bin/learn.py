@@ -19,7 +19,7 @@ def assess(f):
     learning_rate = 0.0001
 
     model_fn = model(layer_count, layer_size, unroll_count)
-    batch_fn = batch(f, unroll_count)
+    stream_fn = stream(f, unroll_count)
 
     graph = tf.Graph()
     with graph.as_default():
@@ -40,7 +40,7 @@ def assess(f):
 
         print('%10s %10s' % ('Samples', 'Loss'))
         for i in range(train_count):
-            x_observed, y_observed, cursor = batch_fn(cursor)
+            x_observed, y_observed, cursor = stream_fn(cursor)
             l_current, _ = session.run([l, train], {x: x_observed, y: y_observed})
             if (i + 1) % report_period != 0: continue
             print('%10d %10.2e' % (i + 1, l_current))
@@ -57,7 +57,7 @@ def assess(f):
         Y_observed = np.zeros([imagine_count, 1])
         for i in range(imagine_count // unroll_count):
             l, k = i * unroll_count, (i + 1) * unroll_count
-            x_observed, y_predicted, cursor = batch_fn(cursor)
+            x_observed, y_predicted, cursor = stream_fn(cursor)
             Y_observed[l:(k - 1)] = np.reshape(x_observed[0, 1:, 0], [unroll_count - 1, 1])
             Y_observed[k - 1] = y_predicted[0]
 
@@ -65,7 +65,7 @@ def assess(f):
 
     pp.show()
 
-def batch(f, unroll_count):
+def stream(f, unroll_count):
     def compute(cursor):
         data = f(np.arange(cursor, cursor + unroll_count + 1))
         x = np.reshape(data[:unroll_count], [1, unroll_count, 1])
