@@ -10,8 +10,8 @@ import tensorflow as tf
 
 def assess(f):
     layer_count = 1
-    unit_count = 200
-
+    unit_count = 100
+    unroll_count = 10
     learning_rate = 1e-4
     train_count = int(1e5)
     monitor_period = int(1e4)
@@ -22,7 +22,7 @@ def assess(f):
 
     graph = tf.Graph()
     with graph.as_default():
-        x = tf.placeholder(tf.float32, [1, 1, 1], name='x')
+        x = tf.placeholder(tf.float32, [1, None, 1], name='x')
         y = tf.placeholder(tf.float32, [1, 1, 1], name='y')
         (y_hat, loss), (start, finish) = model_fn(x, y)
 
@@ -42,22 +42,22 @@ def assess(f):
 
         learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
         print('Learning {} parameters...'.format(learn_count))
-        print('%10s %10s' % ('Steps', 'Loss'))
+        print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
         fetches = {'finish': finish, 'train': train, 'loss': loss}
         feeds = {start: np.zeros(start.get_shape(), dtype=np.float32)}
-        for i in range(train_count):
-            feeds[x], feeds[y], taken_count = stream_fn(taken_count)
+        for i in range(train_count // unroll_count):
+            feeds[x], feeds[y], taken_count = stream_fn(unroll_count, taken_count)
             results = session.run(fetches, feeds)
             feeds[start] = results['finish']
             if taken_count % monitor_period != 0: continue
-            print('%10d %10.2e' % (taken_count, results['loss']))
+            print('%12d %12d %12.2e' % (i + 1, taken_count, results['loss']))
 
         Y_observed = np.zeros([imagine_count, 1])
         Y_imagined = np.zeros([imagine_count, 1])
         fetches = {'finish': finish, 'y_hat': y_hat}
         feeds = {start: feeds[start], x: feeds[y]}
         for i in range(imagine_count):
-            _, y_observed, taken_count = stream_fn(taken_count)
+            _, y_observed, taken_count = stream_fn(1, taken_count)
             Y_observed[i] = y_observed[0]
             results = session.run(fetches, feeds)
             feeds[start] = results['finish']
@@ -68,11 +68,11 @@ def assess(f):
     pp.show()
 
 def stream(f):
-    def compute(taken_count):
-        data = f(np.arange(taken_count, taken_count + 1 + 1))
-        x = np.reshape(data[0], [1, 1, 1])
-        y = np.reshape(data[1], [1, 1, 1])
-        return x, y, taken_count + 1
+    def compute(needed_count, taken_count):
+        data = f(np.arange(taken_count, taken_count + needed_count + 1))
+        x = np.reshape(data[:needed_count], [1, needed_count, 1])
+        y = np.reshape(data[needed_count], [1, 1, 1])
+        return x, y, taken_count + needed_count
 
     return compute
 
@@ -92,9 +92,13 @@ def model(layer_count, unit_count):
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
                                                state_is_tuple=True)
             start, state = initialize()
-            output, state = cell(tf.squeeze(x, squeeze_dims=[1]), state)
+            h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state,
+                                         parallel_iterations=1)
             finish = finalize(state)
-        return regress(output, y), (start, finish)
+            h = tf.reverse(h, [False, True, False])
+            h = tf.slice(h, [0, 0, 0], [1, 1, unit_count])
+            h = tf.reshape(h, [1, unit_count])
+        return regress(h, y), (start, finish)
 
     def finalize(state):
         parts = []
