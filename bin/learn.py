@@ -29,6 +29,7 @@ def assess(f):
         with tf.variable_scope('optimization'):
             trainees = tf.trainable_variables()
             gradient = tf.gradients(loss, trainees)
+            gradient, _ = tf.clip_by_global_norm(gradient, 1.0)
             optimizer = tf.train.AdamOptimizer(learning_rate)
             train = optimizer.apply_gradients(zip(gradient, trainees))
 
