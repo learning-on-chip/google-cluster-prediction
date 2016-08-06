@@ -96,9 +96,8 @@ def model(layer_count, unit_count):
             h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state,
                                          parallel_iterations=1)
             finish = finalize(state)
-            h = tf.reverse(h, [False, True, False])
-            h = tf.slice(h, [0, 0, 0], [1, 1, unit_count])
-            h = tf.reshape(h, [1, unit_count])
+            i = tf.shape(h) - np.array([1, 1, unit_count])
+            h = tf.reshape(tf.slice(h, i, [1, 1, unit_count]), [1, unit_count])
         return regress(h, y), (start, finish)
 
     def finalize(state):
