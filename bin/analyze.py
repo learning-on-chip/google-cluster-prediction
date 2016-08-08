@@ -7,11 +7,10 @@ import math, support
 import matplotlib.pyplot as pp
 import numpy as np
 
-def display(data, limit=10000):
-    limit = len(data) if limit is None else limit
+def display(data):
     support.figure()
-    pp.semilogy(data[:limit])
-    pp.title('Interarrivals, %d of %d samples' % (limit, len(data)))
+    pp.plot(data)
+    pp.title('Interarrivals')
 
 def histogram(data):
     support.figure()
@@ -20,16 +19,20 @@ def histogram(data):
     pp.xlabel('log(time)')
     pp.ylabel('log(count)')
 
-def summarize(data):
-    mean, variance = np.mean(data), np.var(data)
-    print('Samples: %d' % len(data))
-    print('Mean: %.4f ± %.4f' % (mean, math.sqrt(variance)))
-    print('Minimum: %e' % np.min(data))
-    print('Maximum: %e' % np.max(data))
+print('Apps:')
+print('  Count: %d' % support.count_apps())
+print('Users:')
+print('  Count: %d' % support.count_users())
 
-data = support.read()
-summarize(data)
+data = support.select_interarrivals(app=None, user=None)
+mean, variance = np.mean(data), np.var(data)
+print('Interarrivals:')
+print('  Count: %d' % len(data))
+print('  Mean: %.4f ± %.4f' % (mean, math.sqrt(variance)))
+print('  Minimum: %e' % np.min(data))
+print('  Maximum: %e' % np.max(data))
+
 histogram(data)
-display(data[data > 1e-5])
+display(data)
 
 pp.show()
