@@ -28,7 +28,7 @@ def count_user_jobs(path=DATABASE_PATH):
     connection.close()
     return data
 
-def figure(width=12, height=8):
+def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
 def normalize(data):
