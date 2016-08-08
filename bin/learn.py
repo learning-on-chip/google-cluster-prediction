@@ -140,15 +140,23 @@ def assess(y, y_hat):
     pp.legend(['Observed', 'Predicted'])
     pp.pause(1)
 
-def target(x):
-    return np.sin(0.1 * x)
-
-learn(target,
-      train_each=10,
-      report_each=int(1e4),
-      predict_each=int(1e4),
-      predict_count=int(1e3),
-      total_count=int(1e5 + 1e3),
-      assess=assess)
+if False:
+    learn(lambda i: np.sin(0.1 * i),
+          train_each=10,
+          report_each=int(1e4),
+          predict_each=int(1e4),
+          predict_count=int(1e3),
+          total_count=int(1e5 + 1e3),
+          assess=assess)
+else:
+    data = support.select_interarrivals(app=None, user=37)
+    data = support.normalize(data)
+    learn(lambda i: data[i],
+          train_each=20,
+          report_each=int(1e4),
+          predict_each=int(1e4),
+          predict_count=10,
+          total_count=len(data),
+          assess=assess)
 
 pp.show()
