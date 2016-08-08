@@ -8,28 +8,34 @@ import numpy as np
 import support
 import tensorflow as tf
 
-def assess(f):
+def learn(f, train_each, report_each, predict_each, predict_count, total_count,
+          assess):
+
+    assert(report_each % train_each == 0)
+    assert(predict_each % train_each == 0)
+
+    n = total_count // predict_each
+    while n > 0 and n*predict_each + predict_count > total_count: n -= 1
+    total_count = n*predict_each + predict_count
+    if n == 0: return
+
     layer_count = 1
     unit_count = 100
-    unroll_count = 10
     learning_rate = 1e-4
-    train_count = int(1e5)
-    monitor_period = int(1e4)
-    imagine_count = int(1e3)
+    gradient_norm = 1.0
 
-    stream_fn = stream(f)
-    model_fn = model(layer_count, unit_count)
+    model = configure(layer_count, unit_count)
 
     graph = tf.Graph()
     with graph.as_default():
         x = tf.placeholder(tf.float32, [1, None, 1], name='x')
         y = tf.placeholder(tf.float32, [1, 1, 1], name='y')
-        (y_hat, loss), (start, finish) = model_fn(x, y)
+        (y_hat, loss), (start, finish) = model(x, y)
 
         with tf.variable_scope('optimization'):
             trainees = tf.trainable_variables()
             gradient = tf.gradients(loss, trainees)
-            gradient, _ = tf.clip_by_global_norm(gradient, 1.0)
+            gradient, _ = tf.clip_by_global_norm(gradient, gradient_norm)
             optimizer = tf.train.AdamOptimizer(learning_rate)
             train = optimizer.apply_gradients(zip(gradient, trainees))
 
@@ -39,51 +45,47 @@ def assess(f):
     with tf.Session(graph=graph) as session:
         tf.train.SummaryWriter('log', graph)
         session.run(initialize)
-        taken_count = 0
 
         learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
         print('Learning {} parameters...'.format(learn_count))
-        print('%12s %12s %12s' % ('Iterations', 'Samples', 'Loss'))
-        fetches = {'finish': finish, 'train': train, 'loss': loss}
-        feeds = {start: np.zeros(start.get_shape(), dtype=np.float32)}
-        for i in range(train_count // unroll_count):
-            feeds[x], feeds[y], taken_count = stream_fn(unroll_count, taken_count)
-            results = session.run(fetches, feeds)
-            feeds[start] = results['finish']
-            if taken_count % monitor_period != 0: continue
-            print('%12d %12d %12.2e' % (i + 1, taken_count, results['loss']))
 
-        Y_observed = np.zeros([imagine_count, 1])
-        Y_imagined = np.zeros([imagine_count, 1])
-        fetches = {'finish': finish, 'y_hat': y_hat}
-        feeds = {start: feeds[start], x: feeds[y]}
-        for i in range(imagine_count):
-            _, y_observed, taken_count = stream_fn(1, taken_count)
-            Y_observed[i] = y_observed[0]
-            results = session.run(fetches, feeds)
-            feeds[start] = results['finish']
-            Y_imagined[i] = feeds[x][0] = results['y_hat'][0]
+        train_fetches = {'finish': finish, 'train': train, 'loss': loss}
+        train_feeds = {
+            start: np.zeros(start.get_shape(), dtype=np.float32),
+            x: np.zeros([1, train_each, 1], dtype=np.float32),
+            y: np.zeros([1, 1, 1], dtype=np.float32),
+        }
+        predict_fetches = {'finish': finish, 'y_hat': y_hat}
+        predict_feeds = {start: None, x: None}
 
-        compare(Y_observed, Y_imagined)
+        Y = np.zeros([predict_count, 1])
+        Y_hat = np.zeros([predict_count, 1])
 
-    pp.show()
+        print('%12s %12s %12s' % ('Samples', 'Trainings', 'Loss'))
+        for i, j in zip(range(total_count - 1), range(1, total_count)):
+            train_feeds[x] = np.roll(train_feeds[x], -1, axis=1)
+            train_feeds[x][0, -1, 0] = f(i)
+            train_feeds[y][0] = f(j)
 
-def stream(f):
-    def compute(needed_count, taken_count):
-        data = f(np.arange(taken_count, taken_count + needed_count + 1))
-        x = np.reshape(data[:needed_count], [1, needed_count, 1])
-        y = np.reshape(data[needed_count], [1, 1, 1])
-        return x, y, taken_count + needed_count
+            if j % train_each == 0:
+                train_results = session.run(train_fetches, train_feeds)
+                train_feeds[start] = train_results['finish']
 
-    return compute
+            if j % report_each == 0:
+                print('%12d %12d %12.2e' % (j, j // train_each,
+                                            train_results['loss']))
 
-def compare(y, y_hat):
-    support.figure(height=6)
-    pp.plot(y)
-    pp.plot(y_hat)
-    pp.legend(['Observed', 'Imagined'])
+            if j % predict_each == 0:
+                predict_feeds[start] = train_feeds[start]
+                predict_feeds[x] = train_feeds[y]
+                for k in range(predict_count):
+                    predict_results = session.run(predict_fetches, predict_feeds)
+                    predict_feeds[start] = predict_results['finish']
+                    Y[k], Y_hat[k] = f(j + k), predict_results['y_hat'][0]
+                    predict_feeds[x][0] = Y_hat[k]
+                assess(Y, Y_hat)
 
-def model(layer_count, unit_count):
+def configure(layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
             initializer = tf.random_uniform_initializer(-0.05, 0.05)
@@ -128,7 +130,25 @@ def model(layer_count, unit_count):
 
     return compute
 
+support.figure(height=6)
+pp.pause(1)
+
+def assess(y, y_hat):
+    pp.clf()
+    pp.plot(y)
+    pp.plot(y_hat)
+    pp.legend(['Observed', 'Predicted'])
+    pp.pause(1)
+
 def target(x):
     return np.sin(0.1 * x)
 
-assess(target)
+learn(target,
+      train_each=10,
+      report_each=int(1e4),
+      predict_each=int(1e4),
+      predict_count=int(1e3),
+      total_count=int(1e5 + 1e3),
+      assess=assess)
+
+pp.show()
