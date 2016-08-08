@@ -8,13 +8,25 @@ def count_apps(path=DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT COUNT(DISTINCT app) FROM jobs')
-    return cursor.fetchone()[0]
+    data = cursor.fetchone()[0]
+    connection.close()
+    return data
 
 def count_users(path=DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT COUNT(DISTINCT user) FROM jobs')
-    return cursor.fetchone()[0]
+    data = cursor.fetchone()[0]
+    connection.close()
+    return data
+
+def count_user_jobs(path=DATABASE_PATH):
+    connection = sqlite3.connect(path)
+    cursor = connection.cursor()
+    cursor.execute('SELECT COUNT(time) FROM jobs GROUP BY user')
+    data = np.array([row[0] for row in cursor])
+    connection.close()
+    return data
 
 def figure(width=12, height=8):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
