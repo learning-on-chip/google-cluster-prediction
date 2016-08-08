@@ -9,7 +9,7 @@ import support
 import tensorflow as tf
 
 def learn(f, train_each, report_each, predict_each, predict_count, total_count,
-          assess):
+          repeat_count, assess):
 
     assert(report_each % train_each == 0)
     assert(predict_each % train_each == 0)
@@ -25,30 +25,29 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
     gradient_norm = 1.0
 
     model = configure(layer_count, unit_count)
+    graph = tf.get_default_graph()
+    tf.train.SummaryWriter('log', graph)
 
-    graph = tf.Graph()
-    with graph.as_default():
-        x = tf.placeholder(tf.float32, [1, None, 1], name='x')
-        y = tf.placeholder(tf.float32, [1, 1, 1], name='y')
-        (y_hat, loss), (start, finish) = model(x, y)
+    x = tf.placeholder(tf.float32, [1, None, 1], name='x')
+    y = tf.placeholder(tf.float32, [1, 1, 1], name='y')
+    (y_hat, loss), (start, finish) = model(x, y)
 
-        with tf.variable_scope('optimization'):
-            trainees = tf.trainable_variables()
-            gradient = tf.gradients(loss, trainees)
-            gradient, _ = tf.clip_by_global_norm(gradient, gradient_norm)
-            optimizer = tf.train.AdamOptimizer(learning_rate)
-            train = optimizer.apply_gradients(zip(gradient, trainees))
+    with tf.variable_scope('optimization'):
+        trainees = tf.trainable_variables()
+        gradient = tf.gradients(loss, trainees)
+        gradient, _ = tf.clip_by_global_norm(gradient, gradient_norm)
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        train = optimizer.apply_gradients(zip(gradient, trainees))
 
-        initialize = tf.initialize_variables(tf.all_variables(),
-                                             name='initialize')
+    initialize = tf.initialize_variables(tf.all_variables(),
+                                         name='initialize')
 
-    with tf.Session(graph=graph) as session:
-        tf.train.SummaryWriter('log', graph)
-        session.run(initialize)
+    session = tf.Session(graph=graph)
+    session.run(initialize)
 
-        learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
-        print('Learning {} parameters...'.format(learn_count))
-
+    learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
+    print('Learning {} parameters...'.format(learn_count))
+    for _ in range(repeat_count):
         train_fetches = {'finish': finish, 'train': train, 'loss': loss}
         train_feeds = {
             start: np.zeros(start.get_shape(), dtype=np.float32),
@@ -79,7 +78,8 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
                 predict_feeds[start] = train_feeds[start]
                 predict_feeds[x] = train_feeds[y]
                 for k in range(predict_count):
-                    predict_results = session.run(predict_fetches, predict_feeds)
+                    predict_results = session.run(predict_fetches,
+                                                  predict_feeds)
                     predict_feeds[start] = predict_results['finish']
                     Y[k], Y_hat[k] = f(j + k), predict_results['y_hat'][0]
                     predict_feeds[x][0] = Y_hat[k]
@@ -130,7 +130,7 @@ def configure(layer_count, unit_count):
 
     return compute
 
-support.figure(height=6)
+support.figure()
 pp.pause(1)
 
 def assess(y, y_hat):
@@ -147,6 +147,7 @@ if False:
           predict_each=int(1e4),
           predict_count=int(1e3),
           total_count=int(1e5 + 1e3),
+          repeat_count=1,
           assess=assess)
 else:
     data = support.select_interarrivals(app=None, user=37)
@@ -157,6 +158,7 @@ else:
           predict_each=int(1e4),
           predict_count=10,
           total_count=len(data),
+          repeat_count=10,
           assess=assess)
 
 pp.show()
