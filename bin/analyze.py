@@ -40,6 +40,7 @@ support.figure()
 count = min(len(data), 10000)
 pp.plot(data[:count])
 pp.title('Interarrivals, {} of {} samples'.format(count, len(data)))
+pp.ylabel('Time')
 
 support.figure()
 pp.hist(np.log10(data), bins=1000, log=True)

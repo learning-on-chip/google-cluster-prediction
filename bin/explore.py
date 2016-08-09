@@ -13,10 +13,12 @@ while True:
     while True:
         app = None
         user = random.randrange(user_count)
-        data = support.select_interarrivals(app=app, user=user)
+        data = support.select_data(app=app, user=user)[:, 0]
         if len(data) >= 10: break
     pp.clf()
     pp.plot(data)
-    pp.title('App {}, User {}, Samples {}'.format(app, user, len(data)))
+    pp.title('Interarrivals, app {}, user {}, {} samples'.format(app, user,
+                                                                 len(data)))
+    pp.ylabel('Time')
     pp.pause(1)
     input()
