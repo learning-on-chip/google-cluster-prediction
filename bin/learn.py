@@ -9,7 +9,7 @@ import support
 import tensorflow as tf
 
 def learn(f, train_each, report_each, predict_each, predict_count, total_count,
-          repeat_count, assess):
+          epoch_count, assess):
 
     assert(report_each % train_each == 0)
     assert(predict_each % train_each == 0)
@@ -46,8 +46,8 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
     session.run(initialize)
 
     learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
-    print('Learning {} parameters...'.format(learn_count))
-    for _ in range(repeat_count):
+    print('Parameters: %d' % learn_count)
+    for k in range(epoch_count):
         train_fetches = {'finish': finish, 'train': train, 'loss': loss}
         train_feeds = {
             start: np.zeros(start.get_shape(), dtype=np.float32),
@@ -60,6 +60,7 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
         Y = np.zeros([predict_count, 1])
         Y_hat = np.zeros([predict_count, 1])
 
+        print('\nEpoch: %d' % (k + 1))
         print('%12s %12s %12s' % ('Samples', 'Trainings', 'Loss'))
         for i, j in zip(range(total_count - 1), range(1, total_count)):
             train_feeds[x] = np.roll(train_feeds[x], -1, axis=1)
@@ -88,7 +89,7 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
 def configure(layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            initializer = tf.random_uniform_initializer(-0.05, 0.05)
+            initializer = tf.random_uniform_initializer(-0.5, 0.5)
             cell = tf.nn.rnn_cell.LSTMCell(unit_count, forget_bias=0.0,
                                            initializer=initializer,
                                            state_is_tuple=True)
@@ -147,18 +148,20 @@ if False:
           predict_each=int(1e4),
           predict_count=int(1e3),
           total_count=int(1e5 + 1e3),
-          repeat_count=1,
+          epoch_count=1,
           assess=assess)
 else:
-    data = support.select_interarrivals(app=None, user=37)
+    data = support.select_interarrivals(app=None, user=None)
     data = support.normalize(data)
+    total_count = len(data)
+    print('Samples: %d' % total_count)
     learn(lambda i: data[i],
           train_each=20,
           report_each=int(1e4),
           predict_each=int(1e4),
-          predict_count=10,
-          total_count=len(data),
-          repeat_count=10,
+          predict_count=50,
+          total_count=total_count,
+          epoch_count=20,
           assess=assess)
 
 pp.show()
