@@ -32,20 +32,20 @@ def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
 def normalize(data):
-    mean = np.mean(data)
-    variance = np.var(data)
-    return (data - mean) / np.sqrt(variance)
+    return (data - np.mean(data)) / np.sqrt(np.var(data))
 
-def select_interarrivals(app=None, user=None, path=DATABASE_PATH):
+def select_data(app=None, user=None, path=DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
-    sql = 'SELECT time FROM jobs'
+    sql = 'SELECT time, app, user FROM jobs'
     if app is not None or user is not None: sql += ' WHERE'
     if app is not None: sql += ' app = {}'.format(app)
     if app is not None and user is not None: sql += ' AND'
     if user is not None: sql += ' user = {}'.format(user)
     sql += ' ORDER BY time'
     cursor.execute(sql)
-    data = np.diff(np.array([row[0] for row in cursor]))
+    data = np.array([row for row in cursor])
+    data = np.vstack((np.diff(data[:, 0]), data[1:, 1], data[1:, 2]))
+    data = np.transpose(data)
     connection.close()
     return data

@@ -27,7 +27,7 @@ pp.title('Cumulative contribution')
 pp.xlabel('User (sorted)')
 pp.ylabel('Contribution')
 
-data = support.select_interarrivals(app=None, user=None)
+data = support.select_data(app=None, user=None)[:, 0]
 mean, variance = np.mean(data), np.var(data)
 
 print('Interarrivals:')
