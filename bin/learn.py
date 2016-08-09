@@ -8,10 +8,9 @@ import numpy as np
 import support
 import tensorflow as tf
 
-def learn(f, dimension_count, sample_count, train_each, report_each,
-          predict_each, predict_count, epoch_count, assess):
+def learn(f, dimension_count, sample_count, train_each, predict_each,
+          predict_count, epoch_count, monitor):
 
-    assert(report_each % train_each == 0)
     assert(predict_each % train_each == 0)
 
     n = sample_count // predict_each
@@ -39,8 +38,7 @@ def learn(f, dimension_count, sample_count, train_each, report_each,
         optimizer = tf.train.AdamOptimizer(learning_rate)
         train = optimizer.apply_gradients(zip(gradient, parameters))
 
-    initialize = tf.initialize_variables(tf.all_variables(),
-                                         name='initialize')
+    initialize = tf.initialize_variables(tf.all_variables(), name='initialize')
 
     session = tf.Session(graph=graph)
     session.run(initialize)
@@ -59,9 +57,6 @@ def learn(f, dimension_count, sample_count, train_each, report_each,
 
         Y = np.zeros([predict_count, dimension_count])
         Y_hat = np.zeros([predict_count, dimension_count])
-
-        print('\nEpoch: %d' % (k + 1))
-        print('%10s %10s %12s' % ('Samples', 'Trainings', 'Loss'))
         for i, j in zip(range(sample_count - 1), range(1, sample_count)):
             train_feeds[x] = np.roll(train_feeds[x], -1, axis=1)
             train_feeds[x][0, -1, :] = f(i)
@@ -71,23 +66,19 @@ def learn(f, dimension_count, sample_count, train_each, report_each,
                 train_results = session.run(train_fetches, train_feeds)
                 train_feeds[start] = train_results['finish']
 
-            if j % report_each == 0:
-                errors = train_results['loss'].flatten()
-                sys.stdout.write('%10d %10d' % (j, j // train_each))
-                [sys.stdout.write(' %12.4e' % e) for e in errors]
-                sys.stdout.write('\n')
+            if j % predict_each != 0: continue
 
-            if j % predict_each == 0:
-                predict_feeds[start] = train_feeds[start]
-                predict_feeds[x] = train_feeds[y]
-                for k in range(predict_count):
-                    predict_results = session.run(predict_fetches,
-                                                  predict_feeds)
-                    predict_feeds[start] = predict_results['finish']
-                    Y_hat[k, :] = predict_results['y_hat'][0, :]
-                    predict_feeds[x][0, 0, :] = Y_hat[k, :]
-                    Y[k, :] = f(j + k)
-                assess(Y, Y_hat)
+            predict_feeds[start] = train_feeds[start]
+            predict_feeds[x] = train_feeds[y]
+            for l in range(predict_count):
+                predict_results = session.run(predict_fetches, predict_feeds)
+                predict_feeds[start] = predict_results['finish']
+                Y_hat[l, :] = predict_results['y_hat'][0, :]
+                predict_feeds[x][0, 0, :] = Y_hat[l, :]
+                Y[l, :] = f(j + l)
+
+            monitor(Y, Y_hat, progress=(k, j // train_each, j),
+                    loss=train_results['loss'].flatten())
 
 def configure(dimension_count, layer_count, unit_count):
     def compute(x, y):
@@ -139,11 +130,14 @@ def configure(dimension_count, layer_count, unit_count):
 support.figure()
 pp.pause(1)
 
-def assess(y, y_hat):
+def monitor(y, y_hat, progress, loss):
+    sys.stdout.write('%4d %8d %10d' % progress)
+    [sys.stdout.write(' %12.4e' % l) for l in loss]
+    sys.stdout.write('\n')
     pp.clf()
-    count = y.shape[1]
-    for i in range(count):
-        pp.subplot(count, 1, i + 1)
+    dimension_count = y.shape[1]
+    for i in range(dimension_count):
+        pp.subplot(dimension_count, 1, i + 1)
         pp.plot(y[:, i])
         pp.plot(y_hat[:, i])
         pp.legend(['Observed', 'Predicted'])
@@ -154,11 +148,10 @@ if True:
           dimension_count = 2,
           sample_count=int(1e6),
           train_each=10,
-          report_each=int(1e4),
           predict_each=int(1e4),
           predict_count=int(1e3),
           epoch_count=1,
-          assess=assess)
+          monitor=monitor)
 else:
     data = support.select_interarrivals(app=None, user=None)
     data = support.normalize(data)
@@ -168,10 +161,9 @@ else:
           dimension_count = 1,
           sample_count=sample_count,
           train_each=20,
-          report_each=int(1e4),
           predict_each=int(1e4),
           predict_count=50,
           epoch_count=20,
-          assess=assess)
+          monitor=monitor)
 
 pp.show()
