@@ -8,36 +8,36 @@ import numpy as np
 import support
 import tensorflow as tf
 
-def learn(f, train_each, report_each, predict_each, predict_count, total_count,
-          epoch_count, assess):
+def learn(f, dimension_count, sample_count, train_each, report_each,
+          predict_each, predict_count, epoch_count, assess):
 
     assert(report_each % train_each == 0)
     assert(predict_each % train_each == 0)
 
-    n = total_count // predict_each
-    while n > 0 and n*predict_each + predict_count > total_count: n -= 1
-    total_count = n*predict_each + predict_count
+    n = sample_count // predict_each
+    while n > 0 and n*predict_each + predict_count > sample_count: n -= 1
+    sample_count = n*predict_each + predict_count
     if n == 0: return
 
     layer_count = 1
     unit_count = 100
     learning_rate = 1e-4
-    gradient_norm = 1.0
+    gradient_norm = 1
 
-    model = configure(layer_count, unit_count)
+    model = configure(dimension_count, layer_count, unit_count)
     graph = tf.get_default_graph()
     tf.train.SummaryWriter('log', graph)
 
-    x = tf.placeholder(tf.float32, [1, None, 1], name='x')
-    y = tf.placeholder(tf.float32, [1, 1, 1], name='y')
+    x = tf.placeholder(tf.float32, [1, None, dimension_count], name='x')
+    y = tf.placeholder(tf.float32, [1, 1, dimension_count], name='y')
     (y_hat, loss), (start, finish) = model(x, y)
 
     with tf.variable_scope('optimization'):
-        trainees = tf.trainable_variables()
-        gradient = tf.gradients(loss, trainees)
+        parameters = tf.trainable_variables()
+        gradient = tf.gradients(loss, parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, gradient_norm)
         optimizer = tf.train.AdamOptimizer(learning_rate)
-        train = optimizer.apply_gradients(zip(gradient, trainees))
+        train = optimizer.apply_gradients(zip(gradient, parameters))
 
     initialize = tf.initialize_variables(tf.all_variables(),
                                          name='initialize')
@@ -45,35 +45,37 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
     session = tf.Session(graph=graph)
     session.run(initialize)
 
-    learn_count = np.sum([int(np.prod(t.get_shape())) for t in trainees])
-    print('Parameters: %d' % learn_count)
+    parameter_count = np.sum([int(np.prod(p.get_shape())) for p in parameters])
+    print('Parameters: %d' % parameter_count)
     for k in range(epoch_count):
         train_fetches = {'finish': finish, 'train': train, 'loss': loss}
         train_feeds = {
             start: np.zeros(start.get_shape(), dtype=np.float32),
-            x: np.zeros([1, train_each, 1], dtype=np.float32),
-            y: np.zeros([1, 1, 1], dtype=np.float32),
+            x: np.zeros([1, train_each, dimension_count], dtype=np.float32),
+            y: np.zeros([1, 1, dimension_count], dtype=np.float32),
         }
         predict_fetches = {'finish': finish, 'y_hat': y_hat}
         predict_feeds = {start: None, x: None}
 
-        Y = np.zeros([predict_count, 1])
-        Y_hat = np.zeros([predict_count, 1])
+        Y = np.zeros([predict_count, dimension_count])
+        Y_hat = np.zeros([predict_count, dimension_count])
 
         print('\nEpoch: %d' % (k + 1))
-        print('%12s %12s %12s' % ('Samples', 'Trainings', 'Loss'))
-        for i, j in zip(range(total_count - 1), range(1, total_count)):
+        print('%10s %10s %12s' % ('Samples', 'Trainings', 'Loss'))
+        for i, j in zip(range(sample_count - 1), range(1, sample_count)):
             train_feeds[x] = np.roll(train_feeds[x], -1, axis=1)
-            train_feeds[x][0, -1, 0] = f(i)
-            train_feeds[y][0] = f(j)
+            train_feeds[x][0, -1, :] = f(i)
+            train_feeds[y][0, 0, :] = f(j)
 
             if j % train_each == 0:
                 train_results = session.run(train_fetches, train_feeds)
                 train_feeds[start] = train_results['finish']
 
             if j % report_each == 0:
-                print('%12d %12d %12.2e' % (j, j // train_each,
-                                            train_results['loss']))
+                errors = train_results['loss'].flatten()
+                sys.stdout.write('%10d %10d' % (j, j // train_each))
+                [sys.stdout.write(' %12.4e' % e) for e in errors]
+                sys.stdout.write('\n')
 
             if j % predict_each == 0:
                 predict_feeds[start] = train_feeds[start]
@@ -82,14 +84,15 @@ def learn(f, train_each, report_each, predict_each, predict_count, total_count,
                     predict_results = session.run(predict_fetches,
                                                   predict_feeds)
                     predict_feeds[start] = predict_results['finish']
-                    Y[k], Y_hat[k] = f(j + k), predict_results['y_hat'][0]
-                    predict_feeds[x][0] = Y_hat[k]
+                    Y_hat[k, :] = predict_results['y_hat'][0, :]
+                    predict_feeds[x][0, 0, :] = Y_hat[k, :]
+                    Y[k, :] = f(j + k)
                 assess(Y, Y_hat)
 
-def configure(layer_count, unit_count):
+def configure(dimension_count, layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            initializer = tf.random_uniform_initializer(-0.5, 0.5)
+            initializer = tf.random_uniform_initializer(-0.05, 0.05)
             cell = tf.nn.rnn_cell.LSTMCell(unit_count, forget_bias=0.0,
                                            initializer=initializer,
                                            state_is_tuple=True)
@@ -122,10 +125,12 @@ def configure(layer_count, unit_count):
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
-            initializer = tf.truncated_normal([unit_count, 1], stddev=0.5)
+            y = tf.reshape(y, [1, dimension_count])
+            initializer = tf.truncated_normal([unit_count, dimension_count],
+                                              stddev=0.05)
             w = tf.get_variable('w', initializer=initializer)
-            b = tf.get_variable('b', [1])
-            y_hat = tf.squeeze(tf.matmul(x, w) + b, squeeze_dims=[1])
+            b = tf.get_variable('b', [1, dimension_count])
+            y_hat = tf.matmul(x, w) + b
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
 
@@ -136,31 +141,36 @@ pp.pause(1)
 
 def assess(y, y_hat):
     pp.clf()
-    pp.plot(y)
-    pp.plot(y_hat)
-    pp.legend(['Observed', 'Predicted'])
+    count = y.shape[1]
+    for i in range(count):
+        pp.subplot(count, 1, i + 1)
+        pp.plot(y[:, i])
+        pp.plot(y_hat[:, i])
+        pp.legend(['Observed', 'Predicted'])
     pp.pause(1)
 
-if False:
-    learn(lambda i: np.sin(0.1 * i),
+if True:
+    learn(lambda i: [np.sin(0.1 * i), np.cos(0.05 * i)],
+          dimension_count = 2,
+          sample_count=int(1e6),
           train_each=10,
           report_each=int(1e4),
           predict_each=int(1e4),
           predict_count=int(1e3),
-          total_count=int(1e5 + 1e3),
           epoch_count=1,
           assess=assess)
 else:
     data = support.select_interarrivals(app=None, user=None)
     data = support.normalize(data)
-    total_count = len(data)
-    print('Samples: %d' % total_count)
+    sample_count = len(data)
+    print('Samples: %d' % sample_count)
     learn(lambda i: data[i],
+          dimension_count = 1,
+          sample_count=sample_count,
           train_each=20,
           report_each=int(1e4),
           predict_each=int(1e4),
           predict_count=50,
-          total_count=total_count,
           epoch_count=20,
           assess=assess)
 
