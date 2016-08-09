@@ -59,7 +59,7 @@ fn read<T: AsRef<Path>>(path: T) -> Result<Vec<f64>> {
     use sqlite::State;
 
     let connection = ok!(Connection::open(path));
-    let sql = ok!(select_from("arrivals").columns(&["time"]).order_by(column("time")).compile());
+    let sql = ok!(select_from("jobs").columns(&["time"]).order_by(column("time")).compile());
     let mut statement = ok!(connection.prepare(sql));
     let mut data = vec![];
     let mut past = None;
