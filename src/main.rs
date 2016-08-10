@@ -64,9 +64,9 @@ fn read<T: AsRef<Path>>(path: T) -> Result<Vec<f64>> {
     let mut data = vec![];
     let mut past = None;
     while let State::Row = ok!(statement.next()) {
-        let present = ok!(statement.read::<f64>(0));
+        let present = ok!(statement.read::<i64>(0));
         if let Some(past) = past {
-            data.push(present - past);
+            data.push(1e-6 * (present - past) as f64);
         }
         past = Some(present);
     }

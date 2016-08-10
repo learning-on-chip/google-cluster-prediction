@@ -49,7 +49,7 @@ def select_data(app=None, user=None, path=DATABASE_PATH):
     sql += ' ORDER BY time'
     cursor.execute(sql)
     data = np.array([row for row in cursor])
-    data = np.vstack((np.diff(data[:, 0]), data[1:, 1], data[1:, 2]))
+    data = np.vstack((1e-6 * np.diff(data[:, 0]), data[1:, 1], data[1:, 2]))
     data = np.transpose(data)
     connection.close()
     return data
