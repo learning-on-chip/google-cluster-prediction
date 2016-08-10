@@ -23,8 +23,8 @@ def count_users(path=DATABASE_PATH):
 def count_user_jobs(path=DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
-    cursor.execute('SELECT COUNT(time) FROM jobs GROUP BY user')
-    data = np.array([row[0] for row in cursor])
+    cursor.execute('SELECT user, COUNT(time) FROM jobs GROUP BY user')
+    data = np.array([row for row in cursor])
     connection.close()
     return data
 
@@ -39,9 +39,13 @@ def select_data(app=None, user=None, path=DATABASE_PATH):
     cursor = connection.cursor()
     sql = 'SELECT time, app, user FROM jobs'
     if app is not None or user is not None: sql += ' WHERE'
-    if app is not None: sql += ' app = {}'.format(app)
+    if app is not None:
+        app = app if hasattr(app, '__iter__') else [app]
+        sql += ' app in ({})'.format(', '.join([str(app) for app in app]))
     if app is not None and user is not None: sql += ' AND'
-    if user is not None: sql += ' user = {}'.format(user)
+    if user is not None:
+        user = user if hasattr(user, '__iter__') else [user]
+        sql += ' user in ({})'.format(', '.join([str(user) for user in user]))
     sql += ' ORDER BY time'
     cursor.execute(sql)
     data = np.array([row for row in cursor])
