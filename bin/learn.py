@@ -44,6 +44,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
     session.run(initialize)
 
     parameter_count = np.sum([int(np.prod(p.get_shape())) for p in parameters])
+    print('Samples: %d' % sample_count)
     print('Parameters: %d' % parameter_count)
     for k in range(epoch_count):
         train_fetches = {'finish': finish, 'train': train, 'loss': loss}
@@ -115,14 +116,14 @@ def configure(dimension_count, layer_count, unit_count):
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
-            train_each = tf.shape(x)[1]
+            unroll_count = tf.shape(x)[1]
             x = tf.squeeze(x, squeeze_dims=[0])
             y = tf.squeeze(y, squeeze_dims=[0])
             initializer = tf.truncated_normal([unit_count, dimension_count],
                                               stddev=0.05)
             w = tf.get_variable('w', initializer=initializer)
             b = tf.get_variable('b', [1, dimension_count])
-            y_hat = tf.matmul(x, w) + tf.tile(b, [train_each, 1])
+            y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
 
@@ -156,11 +157,9 @@ if True:
 else:
     data = 1e-6 * support.diff(support.select_data(app=None, user=None))[:, 0]
     data = support.normalize(data)
-    sample_count = len(data)
-    print('Samples: %d' % sample_count)
     learn(lambda i: data[i],
           dimension_count=1,
-          sample_count=sample_count,
+          sample_count=len(data),
           train_each=20,
           predict_each=int(1e4),
           predict_count=50,
