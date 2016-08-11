@@ -28,7 +28,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
     tf.train.SummaryWriter('log', graph)
 
     x = tf.placeholder(tf.float32, [1, None, dimension_count], name='x')
-    y = tf.placeholder(tf.float32, [1, 1, dimension_count], name='y')
+    y = tf.placeholder(tf.float32, [1, None, dimension_count], name='y')
     (y_hat, loss), (start, finish) = model(x, y)
 
     with tf.variable_scope('optimization'):
@@ -50,7 +50,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
         train_feeds = {
             start: np.zeros(start.get_shape(), dtype=np.float32),
             x: np.zeros([1, train_each, dimension_count], dtype=np.float32),
-            y: np.zeros([1, 1, dimension_count], dtype=np.float32),
+            y: np.zeros([1, train_each, dimension_count], dtype=np.float32),
         }
         predict_fetches = {'finish': finish, 'y_hat': y_hat}
         predict_feeds = {start: None, x: None}
@@ -59,8 +59,9 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
         Y_hat = np.zeros([predict_count, dimension_count])
         for i, j in zip(range(sample_count - 1), range(1, sample_count)):
             train_feeds[x] = np.roll(train_feeds[x], -1, axis=1)
+            train_feeds[y] = np.roll(train_feeds[y], -1, axis=1)
             train_feeds[x][0, -1, :] = f(i)
-            train_feeds[y][0, 0, :] = f(j)
+            train_feeds[y][0, -1, :] = f(j)
 
             if j % train_each == 0:
                 train_results = session.run(train_fetches, train_feeds)
@@ -69,7 +70,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
             if j % predict_each != 0: continue
 
             predict_feeds[start] = train_feeds[start]
-            predict_feeds[x] = train_feeds[y]
+            predict_feeds[x] = np.reshape(train_feeds[y][0, -1, :], [1, 1, -1])
             for l in range(predict_count):
                 predict_results = session.run(predict_fetches, predict_feeds)
                 predict_feeds[start] = predict_results['finish']
@@ -93,8 +94,6 @@ def configure(dimension_count, layer_count, unit_count):
             h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state,
                                          parallel_iterations=1)
             finish = finalize(state)
-            i = tf.shape(h) - np.array([1, 1, unit_count])
-            h = tf.reshape(tf.slice(h, i, [1, 1, unit_count]), [1, unit_count])
         return regress(h, y), (start, finish)
 
     def finalize(state):
@@ -116,12 +115,14 @@ def configure(dimension_count, layer_count, unit_count):
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
-            y = tf.reshape(y, [1, dimension_count])
+            train_each = tf.shape(x)[1]
+            x = tf.squeeze(x, squeeze_dims=[0])
+            y = tf.squeeze(y, squeeze_dims=[0])
             initializer = tf.truncated_normal([unit_count, dimension_count],
                                               stddev=0.05)
             w = tf.get_variable('w', initializer=initializer)
             b = tf.get_variable('b', [1, dimension_count])
-            y_hat = tf.matmul(x, w) + b
+            y_hat = tf.matmul(x, w) + tf.tile(b, [train_each, 1])
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
 
