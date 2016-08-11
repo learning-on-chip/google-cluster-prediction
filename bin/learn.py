@@ -19,8 +19,8 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
     if n == 0: return
 
     layer_count = 1
-    unit_count = 40
-    learning_rate = 1e-3
+    unit_count = 20
+    learning_rate = 1e-2
     gradient_norm = 1
 
     model = configure(dimension_count, layer_count, unit_count)
@@ -85,7 +85,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
 def configure(dimension_count, layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            initializer = tf.random_normal_initializer(stddev=0.05)
+            initializer = tf.random_normal_initializer(stddev=0.1)
             cell = tf.nn.rnn_cell.LSTMCell(unit_count, forget_bias=0.0,
                                            initializer=initializer,
                                            state_is_tuple=True)
@@ -120,7 +120,7 @@ def configure(dimension_count, layer_count, unit_count):
             x = tf.squeeze(x, squeeze_dims=[0])
             y = tf.squeeze(y, squeeze_dims=[0])
             initializer = tf.truncated_normal([unit_count, dimension_count],
-                                              stddev=0.05)
+                                              stddev=0.1)
             w = tf.get_variable('w', initializer=initializer)
             b = tf.get_variable('b', [1, dimension_count])
             y_hat = tf.exp(tf.matmul(x, w) + tf.tile(b, [unroll_count, 1]))
