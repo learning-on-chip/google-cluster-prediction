@@ -36,7 +36,8 @@ def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
 def normalize(data):
-    return (data - np.mean(data)) / np.sqrt(np.var(data))
+    data = (data - np.mean(data)) / np.sqrt(np.var(data))
+    return data - np.min(data)
 
 def select_data(app=None, user=None, path=DATABASE_PATH):
     connection = sqlite3.connect(path)

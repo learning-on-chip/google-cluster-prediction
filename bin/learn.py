@@ -19,8 +19,8 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
     if n == 0: return
 
     layer_count = 1
-    unit_count = 100
-    learning_rate = 1e-4
+    unit_count = 40
+    learning_rate = 1e-3
     gradient_norm = 1
 
     model = configure(dimension_count, layer_count, unit_count)
@@ -85,7 +85,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
 def configure(dimension_count, layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            initializer = tf.random_uniform_initializer(-0.05, 0.05)
+            initializer = tf.random_normal_initializer(stddev=0.05)
             cell = tf.nn.rnn_cell.LSTMCell(unit_count, forget_bias=0.0,
                                            initializer=initializer,
                                            state_is_tuple=True)
@@ -123,14 +123,14 @@ def configure(dimension_count, layer_count, unit_count):
                                               stddev=0.05)
             w = tf.get_variable('w', initializer=initializer)
             b = tf.get_variable('b', [1, dimension_count])
-            y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
+            y_hat = tf.exp(tf.matmul(x, w) + tf.tile(b, [unroll_count, 1]))
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
 
     return compute
 
 support.figure()
-pp.pause(1)
+pp.pause(1e-3)
 
 def monitor(y, y_hat, progress, loss):
     sys.stdout.write('%4d %8d %10d' % progress)
@@ -143,27 +143,18 @@ def monitor(y, y_hat, progress, loss):
         pp.plot(y[:, i])
         pp.plot(y_hat[:, i])
         pp.legend(['Observed', 'Predicted'])
-    pp.pause(1)
+    pp.pause(1e-3)
 
-if True:
-    learn(lambda i: [np.sin(0.1 * i), np.cos(0.05 * i)],
-          dimension_count=2,
-          sample_count=int(1e6),
-          train_each=10,
-          predict_each=int(1e4),
-          predict_count=int(1e3),
-          epoch_count=1,
-          monitor=monitor)
-else:
-    data = 1e-6 * support.diff(support.select_data(app=None, user=None))[:, 0]
-    data = support.normalize(data)
-    learn(lambda i: data[i],
-          dimension_count=1,
-          sample_count=len(data),
-          train_each=20,
-          predict_each=int(1e4),
-          predict_count=50,
-          epoch_count=20,
-          monitor=monitor)
+data = support.diff(support.select_data(app=None, user=421))[:, 0]
+data = support.normalize(data)
+
+learn(lambda i: data[i],
+      dimension_count=1,
+      sample_count=len(data),
+      train_each=20,
+      predict_each=20,
+      predict_count=20,
+      epoch_count=100,
+      monitor=monitor)
 
 pp.show()
