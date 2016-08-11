@@ -145,7 +145,7 @@ def monitor(y, y_hat, progress, loss):
 
 if True:
     learn(lambda i: [np.sin(0.1 * i), np.cos(0.05 * i)],
-          dimension_count = 2,
+          dimension_count=2,
           sample_count=int(1e6),
           train_each=10,
           predict_each=int(1e4),
@@ -158,7 +158,7 @@ else:
     sample_count = len(data)
     print('Samples: %d' % sample_count)
     learn(lambda i: data[i],
-          dimension_count = 1,
+          dimension_count=1,
           sample_count=sample_count,
           train_each=20,
           predict_each=int(1e4),
