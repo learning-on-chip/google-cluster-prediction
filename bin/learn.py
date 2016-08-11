@@ -153,7 +153,7 @@ if True:
           epoch_count=1,
           monitor=monitor)
 else:
-    data = support.select_data(app=None, user=None)[:, 0]
+    data = 1e-6 * support.diff(support.select_data(app=None, user=None))[:, 0]
     data = support.normalize(data)
     sample_count = len(data)
     print('Samples: %d' % sample_count)

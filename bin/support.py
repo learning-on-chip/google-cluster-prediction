@@ -28,6 +28,10 @@ def count_user_jobs(path=DATABASE_PATH):
     connection.close()
     return data
 
+def diff(data):
+    data = np.vstack((np.diff(data[:, 0]), data[1:, 1], data[1:, 2]))
+    return np.transpose(data)
+
 def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
@@ -49,7 +53,5 @@ def select_data(app=None, user=None, path=DATABASE_PATH):
     sql += ' ORDER BY time'
     cursor.execute(sql)
     data = np.array([row for row in cursor])
-    data = np.vstack((1e-6 * np.diff(data[:, 0]), data[1:, 1], data[1:, 2]))
-    data = np.transpose(data)
     connection.close()
     return data
