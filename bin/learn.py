@@ -77,7 +77,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
                 predict_feeds[start] = predict_results['finish']
                 Y_hat[l, :] = predict_results['y_hat'][0, :]
                 predict_feeds[x][0, 0, :] = Y_hat[l, :]
-                Y[l, :] = f(j + l)
+                Y[l, :] = f(j + l + 1)
 
             monitor(Y, Y_hat, progress=(k, j // train_each, j),
                     loss=train_results['loss'].flatten())
