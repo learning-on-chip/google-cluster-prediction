@@ -28,16 +28,11 @@ def count_user_jobs(path=DATABASE_PATH):
     connection.close()
     return data
 
-def diff(data):
-    data = np.vstack((np.diff(data[:, 0]), data[1:, 1], data[1:, 2]))
-    return np.transpose(data)
-
 def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
 def normalize(data):
-    data = (data - np.mean(data)) / np.sqrt(np.var(data))
-    return data - np.min(data)
+    return (data - np.mean(data)) / np.sqrt(np.var(data))
 
 def select_data(app=None, user=None, path=DATABASE_PATH):
     connection = sqlite3.connect(path)

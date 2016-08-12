@@ -85,9 +85,9 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
 def configure(dimension_count, layer_count, unit_count):
     def compute(x, y):
         with tf.variable_scope('network') as scope:
-            initializer = tf.random_normal_initializer(stddev=0.1)
-            cell = tf.nn.rnn_cell.LSTMCell(unit_count, forget_bias=0.0,
-                                           initializer=initializer,
+            initializer = tf.random_uniform_initializer(-0.1, 0.1)
+            cell = tf.nn.rnn_cell.LSTMCell(unit_count, initializer=initializer,
+                                           forget_bias=0.0, use_peepholes=True,
                                            state_is_tuple=True)
             cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
                                                state_is_tuple=True)
@@ -123,7 +123,7 @@ def configure(dimension_count, layer_count, unit_count):
                                               stddev=0.1)
             w = tf.get_variable('w', initializer=initializer)
             b = tf.get_variable('b', [1, dimension_count])
-            y_hat = tf.exp(tf.matmul(x, w) + tf.tile(b, [unroll_count, 1]))
+            y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
         return y_hat, loss
 
@@ -142,10 +142,11 @@ def monitor(y, y_hat, progress, loss):
         pp.subplot(dimension_count, 1, i + 1)
         pp.plot(y[:, i])
         pp.plot(y_hat[:, i])
+        pp.xlim([0, y.shape[0] - 1])
         pp.legend(['Observed', 'Predicted'])
     pp.pause(1e-3)
 
-data = support.select_data(app=None, user=421)[:, 0]
+data = support.select_data(app=None, user=381)[:, 0]
 data = support.normalize(np.diff(data))
 
 learn(lambda i: data[i],
