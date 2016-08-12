@@ -7,19 +7,10 @@ import matplotlib.pyplot as pp
 import numpy as np
 import random, support
 
-support.figure()
-app_count = support.count_apps()
-user_count = support.count_users()
-while True:
-    while True:
-        app = None
-        user = random.randrange(user_count)
-        data = support.select_data(app=app, user=user)[:, 0]
-        length = len(data)
-        if length >= 10: break
+def display(data, app, user):
     pp.clf()
     pp.subplot(2, 1, 1)
-    data = 1e-6 * data
+    length = len(data)
     zeros, ones = np.zeros([length, 1]), np.ones([length, 1])
     y = np.array(list(zip(zeros, ones, zeros))).flatten()
     x = np.array(list(zip(data, data, data))).flatten()
@@ -36,5 +27,24 @@ while True:
     pp.title('Interarrivals')
     pp.ylabel('Time')
     pp.gcf().subplots_adjust(hspace=0.5)
-    pp.pause(1)
+    pp.pause(1e-3)
+
+support.figure()
+
+if len(sys.argv) > 1:
+    app = None
+    user = int(sys.argv[1])
+    data = 1e-6 * support.select_data(app=app, user=user)[:, 0]
+    display(data, app=app, user=user)
     input()
+else:
+    app_count = support.count_apps()
+    user_count = support.count_users()
+    while True:
+        while True:
+            app = None
+            user = random.randrange(user_count)
+            data = support.select_data(app=app, user=user)[:, 0]
+            if len(data) >= 10: break
+        display(1e-6 * data, app=app, user=user)
+        if input('More? ') == 'no': break
