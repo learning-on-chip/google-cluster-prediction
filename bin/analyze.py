@@ -30,7 +30,7 @@ portion = np.cumsum(data[:, 1]) / np.sum(data[:, 1])
 print('  %5s %10s %10s %10s %10s %10s' % ('User', 'Jobs', 'Portion', 'Min',
                                           'Mean', 'Max'))
 for i in range(count):
-    trace = 1e-6 * support.diff(support.select_data(user=data[i, 0]))[:, 0]
+    trace = 1e-6 * np.diff(support.select_data(user=data[i, 0])[:, 0])
     print('  %5d %10d %10.2f %10.2e %10.2e %10.2e' % (data[i, 0],
                                                       data[i, 1],
                                                       portion[i],
@@ -46,7 +46,7 @@ if plot:
     pp.xlabel('User (sorted)')
     pp.ylabel('Contribution')
 
-data = 1e-6 * support.diff(support.select_data(app=None, user=None))[:, 0]
+data = 1e-6 * np.diff(support.select_data(app=None, user=None)[:, 0])
 mean, variance = np.mean(data), np.var(data)
 
 print('Interarrivals:')

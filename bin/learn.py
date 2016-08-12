@@ -145,8 +145,8 @@ def monitor(y, y_hat, progress, loss):
         pp.legend(['Observed', 'Predicted'])
     pp.pause(1e-3)
 
-data = support.diff(support.select_data(app=None, user=421))[:, 0]
-data = support.normalize(data)
+data = support.select_data(app=None, user=421)[:, 0]
+data = support.normalize(np.diff(data))
 
 learn(lambda i: data[i],
       dimension_count=1,
