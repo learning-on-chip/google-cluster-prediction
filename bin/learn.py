@@ -119,9 +119,9 @@ def configure(dimension_count, layer_count, unit_count):
             unroll_count = tf.shape(x)[1]
             x = tf.squeeze(x, squeeze_dims=[0])
             y = tf.squeeze(y, squeeze_dims=[0])
-            initializer = tf.truncated_normal([unit_count, dimension_count],
-                                              stddev=0.1)
-            w = tf.get_variable('w', initializer=initializer)
+            initializer = tf.random_normal_initializer(stddev=0.1)
+            w = tf.get_variable('w', [unit_count, dimension_count],
+                                initializer=initializer)
             b = tf.get_variable('b', [1, dimension_count])
             y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
             loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
