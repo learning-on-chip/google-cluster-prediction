@@ -51,3 +51,9 @@ def select_data(app=None, user=None, path=DATABASE_PATH):
     data = np.array([row for row in cursor])
     connection.close()
     return data
+
+def standardize(data):
+    unique = np.unique(data)
+    for i, value in enumerate(unique):
+        data[data == value] = i
+    return data / len(unique)

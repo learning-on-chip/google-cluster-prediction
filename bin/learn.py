@@ -146,12 +146,14 @@ def monitor(y, y_hat, progress, loss):
         pp.legend(['Observed', 'Predicted'])
     pp.pause(1e-3)
 
-data = support.select_data(app=None, user=381)[:, 0]
-data = support.normalize(np.diff(data))
+data = support.select_data(app=None, user=381)
+data0 = support.normalize(np.diff(data[:, 0]))
+data1 = support.standardize(data[1:, 1])
+data = np.transpose(np.vstack((data0, data1)))
 
-learn(lambda i: data[i],
-      dimension_count=1,
-      sample_count=len(data),
+learn(lambda i: data[i, :],
+      dimension_count=data.shape[1],
+      sample_count=data.shape[0],
       train_each=20,
       predict_each=20,
       predict_count=20,
