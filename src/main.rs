@@ -34,7 +34,6 @@ fn main() {
 }
 
 fn start() -> Result<()> {
-
     let arguments = ok!(arguments::parse(std::env::args()));
 
     let data = match arguments.get::<String>("database") {
