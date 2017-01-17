@@ -1,6 +1,6 @@
-# Predictor [![Status][status-img]][status-url]
+# Google Cluster Prediction [![Status][status-img]][status-url]
 
-Predictor is a tool for traffic prediction.
+The repository contains scripts for predicting Google’s [cluster data][data].
 
 ## Contribution
 
@@ -8,5 +8,6 @@ Predictor is a tool for traffic prediction.
 2. Implement your idea.
 3. Open a pull request.
 
-[status-img]: https://travis-ci.org/learning-on-chip/predictor.svg?branch=master
-[status-url]: https://travis-ci.org/learning-on-chip/predictor
+[data]: https://github.com/google/cluster-data
+[status-img]: https://travis-ci.org/learning-on-chip/google-cluster-prediction.svg?branch=master
+[status-url]: https://travis-ci.org/learning-on-chip/google-cluster-prediction
