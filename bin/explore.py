@@ -34,7 +34,7 @@ support.figure()
 if len(sys.argv) > 1:
     app = None
     user = int(sys.argv[1])
-    data = 1e-6 * support.select_data(app=app, user=user)[:, 0]
+    data = 1e-6 * support.select_jobs(app=app, user=user)[:, 0]
     display(data, app=app, user=user)
     input()
 else:
@@ -44,7 +44,7 @@ else:
         while True:
             app = None
             user = random.randrange(user_count)
-            data = support.select_data(app=app, user=user)[:, 0]
+            data = support.select_jobs(app=app, user=user)[:, 0]
             if len(data) >= 10: break
         display(1e-6 * data, app=app, user=user)
         if input('More? ') == 'no': break

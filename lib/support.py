@@ -34,7 +34,7 @@ def figure(width=14, height=6):
 def normalize(data):
     return (data - np.mean(data)) / np.sqrt(np.var(data))
 
-def select_data(app=None, user=None, path=JOB_DATABASE_PATH):
+def select_jobs(app=None, user=None, path=JOB_DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     sql = 'SELECT time, app, user FROM jobs'
