@@ -2,9 +2,9 @@ import matplotlib.pyplot as pp
 import numpy as np
 import sqlite3
 
-DATABASE_PATH = 'tests/fixtures/google.sqlite3'
+JOB_DATABASE_PATH = 'tests/fixtures/jobs.sqlite3'
 
-def count_apps(path=DATABASE_PATH):
+def count_apps(path=JOB_DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT COUNT(DISTINCT app) FROM jobs')
@@ -12,7 +12,7 @@ def count_apps(path=DATABASE_PATH):
     connection.close()
     return data
 
-def count_users(path=DATABASE_PATH):
+def count_users(path=JOB_DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT COUNT(DISTINCT user) FROM jobs')
@@ -20,7 +20,7 @@ def count_users(path=DATABASE_PATH):
     connection.close()
     return data
 
-def count_user_jobs(path=DATABASE_PATH):
+def count_user_jobs(path=JOB_DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT user, COUNT(time) FROM jobs GROUP BY user')
@@ -34,7 +34,7 @@ def figure(width=14, height=6):
 def normalize(data):
     return (data - np.mean(data)) / np.sqrt(np.var(data))
 
-def select_data(app=None, user=None, path=DATABASE_PATH):
+def select_data(app=None, user=None, path=JOB_DATABASE_PATH):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     sql = 'SELECT time, app, user FROM jobs'
