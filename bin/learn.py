@@ -25,7 +25,7 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
 
     model = configure(dimension_count, layer_count, unit_count)
     graph = tf.get_default_graph()
-    tf.train.SummaryWriter('log', graph)
+    tf.summary.FileWriter('output/log', graph)
 
     x = tf.placeholder(tf.float32, [1, None, dimension_count], name='x')
     y = tf.placeholder(tf.float32, [1, None, dimension_count], name='y')
@@ -38,7 +38,8 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
         optimizer = tf.train.AdamOptimizer(learning_rate)
         train = optimizer.apply_gradients(zip(gradient, parameters))
 
-    initialize = tf.initialize_variables(tf.all_variables(), name='initialize')
+    initialize = tf.variables_initializer(tf.global_variables(),
+                                          name='initialize')
 
     session = tf.Session(graph=graph)
     session.run(initialize)
@@ -112,7 +113,7 @@ def configure(dimension_count, layer_count, unit_count):
         for i in range(layer_count):
             c, h = parts[2 * i], parts[2*i + 1]
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
-        return start, state
+        return start, tuple(state)
 
     def regress(x, y):
         with tf.variable_scope('regression') as scope:
