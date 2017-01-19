@@ -2,7 +2,7 @@ import matplotlib.pyplot as pp
 import numpy as np
 import sqlite3
 
-JOB_DATABASE_PATH = 'tests/fixtures/jobs.sqlite3'
+JOB_DATABASE_PATH = 'output/jobs.sqlite3'
 
 def count_apps(path=JOB_DATABASE_PATH):
     connection = sqlite3.connect(path)
