@@ -3,18 +3,18 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-import math, support
+import job_events, math, support
 import matplotlib.pyplot as pp
 import numpy as np
 
 plot = len(sys.argv) > 1
 
 print('Apps:')
-print('  Count: %d' % support.count_apps())
+print('  Count: %d' % job_events.count_apps())
 print('Users:')
-print('  Count: %d' % support.count_users())
+print('  Count: %d' % job_events.count_users())
 
-data = support.count_user_jobs()
+data = job_events.count_user_jobs()
 count = data.shape[0]
 
 if plot:
@@ -30,7 +30,7 @@ portion = np.cumsum(data[:, 1]) / np.sum(data[:, 1])
 print('  %5s %10s %10s %10s %10s %10s %10s' % ('User', 'Jobs', 'Portion', 'Min',
                                                'Mean', 'Max', 'Spurious'))
 for i in range(count):
-    trace = np.diff(support.select_jobs(user=data[i, 0])[:, 0])
+    trace = np.diff(job_events.select_jobs(user=data[i, 0])[:, 0])
     minute = np.sum(trace == 1) / len(trace)
     trace = 1e-6 * trace
     print('  %5d %10d %10.2f %10.2e %10.2e %10.2e %9.2f%%' % (data[i, 0],
@@ -49,7 +49,7 @@ if plot:
     pp.xlabel('User (sorted)')
     pp.ylabel('Contribution')
 
-data = 1e-6 * np.diff(support.select_jobs(app=None, user=None)[:, 0])
+data = 1e-6 * np.diff(job_events.select_jobs(app=None, user=None)[:, 0])
 mean, variance = np.mean(data), np.var(data)
 
 print('Interarrivals:')

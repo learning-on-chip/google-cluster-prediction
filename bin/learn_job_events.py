@@ -3,9 +3,9 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
+import job_events, support
 import matplotlib.pyplot as pp
 import numpy as np
-import support
 import tensorflow as tf
 
 def learn(f, dimension_count, sample_count, train_each, predict_each,
@@ -147,7 +147,7 @@ def monitor(y, y_hat, progress, loss):
         pp.legend(['Observed', 'Predicted'])
     pp.pause(1e-3)
 
-data = support.select_jobs(app=None, user=381)
+data = job_events.select_jobs(app=None, user=381)
 data0 = support.normalize(np.diff(data[:, 0]))
 data1 = support.standardize(data[1:, 1])
 data = np.transpose(np.vstack((data0, data1)))
