@@ -1,6 +1,6 @@
-jobs.sqlite3: data/output/job_events.sqlite3 jobs.sql
+job_events.sqlite3: data/output/job_events.sqlite3 job_events.sql
 	cp $< $@
-	cat jobs.sql | sqlite3 $@
+	cat job_events.sql | sqlite3 $@
 
 data/*:
 	${MAKE} -C data $*

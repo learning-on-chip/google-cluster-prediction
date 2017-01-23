@@ -14,10 +14,10 @@ INSERT INTO users SELECT DISTINCT user from clone ORDER BY user;
 UPDATE clone SET user = (select rowid from users where users.name = clone.user);
 DROP TABLE users;
 
-CREATE TABLE jobs (time INTEGER NOT NULL, app INTEGER NOT NULL, user INTEGER NOT NULL);
-INSERT INTO jobs SELECT time, app, user from clone;
+CREATE TABLE job_events (time INTEGER NOT NULL, app INTEGER NOT NULL, user INTEGER NOT NULL);
+INSERT INTO job_events SELECT time, app, user from clone;
 DROP TABLE clone;
 
-UPDATE jobs SET app = app - 1, user = user - 1;
+UPDATE job_events SET app = app - 1, user = user - 1;
 
 VACUUM;
