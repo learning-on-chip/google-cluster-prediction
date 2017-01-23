@@ -5,7 +5,7 @@ analyze_job_events: input/job_events.sqlite3
 	./bin/analyze_job_events.py
 
 analyze_task_usage: input/task_usage_distribute
-	./bin/analyze_task_usage.py
+	./bin/analyze_task_usage.py $<
 
 explore_job_events: input/job_events.sqlite3
 	./bin/explore_job_events.py
