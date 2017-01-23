@@ -1,9 +1,7 @@
 import numpy as np
 import sqlite3
 
-DATABASE_PATH = 'input/job_events.sqlite3'
-
-def count_apps(path=DATABASE_PATH):
+def count_apps(path):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT COUNT(DISTINCT app) FROM job_events')
@@ -11,7 +9,7 @@ def count_apps(path=DATABASE_PATH):
     connection.close()
     return data
 
-def count_users(path=DATABASE_PATH):
+def count_users(path):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT COUNT(DISTINCT user) FROM job_events')
@@ -19,7 +17,7 @@ def count_users(path=DATABASE_PATH):
     connection.close()
     return data
 
-def count_user_jobs(path=DATABASE_PATH):
+def count_user_jobs(path):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute('SELECT user, COUNT(time) FROM job_events GROUP BY user')
@@ -27,7 +25,7 @@ def count_user_jobs(path=DATABASE_PATH):
     connection.close()
     return data
 
-def select_jobs(app=None, user=None, path=DATABASE_PATH):
+def select_jobs(path, app=None, user=None):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     sql = 'SELECT time, app, user FROM job_events'

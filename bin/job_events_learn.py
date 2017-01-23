@@ -130,9 +130,6 @@ def configure(dimension_count, layer_count, unit_count):
 
     return compute
 
-support.figure()
-pp.pause(1e-3)
-
 def monitor(y, y_hat, progress, loss):
     sys.stdout.write('%4d %8d %10d' % progress)
     [sys.stdout.write(' %12.4e' % l) for l in loss]
@@ -147,18 +144,27 @@ def monitor(y, y_hat, progress, loss):
         pp.legend(['Observed', 'Predicted'])
     pp.pause(1e-3)
 
-data = job_events.select_jobs(app=None, user=381)
-data0 = support.normalize(np.diff(data[:, 0]))
-data1 = support.standardize(data[1:, 1])
-data = np.transpose(np.vstack((data0, data1)))
+def main(data_path):
+    support.figure()
+    pp.pause(1e-3)
 
-learn(lambda i: data[i, :],
-      dimension_count=data.shape[1],
-      sample_count=data.shape[0],
-      train_each=20,
-      predict_each=20,
-      predict_count=20,
-      epoch_count=100,
-      monitor=monitor)
+    data = job_events.select_jobs(data_path, app=None, user=381)
+    data0 = support.normalize(np.diff(data[:, 0]))
+    data1 = support.standardize(data[1:, 1])
+    data = np.transpose(np.vstack((data0, data1)))
 
-pp.show()
+    learn(lambda i: data[i, :],
+          dimension_count=data.shape[1],
+          sample_count=data.shape[0],
+          train_each=20,
+          predict_each=20,
+          predict_count=20,
+          epoch_count=100,
+          monitor=monitor)
+
+    pp.show()
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        raise Exception('expected an argument')
+    main(sys.argv[1])

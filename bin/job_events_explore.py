@@ -29,22 +29,29 @@ def display(data, app, user):
     pp.gcf().subplots_adjust(hspace=0.5)
     pp.pause(1e-3)
 
-support.figure()
-
-if len(sys.argv) > 1:
-    app = None
-    user = int(sys.argv[1])
-    data = 1e-6 * job_events.select_jobs(app=app, user=user)[:, 0]
-    display(data, app=app, user=user)
-    input()
-else:
-    app_count = job_events.count_apps()
-    user_count = job_events.count_users()
+def main_random(data_path):
+    support.figure()
+    app_count = job_events.count_apps(data_path)
+    user_count = job_events.count_users(data_path)
     while True:
         while True:
             app = None
             user = random.randrange(user_count)
-            data = job_events.select_jobs(app=app, user=user)[:, 0]
+            data = job_events.select_jobs(data_path, app=app, user=user)[:, 0]
             if len(data) >= 10: break
         display(1e-6 * data, app=app, user=user)
         if input('More? ') == 'no': break
+
+def main_specific(data_path, **arguments):
+    support.figure()
+    data = 1e-6 * job_events.select_jobs(data_path, **arguments)[:, 0]
+    display(data, **arguments)
+    input()
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        raise Exception('expected an argument')
+    if len(sys.argv) == 2:
+        main_random(sys.argv[1])
+    else:
+        main_specific(sys.argv[1], app=None, user=int(sys.argv[2]))
