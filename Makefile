@@ -1,16 +1,18 @@
 all:
 	@echo What?
 
-analyze: input/job_events.sqlite3
-	./bin/analyze.py
+analyze_job_events: input/job_events.sqlite3
+	./bin/analyze_job_events.py
 
-explore: input/job_events.sqlite3
-	./bin/explore.py
+explore_job_events: input/job_events.sqlite3
+	./bin/explore_job_events.py
 
-learn: input/job_events.sqlite3
-	./bin/learn.py
+learn_job_events: input/job_events.sqlite3
+	./bin/learn_job_events.py
 
 input/job_events.sqlite3:
 	${MAKE} -C input job_events.sqlite3
 
-.PHONY: all analyze
+.PHONY: all
+
+.PHONY: analyze_job_events explore_job_events learn_job_events
