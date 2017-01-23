@@ -1,23 +1,26 @@
 all:
 	@echo What?
 
-analyze_job_events: input/job_events.sqlite3
-	./bin/analyze_job_events.py
+job_events_analyze: input/job_events.sqlite3
+	./bin/job_events_analyze.py
 
-analyze_task_usage: input/task_usage_distribute
-	./bin/analyze_task_usage.py $<
+job_events_explore: input/job_events.sqlite3
+	./bin/job_events_explore.py
 
-explore_job_events: input/job_events.sqlite3
-	./bin/explore_job_events.py
+job_events_learn: input/job_events.sqlite3
+	./bin/job_events_learn.py
 
-learn_job_events: input/job_events.sqlite3
-	./bin/learn_job_events.py
+task_usage_analyze: input/task_usage_distribute
+	./bin/task_usage_analyze.py $<
+
+task_usage_histogram: input/task_usage_distribute
+	./bin/task_usage_histogram.py $<
 
 input/%:
 	${MAKE} -C input $*
 
 .PHONY: all
 
-.PHONY: analyze_job_events explore_job_events learn_job_events
+.PHONY: job_events_analyze job_events_explore job_events_learn
 
-.PHONY: analyze_task_usage
+.PHONY: task_usage_analyze task_usage_histogram
