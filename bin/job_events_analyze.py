@@ -3,9 +3,11 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-import job_events, math, support
+import math
 import matplotlib.pyplot as pp
 import numpy as np
+
+import job_events, support
 
 def main(data_path, plot):
     print('Apps:')

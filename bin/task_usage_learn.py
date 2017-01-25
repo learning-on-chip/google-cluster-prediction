@@ -3,11 +3,13 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
+import numpy as np
+import queue, logging, math, socket, subprocess, threading
+import tensorflow as tf
+
 from support import Config
 from task_usage import DistributedDatabase
-import numpy as np
-import queue, math, socket, subprocess, support, threading
-import tensorflow as tf
+import support
 
 class Learn:
     def __init__(self, config):
@@ -44,8 +46,8 @@ class Learn:
         return np.sum([int(np.prod(parameter.get_shape())) for parameter in self.parameters])
 
     def run(self, target, monitor, config):
-        print('Parameters: %d' % self.count_parameters())
-        print('Samples: %d' % target.sample_count)
+        support.log(self, 'Parameters: {}', self.count_parameters())
+        support.log(self, 'Samples: {}', target.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.saver.restore(session)
@@ -180,7 +182,7 @@ class Monitor:
         return len(self.channels) > 0
 
     def _predict_client(self, connection, address):
-        print('Start serving {}.'.format(address))
+        support.log(self, 'Start serving {}.', address)
         channel = queue.Queue()
         self.lock.acquire()
         try:
@@ -194,7 +196,7 @@ class Monitor:
                 client.write(','.join([str(value) for value in y.flatten()]) + ',')
                 client.write(','.join([str(value) for value in y_hat.flatten()]) + '\n')
         except Exception as e:
-            print('Stop serving {} ({}).'.format(address, e))
+            support.log(self, 'Stop serving {} ({}).', address, e)
         self.lock.acquire()
         try:
             del self.channels[channel]
@@ -206,14 +208,14 @@ class Monitor:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(self.bind_address)
         server.listen(1)
-        print('Listening to {}...'.format(self.bind_address))
+        support.log(self, 'Listening to {}...', self.bind_address)
         while True:
             try:
                 connection, address = server.accept()
                 threading.Thread(target=self._predict_client, daemon=True,
                                  args=(connection, address)).start()
             except Exception as e:
-                print('Encountered a problem ({}).'.format(e))
+                support.log(self, 'Encountered a problem ({}).', e)
 
 class Saver:
     def __init__(self, config):
@@ -222,19 +224,22 @@ class Saver:
 
     def save(self, session):
         path = self.backend.save(session, self.path)
-        print('Saved the model in "{}".'.format(path))
+        support.log(self, 'Saved the model in "{}".', path)
 
     def restore(self, session):
         if os.path.isfile(self.path):
             if input('Found a model in "{}". Restore? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
-                print('Restored. Continue learning...')
+                support.log(self, 'Restored. Continue learning...')
 
 class Target:
     def __init__(self, config):
         self.database = DistributedDatabase(config.data_path)
         self.dimension_count = 1
-        self.sample_count = 0
+        self.sample_count = self.database.count()
+
+    def compute(self, k):
+        raise Exception('not implemented yet')
 
 class TestTarget:
     def __init__(self, config):
@@ -246,11 +251,14 @@ class TestTarget:
 
 def main(config):
     learn = Learn(config)
-    target = TestTarget(config)
+    target = Target(config)
     monitor = Monitor(config)
     learn.run(target, monitor, config)
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S',
+                        level=logging.INFO)
     assert(len(sys.argv) == 2)
     config = Config({
         'dimension_count': 1,

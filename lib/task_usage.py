@@ -1,5 +1,7 @@
+import glob, sqlite3
 import numpy as np
-import sqlite3
+
+import support
 
 class Database:
     def __init__(self, path):
@@ -17,4 +19,9 @@ class Database:
 
 class DistributedDatabase:
     def __init__(self, path):
-        self.path = path
+        paths = glob.glob('{}/**/*.sqlite3'.format(path))
+        support.log(self, 'Databases: {}', len(paths))
+        self.paths = paths
+
+    def count(self):
+        return len(self.paths)

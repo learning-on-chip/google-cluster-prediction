@@ -3,10 +3,12 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-from task_usage import Database
-import glob, support
+import glob
 import matplotlib.pyplot as pp
 import numpy as np
+
+from task_usage import Database
+import support
 
 def main(data_path):
     count = 0

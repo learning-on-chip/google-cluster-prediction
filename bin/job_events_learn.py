@@ -3,10 +3,11 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-import job_events, support
 import matplotlib.pyplot as pp
 import numpy as np
 import tensorflow as tf
+
+import job_events, support
 
 def learn(f, dimension_count, sample_count, train_each, predict_each,
           predict_count, epoch_count, monitor):
