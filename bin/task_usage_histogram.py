@@ -3,7 +3,8 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-import glob, support, task_usage
+from task_usage import Database
+import glob, support
 import matplotlib.pyplot as pp
 import numpy as np
 
@@ -13,7 +14,7 @@ def main(data_path):
     data = np.array([], dtype=np.int)
     path_pattern = "{}/**/*.sqlite3".format(data_path)
     for part_path in glob.glob(path_pattern):
-        part = task_usage.count_job_task_samples(part_path)
+        part = Database(part_path).count_job_task_samples()
         data = np.append(data, part[:, 2])
         count += 1
         if count % 1000 == 0:

@@ -1,15 +1,16 @@
 import numpy as np
 import sqlite3
 
-def count_job_task_samples(path):
-    query = """
-        SELECT `job ID`, `task index`, COUNT(*)
-        FROM `task_usage`
-        GROUP BY `job ID`, `task index`
-    """
-    connection = sqlite3.connect(path)
-    cursor = connection.cursor()
-    cursor.execute(query)
-    data = np.array([row for row in cursor], dtype=np.int)
-    connection.close()
-    return data
+class Database:
+    def __init__(self, path):
+        self.connection = sqlite3.connect(path)
+
+    def count_job_task_samples(self):
+        query = """
+            SELECT `job ID`, `task index`, COUNT(*)
+            FROM `task_usage`
+            GROUP BY `job ID`, `task index`
+        """
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+        return np.array([row for row in cursor], dtype=np.int)
