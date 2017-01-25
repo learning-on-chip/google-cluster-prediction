@@ -16,6 +16,12 @@ task_usage_analyze: input/task_usage_distribute
 task_usage_histogram: input/task_usage_distribute
 	./bin/task_usage_histogram.py $<
 
+task_usage_learn: input/task_usage_distribute
+	./bin/task_usage_learn.py $<
+
+task_usage_watch:
+	./bin/task_usage_watch.py 0.0.0.0:4242
+
 input/%:
 	${MAKE} -C input $*
 
@@ -23,4 +29,4 @@ input/%:
 
 .PHONY: job_events_analyze job_events_explore job_events_learn
 
-.PHONY: task_usage_analyze task_usage_histogram
+.PHONY: task_usage_analyze task_usage_histogram task_usage_learn task_usage_watch

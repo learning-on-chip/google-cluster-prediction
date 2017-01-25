@@ -14,3 +14,7 @@ class Database:
         cursor = self.connection.cursor()
         cursor.execute(query)
         return np.array([row for row in cursor], dtype=np.int)
+
+class DistributedDatabase:
+    def __init__(self, path):
+        self.path = path
