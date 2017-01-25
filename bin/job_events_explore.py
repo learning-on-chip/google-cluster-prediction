@@ -49,8 +49,7 @@ def main_specific(data_path, **arguments):
     input()
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        raise Exception('expected an argument')
+    assert(len(sys.argv) >= 2)
     if len(sys.argv) == 2:
         main_random(sys.argv[1])
     else:

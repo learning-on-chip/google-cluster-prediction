@@ -7,6 +7,5 @@ def main(data_path):
     print('Count: {}'.format(count))
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        raise Exception('expected an argument')
+    assert(len(sys.argv) == 2)
     main(sys.argv[1])

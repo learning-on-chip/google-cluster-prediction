@@ -71,6 +71,5 @@ def main(data_path, plot):
         pp.show()
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        raise Exception('expected an argument')
+    assert(len(sys.argv) >= 2)
     main(sys.argv[1], len(sys.argv) > 2)
