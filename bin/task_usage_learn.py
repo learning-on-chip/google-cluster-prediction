@@ -17,14 +17,14 @@ class Learn:
         with graph.as_default():
             model = Model(config)
             with tf.variable_scope('optimization'):
-                state = tf.Variable([0],
+                state = tf.Variable([0, 0],
                                     name='state',
                                     dtype=tf.int64,
                                     trainable=False)
                 state_update = tf.placeholder(tf.int64,
-                                              shape=(1),
+                                              shape=(2),
                                               name='state_update')
-                update_state = state.assign_add(state_update)
+                update_state = state.assign(state_update)
                 parameters = tf.trainable_variables()
                 gradient = tf.gradients(model.loss, parameters)
                 gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
@@ -58,39 +58,51 @@ class Learn:
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.saver.restore(session)
-        [e] = session.run(self.state)
-        for e in range(e, e + config.epoch_count - e % config.epoch_count):
-            self._run_epoch(target, monitor, config, session, e)
-            session.run(self.update_state, {self.state_update: [e + 1]})
+        state = State.deserialize(session.run(self.state))
+        for _ in range(config.epoch_count - state.epoch % config.epoch_count):
+            self._run_epoch(target, monitor, config, session, state)
+            state.increment_epoch()
+            session.run(self.update_state, {
+                self.state_update: state.serialize(),
+            })
             self.saver.save(session)
 
-    def _run_epoch(self, target, monitor, config, session, e):
-        for s in range(target.sample_count):
-            t = e*target.sample_count + s
-            if monitor.should_train(t):
-                self._run_train(target, monitor, config, session, e, s, t)
-            if monitor.should_predict(t):
-                self._run_predict(target, monitor, config, session, e, s, t)
+    def _run_epoch(self, target, monitor, config, session, state):
+        for _ in range(target.sample_count):
+            if monitor.should_train(state.time):
+                self._run_train(target, monitor, config, session, state)
+            if monitor.should_predict(state.time):
+                self._run_predict(target, monitor, config, session, state)
+            state.increment_time()
 
-    def _run_train(self, target, monitor, config, session, e, s, t):
-        sample = target.compute(s)
+    def _run_train(self, target, monitor, config, session, state):
+        sample = target.compute(state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
             self.model.y: np.reshape(support.shift(sample, -1), [1, -1, target.dimension_count]),
         }
-        fetch = {'train': self.train, 'loss': self.model.loss, 'summary': self.summary}
+        fetch = {
+            'train': self.train,
+            'loss': self.model.loss,
+            'summary': self.summary,
+        }
         result = session.run(fetch, feed)
         loss = result['loss'].flatten()
         assert(np.all([not math.isnan(loss) for loss in loss]))
-        monitor.train((e, s, t), loss)
-        self.logger.add_summary(result['summary'], t)
+        monitor.train(loss, state)
+        self.logger.add_summary(result['summary'], state.time)
 
-    def _run_predict(self, target, monitor, config, session, e, s, t):
-        sample = target.compute((s + 1) % target.sample_count)
+    def _run_predict(self, target, monitor, config, session, state):
+        sample = target.compute((state.sample + 1) % target.sample_count)
         step_count = sample.shape[0]
-        feed = {self.model.start: self._zero_start()}
-        fetch = {'y_hat': self.model.y_hat, 'finish': self.model.finish}
+        feed = {
+            self.model.start: self._zero_start(),
+        }
+        fetch = {
+            'y_hat': self.model.y_hat,
+            'finish': self.model.finish,
+        }
         for i in range(step_count):
             feed[self.model.x] = np.reshape(sample[:(i + 1), :], [1, i + 1, -1])
             y_hat = np.zeros([step_count, target.dimension_count])
@@ -160,21 +172,28 @@ class Model:
 
 class Monitor:
     def __init__(self, config):
+        assert(np.all(np.diff(config.work_schedule) >= 0))
         self.bind_address = config.bind_address
-        self.work_schedule = np.cumsum(config.work_schedule)
+        self.work_schedule = config.work_schedule
         self.channels = {}
         self.lock = threading.Lock()
         threading.Thread(target=self._predict_server, daemon=True).start()
 
-    def should_train(self, t):
+    def should_train(self, time):
         return True
 
-    def should_predict(self, t):
-        return (len(self.channels) > 0 and
-            np.nonzero(self.work_schedule >= (t % self.work_schedule[-1]))[0][0] % 2 == 1)
+    def should_predict(self, time):
+        if len(self.channels) == 0:
+            return False
+        time = time % self.work_schedule[-1]
+        phase = np.nonzero(self.work_schedule >= time)[0][0]
+        if phase % 2 != 1:
+            return False
+        return True
 
-    def train(self, progress, loss):
-        sys.stdout.write('%4d %10d %10d' % progress)
+    def train(self, loss, state):
+        sys.stdout.write('%10d %4d %10d' % (state.time, state.epoch,
+                                            state.sample))
         [sys.stdout.write(' %12.4e' % loss) for loss in loss]
         sys.stdout.write('\n')
 
@@ -238,6 +257,26 @@ class Saver:
                 self.backend.restore(session, self.path)
                 support.log(self, 'Restored. Continue learning...')
 
+class State:
+    def deserialize(state):
+        return State(state[0], state[1])
+
+    def __init__(self, time, epoch):
+        self.time = time
+        self.epoch = epoch
+        self.sample = 0
+
+    def increment_epoch(self):
+        self.epoch += 1
+        self.sample = 0
+
+    def increment_time(self):
+        self.time += 1
+        self.sample += 1
+
+    def serialize(self):
+        return [self.time, self.epoch]
+
 class Target:
     def __init__(self, config):
         self.database = DistributedDatabase(config.data_path)
@@ -282,6 +321,6 @@ if __name__ == '__main__':
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
         'bind_address': ('0.0.0.0', 4242),
-        'work_schedule': [1000 - 10, 10],
+        'work_schedule': np.cumsum([1000 - 10, 10]),
     })
     main(config)
