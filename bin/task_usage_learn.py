@@ -208,22 +208,16 @@ class Monitor:
         sys.stdout.write('\n')
 
     def predict(self, y, y_hat):
-        self.lock.acquire()
-        try:
+        with self.lock.acquire():
             for channel in self.channels:
                 channel.put((y, y_hat))
-        finally:
-            self.lock.release()
         return len(self.channels) > 0
 
     def _predict_client(self, connection, address):
         support.log(self, 'Start serving {}.', address)
         channel = queue.Queue()
-        self.lock.acquire()
-        try:
+        with self.lock:
             self.channels[channel] = True
-        finally:
-            self.lock.release()
         try:
             client = connection.makefile(mode='w')
             while True:
@@ -234,11 +228,8 @@ class Monitor:
                 client.write(','.join(values) + '\n')
         except Exception as e:
             support.log(self, 'Stop serving {} ({}).', address, e)
-        self.lock.acquire()
-        try:
+        with self.lock:
             del self.channels[channel]
-        finally:
-            self.lock.release()
 
     def _predict_server(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
