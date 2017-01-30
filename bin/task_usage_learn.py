@@ -225,7 +225,7 @@ class Monitor:
         finally:
             self.lock.release()
         try:
-            client = connection.makefile(mode="w")
+            client = connection.makefile(mode='w')
             while True:
                 y, y_hat = channel.get()
                 values = [str(value) for value in y.flatten()]
@@ -266,7 +266,7 @@ class Saver:
         support.log(self, 'Saved in "{}".', path)
 
     def restore(self, session):
-        if len(glob.glob("{}*".format(self.path))) > 0:
+        if len(glob.glob('{}*'.format(self.path))) > 0:
             if input('Restore from "{}"? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
                 support.log(self, 'Restored. Continue learning...')
