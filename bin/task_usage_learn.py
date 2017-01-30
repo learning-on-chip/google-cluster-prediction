@@ -4,12 +4,11 @@ import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import numpy as np
-import glob, logging, math, queue, socket, subprocess, threading
+import glob, logging, math, queue, random, socket, subprocess, threading
 import tensorflow as tf
 
 from support import Config
-from task_usage import DistributedDatabase
-import support
+import support, task_usage
 
 class Learn:
     def __init__(self, config):
@@ -284,15 +283,55 @@ class State:
 
 class Target:
     def __init__(self, config):
-        self.database = DistributedDatabase(config.data_path)
+        self.paths = glob.glob('{}/**/*.sqlite3'.format(config.data_path))
+        support.log(self, 'Databases: {}', len(self.paths))
+        self.processed_index = []
+        self.pending_index = list(range(len(self.paths)))
+        self.min_length = config.get_or('min_length', 10)
+        self.max_length = config.get_or('max_length', 100)
         self.dimension_count = 1
 
     def fetch(self, sample):
-        assert(self.has(sample))
+        if not self._process_until(sample):
+            raise Exception('requested a non-existent sample')
+        support.log(
+            self, 'Processed: {}, pending: {}', len(self.processed_index),
+            len(self.pending_index))
         raise Exception('not implemented yet')
 
-    def has(self, _):
-        raise Exception('not implemented yet')
+    def has(self, sample):
+        return self._process_until(sample)
+
+    def _accept(self, path_index):
+        data = task_usage.count_job_task_samples(self.paths[path_index])
+        assert(len(np.unique(data[:, 0])) == 1)
+        i = np.argmax(data[:, 2])
+        if self.min_length > data[i, 2]:
+            return False
+        if self.max_length < data[i, 2]:
+            return False
+        self.processed_index.append((path_index, data[i, 0], data[i, 1]))
+        return True
+
+    def _process(self):
+        while True:
+            pending_count = len(self.pending_index)
+            if pending_count == 0:
+                return False
+            i = random.randrange(pending_count)
+            path_index = self.pending_index[i]
+            del self.pending_index[i]
+            if self._accept(path_index):
+                break
+        return True
+
+    def _process_until(self, sample):
+        processed_count = len(self.processed_index)
+        if processed_count <= sample:
+            for _ in range(sample + 1 - processed_count):
+                if not self._process():
+                    return False
+        return True
 
 class TestTarget:
     def __init__(self, config):
@@ -334,4 +373,5 @@ if __name__ == '__main__':
         'bind_address': ('0.0.0.0', 4242),
         'work_schedule': np.cumsum([1000 - 10, 10]),
     })
+    random.seed(0)
     main(config)

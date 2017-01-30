@@ -7,8 +7,7 @@ import glob
 import matplotlib.pyplot as pp
 import numpy as np
 
-from task_usage import Database
-import support
+import support, task_usage
 
 def main(data_path):
     count = 0
@@ -16,7 +15,7 @@ def main(data_path):
     data = np.array([], dtype=np.int)
     path_pattern = "{}/**/*.sqlite3".format(data_path)
     for part_path in glob.glob(path_pattern):
-        part = Database(part_path).count_job_task_samples()
+        part = task_usage.count_job_task_samples(part_path)
         data = np.append(data, part[:, 2])
         count += 1
         if count % 1000 == 0:

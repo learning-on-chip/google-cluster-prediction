@@ -6,12 +6,12 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 import glob
 import numpy as np
 
-from task_usage import Database
+import task_usage
 
 def main(data_path):
-    paths = glob.glob('{}/**/*.sqlite3'.format(data_path))
+    paths = sorted(glob.glob('{}/**/*.sqlite3'.format(data_path)))
     for path in paths:
-        data = Database(path).count_job_task_samples()
+        data = task_usage.count_job_task_samples(path)
         print('[{}] Jobs: {:2}, tasks: {:6}, samples: {:10}'.format(
             path, len(np.unique(data[:, 0])), data.shape[0],
             np.sum(data[:, 2])))
