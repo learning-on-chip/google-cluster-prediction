@@ -4,7 +4,7 @@ import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import numpy as np
-import queue, logging, math, socket, subprocess, threading
+import glob, logging, math, queue, socket, subprocess, threading
 import tensorflow as tf
 
 from support import Config
@@ -17,8 +17,14 @@ class Learn:
         with graph.as_default():
             model = Model(config)
             with tf.variable_scope('optimization'):
-                epoch = tf.Variable(0, name='epoch', trainable=False)
-                increment_epoch = epoch.assign_add(1)
+                state = tf.Variable([0],
+                                    name='state',
+                                    dtype=tf.int64,
+                                    trainable=False)
+                state_update = tf.placeholder(tf.int64,
+                                              shape=(1),
+                                              name='state_update')
+                update_state = state.assign_add(state_update)
                 parameters = tf.trainable_variables()
                 gradient = tf.gradients(model.loss, parameters)
                 gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
@@ -33,8 +39,9 @@ class Learn:
 
         self.graph = graph
         self.model = model
-        self.epoch = epoch
-        self.increment_epoch = increment_epoch
+        self.state = state
+        self.state_update = state_update
+        self.update_state = update_state
         self.parameters = parameters
         self.train = train
         self.logger = logger
@@ -51,11 +58,10 @@ class Learn:
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.saver.restore(session)
-        epoch = session.run(self.epoch)
-        epoch_count = config.epoch_count - epoch % config.epoch_count
-        for e in range(epoch, epoch + epoch_count):
+        [e] = session.run(self.state)
+        for e in range(e, e + config.epoch_count - e % config.epoch_count):
             self._run_epoch(target, monitor, config, session, e)
-            assert(session.run(self.increment_epoch) == e + 1)
+            session.run(self.update_state, {self.state_update: [e + 1]})
             self.saver.save(session)
 
     def _run_epoch(self, target, monitor, config, session, e):
@@ -227,7 +233,7 @@ class Saver:
         support.log(self, 'Saved the model in "{}".', path)
 
     def restore(self, session):
-        if os.path.isfile(self.path):
+        if len(glob.glob("{}*".format(self.path))) > 0:
             if input('Found a model in "{}". Restore? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
                 support.log(self, 'Restored. Continue learning...')
@@ -274,7 +280,7 @@ if __name__ == '__main__':
         'gradient_clip': 1.0,
         'epoch_count': 100,
         'log_path': os.path.join('output', 'log'),
-        'save_path': os.path.join('output', 'model.tf'),
+        'save_path': os.path.join('output', 'model'),
         'bind_address': ('0.0.0.0', 4242),
         'work_schedule': [1000 - 10, 10],
     })
