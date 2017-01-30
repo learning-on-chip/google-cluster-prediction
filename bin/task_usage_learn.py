@@ -17,24 +17,24 @@ class Learn:
         with graph.as_default():
             model = Model(config)
             with tf.variable_scope('optimization'):
-                state = tf.Variable([0, 0],
-                                    name='state',
-                                    dtype=tf.int64,
-                                    trainable=False)
-                state_update = tf.placeholder(tf.int64,
-                                              shape=(2),
-                                              name='state_update')
+                state = tf.Variable(
+                    [0, 0], name='state', dtype=tf.int64, trainable=False)
+                state_update = tf.placeholder(
+                    tf.int64, shape=(2), name='state_update')
                 update_state = state.assign(state_update)
                 parameters = tf.trainable_variables()
                 gradient = tf.gradients(model.loss, parameters)
-                gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
+                gradient, _ = tf.clip_by_global_norm(
+                    gradient, config.gradient_clip)
                 optimizer = tf.train.AdamOptimizer(config.learning_rate)
                 train = optimizer.apply_gradients(zip(gradient, parameters))
             with tf.variable_scope('summary'):
-                tf.summary.scalar('log_loss', tf.log(tf.reduce_sum(model.loss)))
+                tf.summary.scalar(
+                    'log_loss', tf.log(tf.reduce_sum(model.loss)))
             logger = tf.summary.FileWriter(config.log_path, graph)
             summary = tf.summary.merge_all()
-            initialize = tf.variables_initializer(tf.global_variables(), name='initialize')
+            initialize = tf.variables_initializer(
+                tf.global_variables(), name='initialize')
             saver = Saver(config)
 
         self.graph = graph
@@ -50,7 +50,7 @@ class Learn:
         self.saver = saver
 
     def count_parameters(self):
-        return np.sum([int(np.prod(parameter.get_shape())) for parameter in self.parameters])
+        return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
     def run(self, target, monitor, config):
         support.log(self, 'Parameters: {}', self.count_parameters())
@@ -80,7 +80,8 @@ class Learn:
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
-            self.model.y: np.reshape(support.shift(sample, -1), [1, -1, target.dimension_count]),
+            self.model.y: np.reshape(
+                support.shift(sample, -1), [1, -1, target.dimension_count]),
         }
         fetch = {
             'train': self.train,
@@ -104,7 +105,8 @@ class Learn:
             'finish': self.model.finish,
         }
         for i in range(step_count):
-            feed[self.model.x] = np.reshape(sample[:(i + 1), :], [1, i + 1, -1])
+            feed[self.model.x] = np.reshape(
+                sample[:(i + 1), :], [1, i + 1, -1])
             y_hat = np.zeros([step_count, target.dimension_count])
             for j in range(step_count - i - 1):
                 result = session.run(fetch, feed)
@@ -119,18 +121,21 @@ class Learn:
 
 class Model:
     def __init__(self, config):
-        x = tf.placeholder(tf.float32, [1, None, config.dimension_count], name='x')
-        y = tf.placeholder(tf.float32, [1, None, config.dimension_count], name='y')
+        x = tf.placeholder(
+            tf.float32, [1, None, config.dimension_count], name='x')
+        y = tf.placeholder(
+            tf.float32, [1, None, config.dimension_count], name='y')
         with tf.variable_scope('network') as scope:
-            cell = tf.nn.rnn_cell.LSTMCell(config.unit_count,
-                                           state_is_tuple=True,
-                                           cell_clip=config.cell_clip,
-                                           forget_bias=config.forget_bias,
-                                           use_peepholes=config.use_peepholes,
-                                           initializer=config.network_initializer)
-            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * config.layer_count, state_is_tuple=True)
+            cell = tf.nn.rnn_cell.LSTMCell(
+                config.unit_count, state_is_tuple=True,
+                cell_clip=config.cell_clip, forget_bias=config.forget_bias,
+                use_peepholes=config.use_peepholes,
+                initializer=config.network_initializer)
+            cell = tf.nn.rnn_cell.MultiRNNCell(
+                [cell] * config.layer_count, state_is_tuple=True)
             start, state = Model._initialize(config)
-            h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state, parallel_iterations=1)
+            h, state = tf.nn.dynamic_rnn(
+                cell, x, initial_state=state, parallel_iterations=1)
             finish = Model._finalize(state, config)
         y_hat, loss = Model._regress(h, y, config)
 
@@ -149,8 +154,9 @@ class Model:
         return tf.pack(parts, name='finish')
 
     def _initialize(config):
-        start = tf.placeholder(tf.float32, [2 * config.layer_count, 1, config.unit_count],
-                               name='start')
+        start = tf.placeholder(
+            tf.float32, [2 * config.layer_count, 1, config.unit_count],
+            name='start')
         parts = tf.unpack(start)
         state = []
         for i in range(config.layer_count):
@@ -163,8 +169,9 @@ class Model:
             unroll_count = tf.shape(x)[1]
             x = tf.squeeze(x, squeeze_dims=[0])
             y = tf.squeeze(y, squeeze_dims=[0])
-            w = tf.get_variable('w', [config.unit_count, config.dimension_count],
-                                initializer=config.regression_initializer)
+            w = tf.get_variable(
+                'w', [config.unit_count, config.dimension_count],
+                initializer=config.regression_initializer)
             b = tf.get_variable('b', [1, config.dimension_count])
             y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
             loss = tf.reduce_mean(tf.squared_difference(y_hat, y))
@@ -192,8 +199,8 @@ class Monitor:
         return True
 
     def train(self, loss, state):
-        sys.stdout.write('%10d %4d %10d' % (state.time, state.epoch,
-                                            state.sample))
+        sys.stdout.write(
+            '%10d %4d %10d' % (state.time, state.epoch, state.sample))
         [sys.stdout.write(' %12.4e' % loss) for loss in loss]
         sys.stdout.write('\n')
 
@@ -218,8 +225,10 @@ class Monitor:
             client = connection.makefile(mode="w")
             while True:
                 y, y_hat = channel.get()
-                client.write(','.join([str(value) for value in y.flatten()]) + ',')
-                client.write(','.join([str(value) for value in y_hat.flatten()]) + '\n')
+                values = [str(value) for value in y.flatten()]
+                client.write(','.join(values) + ',')
+                values = [str(value) for value in y_hat.flatten()]
+                client.write(','.join(values) + '\n')
         except Exception as e:
             support.log(self, 'Stop serving {} ({}).', address, e)
         self.lock.acquire()
@@ -237,8 +246,10 @@ class Monitor:
         while True:
             try:
                 connection, address = server.accept()
-                threading.Thread(target=self._predict_client, daemon=True,
-                                 args=(connection, address)).start()
+                worker = threading.Thread(daemon=True,
+                                          target=self._predict_client,
+                                          args=(connection, address))
+                worker.start()
             except Exception as e:
                 support.log(self, 'Encountered a problem ({}).', e)
 
@@ -249,11 +260,11 @@ class Saver:
 
     def save(self, session):
         path = self.backend.save(session, self.path)
-        support.log(self, 'Saved the model in "{}".', path)
+        support.log(self, 'Saved in "{}".', path)
 
     def restore(self, session):
         if len(glob.glob("{}*".format(self.path))) > 0:
-            if input('Found a model in "{}". Restore? '.format(self.path)) != 'no':
+            if input('Restore from "{}"? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
                 support.log(self, 'Restored. Continue learning...')
 
