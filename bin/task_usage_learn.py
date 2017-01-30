@@ -54,7 +54,6 @@ class Learn:
 
     def run(self, target, monitor, config):
         support.log(self, 'Parameters: {}', self.count_parameters())
-        support.log(self, 'Samples: {}', target.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.saver.restore(session)
@@ -68,7 +67,7 @@ class Learn:
             self.saver.save(session)
 
     def _run_epoch(self, target, monitor, config, session, state):
-        for _ in range(target.sample_count):
+        while target.has(state.sample):
             if monitor.should_train(state.time):
                 self._run_train(target, monitor, config, session, state)
             if monitor.should_predict(state.time):
@@ -76,7 +75,7 @@ class Learn:
             state.increment_time()
 
     def _run_train(self, target, monitor, config, session, state):
-        sample = target.compute(state.sample)
+        sample = target.fetch(state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
@@ -95,7 +94,10 @@ class Learn:
         self.logger.add_summary(result['summary'], state.time)
 
     def _run_predict(self, target, monitor, config, session, state):
-        sample = target.compute((state.sample + 1) % target.sample_count)
+        if target.has(state.sample + 1):
+            sample = target.fetch(state.sample + 1)
+        else:
+            sample = target.fetch(0)
         step_count = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
@@ -187,7 +189,7 @@ class Monitor:
         worker = threading.Thread(daemon=True, target=self._predict_server)
         worker.start()
 
-    def should_train(self, time):
+    def should_train(self, _):
         return True
 
     def should_predict(self, time):
@@ -293,18 +295,24 @@ class Target:
     def __init__(self, config):
         self.database = DistributedDatabase(config.data_path)
         self.dimension_count = 1
-        self.sample_count = self.database.count()
 
-    def compute(self, k):
+    def fetch(self, sample):
+        assert(self.has(sample))
+        raise Exception('not implemented yet')
+
+    def has(self, _):
         raise Exception('not implemented yet')
 
 class TestTarget:
     def __init__(self, config):
         self.dimension_count = 1
-        self.sample_count = 100000
 
-    def compute(self, k):
+    def fetch(self, sample):
+        assert(self.has(sample))
         return np.reshape(np.sin(4 * np.pi / 40 * np.arange(0, 40)), [-1, 1])
+
+    def has(self, sample):
+        return sample < 10000
 
 def main(config):
     learn = Learn(config)
