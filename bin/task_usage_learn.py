@@ -184,7 +184,8 @@ class Monitor:
         self.work_schedule = config.work_schedule
         self.channels = {}
         self.lock = threading.Lock()
-        threading.Thread(target=self._predict_server, daemon=True).start()
+        worker = threading.Thread(daemon=True, target=self._predict_server)
+        worker.start()
 
     def should_train(self, time):
         return True
