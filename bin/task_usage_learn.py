@@ -207,7 +207,7 @@ class Monitor:
         sys.stdout.write('\n')
 
     def predict(self, y, y_hat):
-        with self.lock.acquire():
+        with self.lock:
             for channel in self.channels:
                 channel.put((y, y_hat))
         return len(self.channels) > 0
