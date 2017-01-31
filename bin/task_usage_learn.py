@@ -291,17 +291,20 @@ class Target:
     def __init__(self, config):
         self.paths = glob.glob('{}/**/*.sqlite3'.format(config.data_path))
         support.log(self, 'Databases: {}', len(self.paths))
+        self.dimension_count = 1
         self.samples = []
         self.pending = list(range(len(self.paths)))
+        self.standardize = (0.0, 1.0)
         self.min_length = config.get_or('min_length', 10)
         self.max_length = config.get_or('max_length', 100)
-        self.dimension_count = 1
+        self._standardize(config.get_or('standardize_count', 1000))
 
     def fetch(self, sample):
         if not self._process_until(sample):
             raise Exception('requested a non-existent sample')
         sample = self.samples[sample]
-        return task_usage.select(sample.path, job=sample.job, task=sample.task)
+        data = task_usage.select(sample.path, job=sample.job, task=sample.task)
+        return (data - self.standardize[0]) / self.standardize[1]
 
     def has(self, sample):
         return self._process_until(sample)
@@ -316,6 +319,18 @@ class Target:
             return False
         self.samples.append(Sample(path, job=data[i, 0], task=data[i, 1]))
         return True
+
+    def _standardize(self, count):
+        self.standardize = (0.0, 1.0)
+        data = np.array([], dtype=np.float32)
+        for sample in range(count):
+            data = np.append(data, self.fetch(sample))
+        if len(data) == 0:
+            return
+        self.standardize = (np.mean(data), np.std(data))
+        support.log(
+            self, 'Mean: {:e}, deviation: {:e} ({} samples)',
+            self.standardize[0], self.standardize[1], count)
 
     def _process(self):
         while True:
