@@ -38,7 +38,7 @@ def count_user_jobs(path):
     connection.close()
     return data
 
-def select_jobs(path, app=None, user=None):
+def select(path, app=None, user=None):
     query = """
         SELECT time, app, user
         FROM job_events

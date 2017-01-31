@@ -39,14 +39,14 @@ def main_random(data_path):
         while True:
             app = None
             user = random.randrange(user_count)
-            data = job_events.select_jobs(data_path, app=app, user=user)[:, 0]
+            data = job_events.select(data_path, app=app, user=user)[:, 0]
             if len(data) >= 10: break
         display(1e-6 * data, app=app, user=user)
         if input('More? ') == 'no': break
 
 def main_specific(data_path, **arguments):
     support.figure()
-    data = 1e-6 * job_events.select_jobs(data_path, **arguments)[:, 0]
+    data = 1e-6 * job_events.select(data_path, **arguments)[:, 0]
     display(data, **arguments)
     input()
 

@@ -31,7 +31,7 @@ def main(data_path, plot):
     print('  %5s %10s %10s %10s %10s %10s %10s' % (
         'User', 'Jobs', 'Portion', 'Min', 'Mean', 'Max', 'Spurious'))
     for i in range(count):
-        trace = job_events.select_jobs(data_path, user=data[i, 0])
+        trace = job_events.select(data_path, user=data[i, 0])
         trace = np.diff(trace[:, 0])
         minute = np.sum(trace == 1) / len(trace)
         trace = 1e-6 * trace
@@ -47,7 +47,7 @@ def main(data_path, plot):
         pp.xlabel('User (sorted)')
         pp.ylabel('Contribution')
 
-    data = job_events.select_jobs(data_path, app=None, user=None)
+    data = job_events.select(data_path, app=None, user=None)
     data = 1e-6 * np.diff(data[:, 0])
     mean, variance = np.mean(data), np.var(data)
 

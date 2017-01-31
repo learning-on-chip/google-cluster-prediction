@@ -149,7 +149,7 @@ def main(data_path):
     support.figure()
     pp.pause(1e-3)
 
-    data = job_events.select_jobs(data_path, app=None, user=381)
+    data = job_events.select(data_path, app=None, user=381)
     data0 = support.normalize(np.diff(data[:, 0]))
     data1 = support.standardize(data[1:, 1])
     data = np.transpose(np.vstack((data0, data1)))
