@@ -246,6 +246,12 @@ class Monitor:
             except Exception as e:
                 support.log(self, 'Encountered a problem ({}).', e)
 
+class Sample:
+    def __init__(self, path, job, task):
+        self.path = path
+        self.job = job
+        self.task = task
+
 class Saver:
     def __init__(self, config):
         self.backend = tf.train.Saver()
@@ -285,8 +291,8 @@ class Target:
     def __init__(self, config):
         self.paths = glob.glob('{}/**/*.sqlite3'.format(config.data_path))
         support.log(self, 'Databases: {}', len(self.paths))
-        self.processed_index = []
-        self.pending_index = list(range(len(self.paths)))
+        self.samples = []
+        self.pending = list(range(len(self.paths)))
         self.min_length = config.get_or('min_length', 10)
         self.max_length = config.get_or('max_length', 100)
         self.dimension_count = 1
@@ -294,41 +300,39 @@ class Target:
     def fetch(self, sample):
         if not self._process_until(sample):
             raise Exception('requested a non-existent sample')
-        support.log(
-            self, 'Processed: {}, pending: {}', len(self.processed_index),
-            len(self.pending_index))
-        raise Exception('not implemented yet')
+        sample = self.samples[sample]
+        return task_usage.select(sample.path, job=sample.job, task=sample.task)
 
     def has(self, sample):
         return self._process_until(sample)
 
-    def _accept(self, path_index):
-        data = task_usage.count_job_task_samples(self.paths[path_index])
+    def _accept(self, path):
+        data = task_usage.count_job_task_samples(path)
         assert(len(np.unique(data[:, 0])) == 1)
         i = np.argmax(data[:, 2])
         if self.min_length > data[i, 2]:
             return False
         if self.max_length < data[i, 2]:
             return False
-        self.processed_index.append((path_index, data[i, 0], data[i, 1]))
+        self.samples.append(Sample(path, job=data[i, 0], task=data[i, 1]))
         return True
 
     def _process(self):
         while True:
-            pending_count = len(self.pending_index)
+            pending_count = len(self.pending)
             if pending_count == 0:
                 return False
             i = random.randrange(pending_count)
-            path_index = self.pending_index[i]
-            del self.pending_index[i]
-            if self._accept(path_index):
+            accepted = self._accept(self.paths[self.pending[i]])
+            del self.pending[i]
+            if accepted:
                 break
         return True
 
     def _process_until(self, sample):
-        processed_count = len(self.processed_index)
-        if processed_count <= sample:
-            for _ in range(sample + 1 - processed_count):
+        sample_count = len(self.samples)
+        if sample_count <= sample:
+            for _ in range(sample + 1 - sample_count):
                 if not self._process():
                     return False
         return True

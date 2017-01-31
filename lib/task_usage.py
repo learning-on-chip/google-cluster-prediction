@@ -8,9 +8,21 @@ def count_job_task_samples(path):
         GROUP BY `job ID`, `task index`
         ORDER BY `job ID`, `task index`
     """
+    return _execute(path, query, dtype=np.int)
+
+def select(path, job, task):
+    query = """
+        SELECT `CPU rate`
+        FROM `task_usage`
+        WHERE `job ID` = {} AND `task index` = {}
+        ORDER BY `start time`
+    """
+    return _execute(path, query.format(job, task), dtype=np.float32)
+
+def _execute(path, query, **arguments):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute(query)
-    data = np.array([row for row in cursor], dtype=np.int)
+    data = np.array([row for row in cursor], **arguments)
     connection.close()
     return data
