@@ -73,25 +73,6 @@ class Learn:
                 self._run_predict(target, monitor, config, session, state)
             state.increment_time()
 
-    def _run_train(self, target, monitor, config, session, state):
-        sample = target.fetch(state.sample)
-        feed = {
-            self.model.start: self._zero_start(),
-            self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
-            self.model.y: np.reshape(
-                support.shift(sample, -1), [1, -1, target.dimension_count]),
-        }
-        fetch = {
-            'train': self.train,
-            'loss': self.model.loss,
-            'summary': self.summary,
-        }
-        result = session.run(fetch, feed)
-        loss = result['loss'].flatten()
-        assert(np.all([not math.isnan(loss) for loss in loss]))
-        monitor.train(loss, state)
-        self.logger.add_summary(result['summary'], state.time)
-
     def _run_predict(self, target, monitor, config, session, state):
         if target.has(state.sample + 1):
             sample = target.fetch(state.sample + 1)
@@ -116,6 +97,25 @@ class Learn:
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
             if not monitor.predict(support.shift(sample, -i - 1), y_hat):
                 break
+
+    def _run_train(self, target, monitor, config, session, state):
+        sample = target.fetch(state.sample)
+        feed = {
+            self.model.start: self._zero_start(),
+            self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
+            self.model.y: np.reshape(
+                support.shift(sample, -1), [1, -1, target.dimension_count]),
+        }
+        fetch = {
+            'train': self.train,
+            'loss': self.model.loss,
+            'summary': self.summary,
+        }
+        result = session.run(fetch, feed)
+        loss = result['loss'].flatten()
+        assert(np.all([not math.isnan(loss) for loss in loss]))
+        monitor.train(loss, state)
+        self.logger.add_summary(result['summary'], state.time)
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
@@ -188,6 +188,12 @@ class Monitor:
         worker = threading.Thread(daemon=True, target=self._predict_server)
         worker.start()
 
+    def predict(self, y, y_hat):
+        with self.lock:
+            for channel in self.channels:
+                channel.put((y, y_hat))
+        return len(self.channels) > 0
+
     def should_train(self, _):
         return True
 
@@ -205,12 +211,6 @@ class Monitor:
             '%10d %4d %10d' % (state.time, state.epoch, state.sample))
         [sys.stdout.write(' %12.4e' % loss) for loss in loss]
         sys.stdout.write('\n')
-
-    def predict(self, y, y_hat):
-        with self.lock:
-            for channel in self.channels:
-                channel.put((y, y_hat))
-        return len(self.channels) > 0
 
     def _predict_client(self, connection, address):
         support.log(self, 'Start serving {}.', address)
