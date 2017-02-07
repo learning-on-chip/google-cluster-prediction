@@ -13,9 +13,8 @@ def main(data_path):
     count = 0
     support.figure()
     data = np.array([], dtype=np.int)
-    path_pattern = "{}/**/*.sqlite3".format(data_path)
-    for part_path in glob.glob(path_pattern):
-        part = task_usage.count_job_task_samples(part_path)
+    for path in sorted(glob.glob('{}/**/*.sqlite3'.format(data_path))):
+        part = task_usage.count_job_task_samples(path)
         data = np.append(data, part[:, 2])
         count += 1
         if count % 1000 == 0:

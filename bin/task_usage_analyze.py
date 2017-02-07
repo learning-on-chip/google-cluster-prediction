@@ -9,13 +9,14 @@ import numpy as np
 import task_usage
 
 def main(data_path):
-    paths = sorted(glob.glob('{}/**/*.sqlite3'.format(data_path)))
-    for path in paths:
+    count = 0
+    for path in sorted(glob.glob('{}/**/*.sqlite3'.format(data_path))):
         data = task_usage.count_job_task_samples(path)
         print('[{}] Jobs: {:2}, tasks: {:6}, samples: {:10}'.format(
             path, len(np.unique(data[:, 0])), data.shape[0],
             np.sum(data[:, 2])))
-    print('Count: {}'.format(len(paths)))
+        count += 1
+    print('Count: {}'.format(count))
 
 if __name__ == '__main__':
     assert(len(sys.argv) == 2)
