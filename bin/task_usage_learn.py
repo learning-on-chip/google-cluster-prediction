@@ -181,6 +181,7 @@ class Model:
 class Monitor:
     def __init__(self, config):
         self.bind_address = config.bind_address
+        self.train_report_schedule = Schedule(config.train_report_schedule)
         self.predict_schedule = Schedule(config.predict_schedule)
         self.channels = {}
         self.lock = threading.Lock()
@@ -200,10 +201,13 @@ class Monitor:
         return len(self.channels) > 0 and self.predict_schedule.should(time)
 
     def train(self, loss, state):
-        sys.stdout.write(
-            '%10d %4d %10d' % (state.time, state.epoch, state.sample))
-        [sys.stdout.write(' %12.4e' % loss) for loss in loss]
-        sys.stdout.write('\n')
+        if not self.train_report_schedule.should(state.time):
+            return
+        line = '{:10d} {:4d} {:10d}'.format(
+            state.time + 1, state.epoch + 1, state.sample + 1)
+        for loss in loss:
+            line += ' {:12.4e}'.format(loss)
+        support.log(self, line)
 
     def _predict_client(self, connection, address):
         support.log(self, 'Start serving {}.', address)
@@ -264,8 +268,8 @@ class Schedule:
     def __init__(self, schedule):
         self.schedule = np.cumsum(schedule)
 
-    def should(time):
-        time = time % self.schedule[-1]
+    def should(self, time):
+        time = time % self.schedule[-1] + 1
         phase = np.nonzero(self.schedule >= time)[0][0]
         return phase % 2 == 1
 
@@ -382,7 +386,8 @@ if __name__ == '__main__':
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
         'bind_address': ('0.0.0.0', 4242),
-        'predict_schedule': [9990, 10],
+        'train_report_schedule': [100 - 1, 1],
+        'predict_schedule': [10000 - 10, 10],
     })
     random.seed(0)
     main(config)
