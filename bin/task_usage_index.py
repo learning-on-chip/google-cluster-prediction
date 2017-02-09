@@ -11,7 +11,8 @@ import task_usage
 def main(data_path, index_path, report_each=10000):
     print('Looking for data in "{}"...'.format(data_path))
     paths = sorted(glob.glob('{}/**/*.sqlite3'.format(data_path)))
-    print('Processing {} databases...'.format(len(paths)))
+    total = len(paths)
+    print('Processing {} databases...'.format(total))
     index = []
     count = 0
     for path in paths:
@@ -24,8 +25,8 @@ def main(data_path, index_path, report_each=10000):
                 'length': int(data[i, 2]),
             })
         count += 1
-        if count % report_each == 0:
-            print('Processed: {}'.format(count))
+        if count % report_each == 0 or count == total:
+            print('Processed: {} ({:.2f}%)'.format(count, 100 * count / total))
     print('Saving into "{}"...'.format(index_path))
     with open(index_path, 'w') as file:
         json.dump({'index': index}, file, indent=4)
