@@ -9,11 +9,12 @@ import numpy as np
 
 import support
 
-def main(index_path, min_length=0, max_length=500, report_each=10000):
+def main(index_path, min_length=0, max_length=200, report_each=1000000):
     print('Loading the index from "{}"...'.format(index_path))
     with open(index_path, 'r') as file:
         index = json.load(file)['index']
-    print('Processing {} databases...'.format(len(index)))
+    total = len(index)
+    print('Processing {} traces...'.format(total))
     data = []
     count = 0
     support.figure()
@@ -23,10 +24,11 @@ def main(index_path, min_length=0, max_length=500, report_each=10000):
             continue
         data.append(length)
         count += 1
-        if count % report_each == 0:
+        if count % report_each == 0 or count == total:
             pp.clf()
             mean, max = int(np.mean(data)), np.max(data)
-            pp.title("Processed {}, mean {}, max {}".format(count, mean, max))
+            pp.title("Processed {} ({:.2f}%), mean {}, max {}".format(
+                count, 100 * count / total, mean, max))
             pp.hist(data, bins=200)
             pp.pause(1e-3)
     pp.show()
