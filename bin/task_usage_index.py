@@ -14,8 +14,9 @@ def main(data_path, index_path, report_each=10000):
     total = len(paths)
     print('Processing {} databases...'.format(total))
     index = []
-    count = 0
+    processed = 0
     for path in paths:
+        processed += 1
         data = task_usage.count_job_task_samples(path)
         for i in range(data.shape[0]):
             index.append({
@@ -24,9 +25,9 @@ def main(data_path, index_path, report_each=10000):
                 'task': int(data[i, 1]),
                 'length': int(data[i, 2]),
             })
-        count += 1
-        if count % report_each == 0 or count == total:
-            print('Processed: {} ({:.2f}%)'.format(count, 100 * count / total))
+        if processed % report_each == 0 or processed == total:
+            print('Processed: {} ({:.2f}%)'.format(
+                processed, 100 * processed / total))
     print('Saving into "{}"...'.format(index_path))
     with open(index_path, 'w') as file:
         json.dump({'index': index}, file, indent=4)
