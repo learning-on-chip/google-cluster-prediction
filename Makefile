@@ -13,7 +13,7 @@ job_events_learn: input/job_events.sqlite3
 task_usage_analyze: input/task_usage_distribution.json
 	./bin/task_usage_analyze.py $<
 
-task_usage_learn: input/task_usage_distribution
+task_usage_learn: input/task_usage_distribution.json
 	./bin/task_usage_learn.py $<
 
 task_usage_watch:

@@ -4,7 +4,7 @@ import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import numpy as np
-import glob, logging, math, queue, random, socket, subprocess, threading
+import glob, json, logging, math, queue, random, socket, subprocess, threading
 import tensorflow as tf
 
 from support import Config
@@ -75,9 +75,9 @@ class Learn:
 
     def _run_predict(self, target, monitor, config, session, state):
         if target.has(state.sample + 1):
-            sample = target.fetch(state.sample + 1)
+            sample = target.get(state.sample + 1)
         else:
-            sample = target.fetch(0)
+            sample = target.get(0)
         step_count = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
@@ -99,7 +99,7 @@ class Learn:
                 break
 
     def _run_train(self, target, monitor, config, session, state):
-        sample = target.fetch(state.sample)
+        sample = target.get(state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
@@ -289,42 +289,40 @@ class State:
 
 class Target:
     def __init__(self, config):
-        self.paths = glob.glob('{}/**/*.sqlite3'.format(config.data_path))
-        support.log(self, 'Databases: {}', len(self.paths))
+        support.log(self, 'Trace index: {}', config.index_path)
+        with open(config.index_path, 'r') as file:
+            index = json.load(file)['index']
+        support.log(self, 'Total traces: {}', len(index))
+        min_length = config.get_or('min_length', 0)
+        max_length = config.get_or('max_length', 100)
+        samples = []
+        for i in np.random.permutation(len(index)):
+            if index[i]['length'] < min_length:
+                continue
+            if index[i]['length'] > max_length:
+                continue
+            samples.append(Sample(path=index[i]['path'], job=index[i]['job'],
+                                  task=index[i]['task']))
+        support.log(self, 'Selected traces: {} ({:.2f}%)', len(samples),
+                    100 * len(samples) / len(index))
         self.dimension_count = 1
-        self.samples = []
-        self.pending = list(range(len(self.paths)))
+        self.samples = samples
         self.standardize = (0.0, 1.0)
-        self.min_length = config.get_or('min_length', 10)
-        self.max_length = config.get_or('max_length', 100)
         self._standardize(config.get_or('standardize_count', 1000))
 
-    def fetch(self, sample):
-        if not self._process_until(sample):
-            raise Exception('requested a non-existent sample')
+    def get(self, sample):
         sample = self.samples[sample]
         data = task_usage.select(sample.path, job=sample.job, task=sample.task)
         return (data - self.standardize[0]) / self.standardize[1]
 
     def has(self, sample):
-        return self._process_until(sample)
-
-    def _accept(self, path):
-        data = task_usage.count_job_task_samples(path)
-        assert(len(np.unique(data[:, 0])) == 1)
-        i = np.argmax(data[:, 2])
-        if self.min_length > data[i, 2]:
-            return False
-        if self.max_length < data[i, 2]:
-            return False
-        self.samples.append(Sample(path, job=data[i, 0], task=data[i, 1]))
-        return True
+        return sample < len(self.samples)
 
     def _standardize(self, count):
         self.standardize = (0.0, 1.0)
         data = np.array([], dtype=np.float32)
         for sample in range(count):
-            data = np.append(data, self.fetch(sample))
+            data = np.append(data, self.get(sample))
         if len(data) == 0:
             return
         self.standardize = (np.mean(data), np.std(data))
@@ -344,19 +342,11 @@ class Target:
                 break
         return True
 
-    def _process_until(self, sample):
-        sample_count = len(self.samples)
-        if sample_count <= sample:
-            for _ in range(sample + 1 - sample_count):
-                if not self._process():
-                    return False
-        return True
-
 class TestTarget:
     def __init__(self, config):
         self.dimension_count = 1
 
-    def fetch(self, sample):
+    def get(self, sample):
         assert(self.has(sample))
         return np.reshape(np.sin(4 * np.pi / 40 * np.arange(0, 40)), [-1, 1])
 
@@ -376,7 +366,7 @@ if __name__ == '__main__':
     assert(len(sys.argv) == 2)
     config = Config({
         'dimension_count': 1,
-        'data_path': sys.argv[1],
+        'index_path': sys.argv[1],
         'layer_count': 1,
         'unit_count': 200,
         'cell_clip': 1.0,

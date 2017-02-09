@@ -16,18 +16,16 @@ def main(index_path, min_length=0, max_length=100, report_each=1000000):
     total = len(index)
     print('Processing {} traces...'.format(total))
     data = []
-    processed, selected = 0, 0
-    for record in index:
+    processed = 0
+    for trace in index:
         processed += 1
-        length = record['length']
-        if length >= min_length and length <= max_length:
-            selected += 1
-            data.append(length)
+        if trace['length'] >= min_length and trace['length'] <= max_length:
+            data.append(trace['length'])
         if processed % report_each == 0 or processed == total:
             pp.clf()
             pp.title("Processed {} ({:.2f}%), selected {} ({:.2f}%)".format(
-                processed, 100 * processed / total, selected,
-                100 * selected / processed))
+                processed, 100 * processed / total, len(data),
+                100 * len(data) / processed))
             pp.hist(data, bins=(max_length - min_length))
             pp.pause(1e-3)
     pp.show()
