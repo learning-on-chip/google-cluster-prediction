@@ -28,7 +28,7 @@ def main(index_path, min_length=0, max_length=100, report_each=1000000):
             pp.title("Processed {} ({:.2f}%), selected {} ({:.2f}%)".format(
                 processed, 100 * processed / total, selected,
                 100 * selected / processed))
-            pp.hist(data, bins=200)
+            pp.hist(data, bins=(max_length - min_length))
             pp.pause(1e-3)
     pp.show()
 
