@@ -180,9 +180,8 @@ class Model:
 
 class Monitor:
     def __init__(self, config):
-        assert(np.all(np.diff(config.work_schedule) >= 0))
         self.bind_address = config.bind_address
-        self.work_schedule = config.work_schedule
+        self.predict_schedule = Schedule(config.predict_schedule)
         self.channels = {}
         self.lock = threading.Lock()
         worker = threading.Thread(daemon=True, target=self._predict_server)
@@ -198,13 +197,7 @@ class Monitor:
         return True
 
     def should_predict(self, time):
-        if len(self.channels) == 0:
-            return False
-        time = time % self.work_schedule[-1]
-        phase = np.nonzero(self.work_schedule >= time)[0][0]
-        if phase % 2 != 1:
-            return False
-        return True
+        return len(self.channels) > 0 and self.predict_schedule.should(time)
 
     def train(self, loss, state):
         sys.stdout.write(
@@ -266,6 +259,15 @@ class Saver:
             if input('Restore from "{}"? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
                 support.log(self, 'Restored. Continue learning...')
+
+class Schedule:
+    def __init__(self, schedule):
+        self.schedule = np.cumsum(schedule)
+
+    def should(time):
+        time = time % self.schedule[-1]
+        phase = np.nonzero(self.schedule >= time)[0][0]
+        return phase % 2 == 1
 
 class State:
     def deserialize(state):
@@ -380,7 +382,7 @@ if __name__ == '__main__':
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
         'bind_address': ('0.0.0.0', 4242),
-        'work_schedule': np.cumsum([1000 - 10, 10]),
+        'predict_schedule': [9990, 10],
     })
     random.seed(0)
     main(config)
