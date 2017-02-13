@@ -4,7 +4,7 @@ import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import numpy as np
-import glob, json, logging, math, queue, random, socket, subprocess, threading
+import glob, math, queue, random, socket, subprocess, threading
 import tensorflow as tf
 
 from support import Config
@@ -293,24 +293,27 @@ class State:
 class Target:
     def __init__(self, config):
         assert(config.dimension_count == 1)
-        support.log(self, 'Trace index: {}', config.data_index_path)
-        with open(config.data_index_path, 'r') as file:
-            index = json.load(file)['index']
-        support.log(self, 'Total traces: {}', len(index))
+        support.log(self, 'Trace index: {}', config.index_path)
         min_length = config.get_or('min_length', 0)
         max_length = config.get_or('max_length', 50)
         samples = []
-        for i in np.random.permutation(len(index)):
-            if index[i]['length'] < min_length:
-                continue
-            if index[i]['length'] > max_length:
-                continue
-            samples.append(Sample(path=index[i]['path'], job=index[i]['job'],
-                                  task=index[i]['task']))
-        support.log(self, 'Selected traces: {} ({:.2f}%)', len(samples),
-                    100 * len(samples) / len(index))
+        trace_count = 0
+        with open(config.index_path, 'r') as file:
+            for record in file:
+                trace_count += 1
+                record = record.split(',')
+                length = int(record[-1])
+                if length < min_length:
+                    continue
+                if length > max_length:
+                    continue
+                samples.append(Sample(path=record[0], job=int(record[1]),
+                                      task=int(record[2])))
+        sample_count = len(samples)
+        support.log(self, 'Traces: {} ({:.2f}%)', sample_count,
+                    100 * sample_count / trace_count)
         self.dimension_count = config.dimension_count
-        self.sample_count = len(samples)
+        self.sample_count = sample_count
         self.samples = samples
         self.standardize = (0.0, 1.0)
         self._standardize(config.get_or('standardize_count', 1000))
@@ -349,14 +352,12 @@ def main(config):
     learn.run(target, monitor, config)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        level=logging.INFO)
     assert(len(sys.argv) == 2)
+    support.loggalize()
     config = Config({
         # Data
         'dimension_count': 1,
-        'data_index_path': sys.argv[1],
+        'index_path': sys.argv[1],
         # Modeling
         'layer_count': 1,
         'unit_count': 200,

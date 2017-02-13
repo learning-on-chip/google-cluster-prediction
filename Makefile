@@ -10,16 +10,16 @@ job_events_explore: input/job_events.sqlite3
 job_events_learn: input/job_events.sqlite3
 	./bin/job_events_learn.py $<
 
-task_usage_analyze: input/task_usage_distribution.json
+task_usage_analyze: input/task_usage_distribution.csv
 	./bin/task_usage_analyze.py $<
 
-task_usage_learn: input/task_usage_distribution.json
+task_usage_learn: input/task_usage_distribution.csv
 	./bin/task_usage_learn.py $<
 
 task_usage_watch:
 	./bin/task_usage_watch.py 0.0.0.0:4242
 
-input/task_usage_distribution.json: input/task_usage_distribution
+input/task_usage_distribution.csv: input/task_usage_distribution
 	./bin/task_usage_index.py $< $@
 
 input/%:

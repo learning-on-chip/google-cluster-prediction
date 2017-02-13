@@ -16,12 +16,20 @@ class Config:
 def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
-def log(source, message, *arguments):
-    if not isinstance(source, str):
-        source = source.__class__.__name__
+def log(*arguments):
+    arguments = list(arguments)
+    first = arguments.pop(0)
+    if isinstance(first, str):
+        template, source = first, 'Main'
+    else:
+        template, source = arguments.pop(0), first.__class__.__name__
     if len(source) > 10:
         source = source[:9] + '…'
-    logging.info("[%-10s] %s", source.upper(), message.format(*arguments))
+    logging.info("[%-10s] %s", source.upper(), template.format(*arguments))
+
+def loggalize(level=logging.INFO):
+    logging.basicConfig(format='%(asctime)s %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S', level=level)
 
 def normalize(data):
     return (data - np.mean(data)) / np.sqrt(np.var(data))
