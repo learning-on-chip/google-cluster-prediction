@@ -177,12 +177,14 @@ class Model:
 
 class Monitor:
     def __init__(self, config):
+        self.epoch_count = config.epoch_count
+        self.sample_count = config.sample_count
         self.bind_address = config.bind_address
         self.train_report_schedule = Schedule(config.train_report_schedule)
         self.predict_schedule = Schedule(config.predict_schedule)
         self.channels = {}
         self.lock = threading.Lock()
-        worker = threading.Thread(daemon=True, target=self._predict_server)
+        worker = threading.Thread(target=self._predict_server, daemon=True)
         worker.start()
 
     def predict(self, y, y_hat):
@@ -200,8 +202,10 @@ class Monitor:
     def train(self, loss, state):
         if not self.train_report_schedule.should(state.time):
             return
-        line = '{:10d} {:4d} {:10d}'.format(
-            state.time + 1, state.epoch + 1, state.sample + 1)
+        time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
+        line = '{:10d} {:4d} ({:6.2f}%) {:10d} ({:6.2f}%)'.format(
+            time, epoch, 100 * epoch / self.epoch_count, state.sample,
+            100 * sample / self.sample_count)
         for loss in loss:
             line += ' {:12.4e}'.format(loss)
         support.log(self, line)
@@ -229,13 +233,13 @@ class Monitor:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(self.bind_address)
         server.listen(1)
-        support.log(self, 'Listening to {}...', self.bind_address)
+        support.log(self, 'Address: {}', self.bind_address)
         while True:
             try:
                 connection, address = server.accept()
-                worker = threading.Thread(daemon=True,
-                                          target=self._predict_client,
-                                          args=(connection, address))
+                worker = threading.Thread(target=self._predict_client,
+                                          args=(connection, address),
+                                          daemon=True)
                 worker.start()
             except Exception as e:
                 support.log(self, 'Encountered a problem ({}).', e)
@@ -292,7 +296,6 @@ class State:
 
 class Target:
     def __init__(self, config):
-        assert(config.dimension_count == 1)
         support.log(self, 'Index: {}', config.index_path)
         min_length = config.get_or('min_length', 0)
         max_length = config.get_or('max_length', 50)
@@ -312,7 +315,7 @@ class Target:
         sample_count = len(samples)
         support.log(self, 'Traces: {} ({:.2f}%)', sample_count,
                     100 * sample_count / trace_count)
-        self.dimension_count = config.dimension_count
+        self.dimension_count = 1
         self.sample_count = sample_count
         self.samples = samples
         self.standardize = (0.0, 1.0)
@@ -337,8 +340,7 @@ class Target:
 
 class TestTarget:
     def __init__(self, config):
-        assert(config.dimension_count == 1)
-        self.dimension_count = config.dimension_count
+        self.dimension_count = 1
         self.sample_count = 10000
 
     def get(self, sample):
@@ -347,7 +349,13 @@ class TestTarget:
 
 def main(config):
     target = Target(config)
+    config.update({
+        'dimension_count': target.dimension_count,
+    })
     learn = Learn(config)
+    config.update({
+        'sample_count': target.sample_count,
+    })
     monitor = Monitor(config)
     learn.run(target, monitor, config)
 
@@ -356,7 +364,6 @@ if __name__ == '__main__':
     support.loggalize()
     config = Config({
         # Data
-        'dimension_count': 1,
         'index_path': sys.argv[1],
         # Modeling
         'layer_count': 1,
@@ -374,7 +381,6 @@ if __name__ == '__main__':
         'bind_address': ('0.0.0.0', 4242),
         'predict_schedule': [10000 - 10, 10],
         'train_report_schedule': [100 - 1, 1],
-        # Miscellaneous
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
     })
