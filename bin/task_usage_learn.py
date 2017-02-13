@@ -211,7 +211,7 @@ class Monitor:
         support.log(self, line)
 
     def _predict_client(self, connection, address):
-        support.log(self, 'Start serving {}.', address)
+        support.log(self, 'New listener: {}', address)
         channel = queue.Queue()
         with self.lock:
             self.channels[channel] = True
@@ -224,7 +224,7 @@ class Monitor:
                 values = [str(value) for value in y_hat.flatten()]
                 client.write(','.join(values) + '\n')
         except Exception as e:
-            support.log(self, 'Stop serving {} ({}).', address, e)
+            support.log(self, 'Disconnected listener: {} ({})', address, e)
         with self.lock:
             del self.channels[channel]
 
@@ -233,7 +233,7 @@ class Monitor:
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(self.bind_address)
         server.listen(1)
-        support.log(self, 'Address: {}', self.bind_address)
+        support.log(self, 'Bind address: {}', self.bind_address)
         while True:
             try:
                 connection, address = server.accept()
@@ -242,7 +242,7 @@ class Monitor:
                                           daemon=True)
                 worker.start()
             except Exception as e:
-                support.log(self, 'Encountered a problem ({}).', e)
+                support.log(self, 'Exception: {}', e)
 
 class Sample:
     def __init__(self, path, job, task):
@@ -257,13 +257,12 @@ class Saver:
 
     def save(self, session):
         path = self.backend.save(session, self.path)
-        support.log(self, 'Saved in "{}".', path)
+        support.log(self, 'New checkpoint: {}', path)
 
     def restore(self, session):
         if len(glob.glob('{}*'.format(self.path))) > 0:
-            if input('Restore from "{}"? '.format(self.path)) != 'no':
+            if input('Restore "{}"? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
-                support.log(self, 'Restored. Continue learning...')
 
 class Schedule:
     def __init__(self, schedule):
