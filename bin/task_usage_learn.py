@@ -66,7 +66,7 @@ class Learn:
             self.saver.save(session)
 
     def _run_epoch(self, target, monitor, config, session, state):
-        while target.has(state.sample):
+        for _ in range(target.sample_count):
             if monitor.should_train(state.time):
                 self._run_train(target, monitor, config, session, state)
             if monitor.should_predict(state.time):
@@ -74,10 +74,7 @@ class Learn:
             state.increment_time()
 
     def _run_predict(self, target, monitor, config, session, state):
-        if target.has(state.sample + 1):
-            sample = target.get(state.sample + 1)
-        else:
-            sample = target.get(0)
+        sample = target.get((sample + 1) % target.sample_count)
         step_count = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
@@ -295,12 +292,13 @@ class State:
 
 class Target:
     def __init__(self, config):
-        support.log(self, 'Trace index: {}', config.index_path)
-        with open(config.index_path, 'r') as file:
+        assert(config.dimension_count == 1)
+        support.log(self, 'Trace index: {}', config.data_index_path)
+        with open(config.data_index_path, 'r') as file:
             index = json.load(file)['index']
         support.log(self, 'Total traces: {}', len(index))
         min_length = config.get_or('min_length', 0)
-        max_length = config.get_or('max_length', 100)
+        max_length = config.get_or('max_length', 50)
         samples = []
         for i in np.random.permutation(len(index)):
             if index[i]['length'] < min_length:
@@ -311,7 +309,8 @@ class Target:
                                   task=index[i]['task']))
         support.log(self, 'Selected traces: {} ({:.2f}%)', len(samples),
                     100 * len(samples) / len(index))
-        self.dimension_count = 1
+        self.dimension_count = config.dimension_count
+        self.sample_count = len(samples)
         self.samples = samples
         self.standardize = (0.0, 1.0)
         self._standardize(config.get_or('standardize_count', 1000))
@@ -320,9 +319,6 @@ class Target:
         sample = self.samples[sample]
         data = task_usage.select(sample.path, job=sample.job, task=sample.task)
         return (data - self.standardize[0]) / self.standardize[1]
-
-    def has(self, sample):
-        return sample < len(self.samples)
 
     def _standardize(self, count):
         self.standardize = (0.0, 1.0)
@@ -336,32 +332,19 @@ class Target:
             self, 'Mean: {:e}, deviation: {:e} ({} samples)',
             self.standardize[0], self.standardize[1], count)
 
-    def _process(self):
-        while True:
-            pending_count = len(self.pending)
-            if pending_count == 0:
-                return False
-            i = random.randrange(pending_count)
-            accepted = self._accept(self.paths[self.pending[i]])
-            del self.pending[i]
-            if accepted:
-                break
-        return True
-
 class TestTarget:
     def __init__(self, config):
-        self.dimension_count = 1
+        assert(config.dimension_count == 1)
+        self.dimension_count = config.dimension_count
+        self.sample_count = 10000
 
     def get(self, sample):
-        assert(self.has(sample))
+        assert(sample < self.sample_count)
         return np.reshape(np.sin(4 * np.pi / 40 * np.arange(0, 40)), [-1, 1])
 
-    def has(self, sample):
-        return sample < 10000
-
 def main(config):
-    learn = Learn(config)
     target = Target(config)
+    learn = Learn(config)
     monitor = Monitor(config)
     learn.run(target, monitor, config)
 
@@ -371,8 +354,10 @@ if __name__ == '__main__':
                         level=logging.INFO)
     assert(len(sys.argv) == 2)
     config = Config({
+        # Data
         'dimension_count': 1,
-        'index_path': sys.argv[1],
+        'data_index_path': sys.argv[1],
+        # Modeling
         'layer_count': 1,
         'unit_count': 200,
         'cell_clip': 1.0,
@@ -380,14 +365,17 @@ if __name__ == '__main__':
         'use_peepholes': True,
         'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
         'regression_initializer': tf.random_normal_initializer(stddev=0.01),
-        'learning_rate': 1e-3,
+        # Optimization
         'gradient_clip': 1.0,
+        'learning_rate': 1e-3,
         'epoch_count': 100,
+        # Monitoring
+        'bind_address': ('0.0.0.0', 4242),
+        'predict_schedule': [10000 - 10, 10],
+        'train_report_schedule': [100 - 1, 1],
+        # Miscellaneous
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
-        'bind_address': ('0.0.0.0', 4242),
-        'train_report_schedule': [100 - 1, 1],
-        'predict_schedule': [10000 - 10, 10],
     })
     random.seed(0)
     main(config)
