@@ -293,7 +293,7 @@ class State:
 class Target:
     def __init__(self, config):
         assert(config.dimension_count == 1)
-        support.log(self, 'Trace index: {}', config.index_path)
+        support.log(self, 'Index: {}', config.index_path)
         min_length = config.get_or('min_length', 0)
         max_length = config.get_or('max_length', 50)
         samples = []

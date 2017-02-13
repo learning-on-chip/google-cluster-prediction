@@ -8,7 +8,7 @@ import glob
 import support, task_usage
 
 def main(data_path, index_path, report_each=10000):
-    support.log('Data path: {}', data_path)
+    support.log('Data: {}', data_path)
     paths = glob.glob('{}/**/*.sqlite3'.format(data_path))
     database_count = len(paths)
     support.log('Databases: {}', database_count)

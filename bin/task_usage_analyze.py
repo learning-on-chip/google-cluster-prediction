@@ -17,7 +17,7 @@ def main(index_path, min_length=0, max_length=50, report_each=1000000):
         pp.title(status)
         pp.hist(samples, bins=(max_length - min_length))
         pp.pause(1e-3)
-    support.log('Trace index: {}', index_path)
+    support.log('Index: {}', index_path)
     support.figure()
     samples = []
     trace_count = 0
