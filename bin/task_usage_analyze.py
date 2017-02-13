@@ -8,7 +8,7 @@ import matplotlib.pyplot as pp
 
 import support
 
-def main(index_path, min_length=0, max_length=100, report_each=1000000):
+def main(index_path, min_length=0, max_length=50, report_each=1000000):
     support.figure()
     print('Loading the index from "{}"...'.format(index_path))
     with open(index_path, 'r') as file:
