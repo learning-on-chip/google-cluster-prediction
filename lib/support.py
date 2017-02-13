@@ -2,6 +2,8 @@ import logging
 import matplotlib.pyplot as pp
 import numpy as np
 
+LOG_SOURCE_LIMIT = 8
+
 class Config:
     def __init__(self, options={}):
         self.update(options)
@@ -23,9 +25,10 @@ def log(*arguments):
         template, source = first, 'Main'
     else:
         template, source = arguments.pop(0), first.__class__.__name__
-    if len(source) > 10:
-        source = source[:9] + '…'
-    logging.info("[%-10s] %s", source.upper(), template.format(*arguments))
+    if len(source) > LOG_SOURCE_LIMIT:
+        source = source[:(LOG_SOURCE_LIMIT - 1)] + '…'
+    logging.info('[%-' + str(LOG_SOURCE_LIMIT) + 's] %s', source.upper(),
+                 template.format(*arguments))
 
 def loggalize(level=logging.INFO):
     logging.basicConfig(format='%(asctime)s %(message)s',
