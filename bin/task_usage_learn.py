@@ -311,6 +311,7 @@ class Target:
                     continue
                 samples.append(Sample(path=record[0], job=int(record[1]),
                                       task=int(record[2])))
+        random.shuffle(samples)
         sample_count = len(samples)
         support.log(self, 'Traces: {} ({:.2f}%)', sample_count,
                     100 * sample_count / trace_count)
