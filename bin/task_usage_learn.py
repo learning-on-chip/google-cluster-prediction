@@ -204,7 +204,7 @@ class Monitor:
             return
         time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
         line = '{:10d} {:4d} ({:6.2f}%) {:10d} ({:6.2f}%)'.format(
-            time, epoch, 100 * epoch / self.epoch_count, state.sample,
+            time, epoch, 100 * epoch / self.epoch_count, sample,
             100 * sample / self.sample_count)
         for loss in loss:
             line += ' {:12.4e}'.format(loss)
@@ -379,7 +379,7 @@ if __name__ == '__main__':
         # Monitoring
         'bind_address': ('0.0.0.0', 4242),
         'predict_schedule': [10000 - 10, 10],
-        'train_report_schedule': [100 - 1, 1],
+        'train_report_schedule': [1000 - 1, 1],
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
     })
