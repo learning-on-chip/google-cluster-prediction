@@ -308,25 +308,24 @@ class Target:
         self.sample_count = len(self.samples)
         support.log(self, 'Traces: {} ({:.2f}%)', self.sample_count,
                     100 * self.sample_count / trace_count)
-        self.standardize = self._standardize(config.standardize_count)
+        self.standard = self._standardize(config.standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
-                    self.standardize[0], self.standardize[1],
-                    config.standardize_count)
+                    self.standard[0], self.standard[1], config.standard_count)
 
     def get(self, sample):
-        return (self._get(sample) - self.standardize[0]) / self.standardize[1]
+        return (self._get(sample) - self.standard[0]) / self.standard[1]
 
     def _get(self, sample):
         return task_usage.select(*self.samples[sample])
 
     def _standardize(self, count):
-        standardize = (0.0, 1.0)
+        standard = (0.0, 1.0)
         data = np.array([], dtype=np.float32)
         for sample in range(count):
             data = np.append(data, self._get(sample))
         if len(data) > 0:
-            standardize = (np.mean(data), np.std(data))
-        return standardize
+            standard = (np.mean(data), np.std(data))
+        return standard
 
 class TestTarget:
     def __init__(self, config):
@@ -357,7 +356,7 @@ if __name__ == '__main__':
         'index_path': sys.argv[1],
         'min_length': 0,
         'max_length': 50,
-        'standardize_count': 1000,
+        'standard_count': 1000,
         # Model
         'layer_count': 1,
         'unit_count': 200,
