@@ -8,9 +8,6 @@ class Config:
     def __init__(self, options={}):
         self.update(options)
 
-    def get_or(self, key, default):
-        return getattr(self, key) if hasattr(self, key) else default
-
     def update(self, options):
         for key in options:
             setattr(self, key, options[key])

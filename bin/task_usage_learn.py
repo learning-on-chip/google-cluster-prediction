@@ -296,47 +296,44 @@ class State:
 class Target:
     def __init__(self, config):
         support.log(self, 'Index: {}', config.index_path)
-        min_length = config.get_or('min_length', 0)
-        max_length = config.get_or('max_length', 50)
-        samples = []
+        self.dimension_count = 1
+        self.samples = []
         trace_count = 0
         with open(config.index_path, 'r') as file:
             for record in file:
                 trace_count += 1
                 record = record.split(',')
                 length = int(record[-1])
-                if length < min_length:
+                if length < config.min_length:
                     continue
-                if length > max_length:
+                if length > config.max_length:
                     continue
-                samples.append(Sample(path=record[0], job=int(record[1]),
-                                      task=int(record[2])))
-        random.shuffle(samples)
-        sample_count = len(samples)
-        support.log(self, 'Traces: {} ({:.2f}%)', sample_count,
-                    100 * sample_count / trace_count)
-        self.dimension_count = 1
-        self.sample_count = sample_count
-        self.samples = samples
-        self.standardize = (0.0, 1.0)
-        self._standardize(config.get_or('standardize_count', 1000))
+                self.samples.append(Sample(path=record[0], job=int(record[1]),
+                                           task=int(record[2])))
+        random.shuffle(self.samples)
+        self.sample_count = len(self.samples)
+        support.log(self, 'Traces: {} ({:.2f}%)', self.sample_count,
+                    100 * self.sample_count / trace_count)
+        self.standardize = self._standardize(config.standardize_count)
+        support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
+                    self.standardize[0], self.standardize[1],
+                    config.standardize_count)
 
     def get(self, sample):
+        return (self._get(sample) - self.standardize[0]) / self.standardize[1]
+
+    def _get(self, sample):
         sample = self.samples[sample]
-        data = task_usage.select(sample.path, job=sample.job, task=sample.task)
-        return (data - self.standardize[0]) / self.standardize[1]
+        return task_usage.select(sample.path, job=sample.job, task=sample.task)
 
     def _standardize(self, count):
-        self.standardize = (0.0, 1.0)
+        standardize = (0.0, 1.0)
         data = np.array([], dtype=np.float32)
         for sample in range(count):
-            data = np.append(data, self.get(sample))
-        if len(data) == 0:
-            return
-        self.standardize = (np.mean(data), np.std(data))
-        support.log(
-            self, 'Mean: {:e}, deviation: {:e} ({} samples)',
-            self.standardize[0], self.standardize[1], count)
+            data = np.append(data, self._get(sample))
+        if len(data) > 0:
+            standardize = (np.mean(data), np.std(data))
+        return standardize
 
 class TestTarget:
     def __init__(self, config):
@@ -363,9 +360,12 @@ if __name__ == '__main__':
     assert(len(sys.argv) == 2)
     support.loggalize()
     config = Config({
-        # Data
+        # Target
         'index_path': sys.argv[1],
-        # Modeling
+        'min_length': 0,
+        'max_length': 50,
+        'standardize_count': 1000,
+        # Model
         'layer_count': 1,
         'unit_count': 200,
         'cell_clip': 1.0,
@@ -373,11 +373,11 @@ if __name__ == '__main__':
         'use_peepholes': True,
         'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
         'regression_initializer': tf.random_normal_initializer(stddev=0.01),
-        # Optimization
+        # Optimize
         'gradient_clip': 1.0,
         'learning_rate': 1e-3,
         'epoch_count': 100,
-        # Monitoring
+        # Monitor
         'bind_address': ('0.0.0.0', 4242),
         'predict_schedule': [10000 - 10, 10],
         'train_report_schedule': [1000 - 1, 1],
