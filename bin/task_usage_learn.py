@@ -244,12 +244,6 @@ class Monitor:
             except Exception as e:
                 support.log(self, 'Exception: {}', e)
 
-class Sample:
-    def __init__(self, path, job, task):
-        self.path = path
-        self.job = job
-        self.task = task
-
 class Saver:
     def __init__(self, config):
         self.backend = tf.train.Saver()
@@ -308,8 +302,8 @@ class Target:
                     continue
                 if length > config.max_length:
                     continue
-                self.samples.append(Sample(path=record[0], job=int(record[1]),
-                                           task=int(record[2])))
+                self.samples.append(
+                    (record[0], int(record[1]), int(record[2])))
         random.shuffle(self.samples)
         self.sample_count = len(self.samples)
         support.log(self, 'Traces: {} ({:.2f}%)', self.sample_count,
@@ -323,8 +317,7 @@ class Target:
         return (self._get(sample) - self.standardize[0]) / self.standardize[1]
 
     def _get(self, sample):
-        sample = self.samples[sample]
-        return task_usage.select(sample.path, job=sample.job, task=sample.task)
+        return task_usage.select(*self.samples[sample])
 
     def _standardize(self, count):
         standardize = (0.0, 1.0)
