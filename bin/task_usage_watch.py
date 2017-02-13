@@ -8,12 +8,13 @@ import numpy as np
 import socket
 
 from support import Config
+import support
 
 def main(config):
-    print('Connecting to {}...'.format(config.address))
+    support.log('Address: {}', config.address)
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(config.address)
-    client = client.makefile(mode="r")
+    client = client.makefile(mode='r')
     plots = _prepare(config.dimension_count)
     x_limit = [0, 1]
     y_limit = [-1, 1]
@@ -23,8 +24,10 @@ def main(config):
         if sample_count <= 1:
             continue
         x = np.arange(0, sample_count)
-        y = np.reshape(np.array(row[0:sample_count]), [-1, config.dimension_count])
-        y_hat = np.reshape(np.array(row[sample_count:]), [-1, config.dimension_count])
+        y = np.reshape(np.array(row[0:sample_count]),
+                       [-1, config.dimension_count])
+        y_hat = np.reshape(np.array(row[sample_count:]),
+                           [-1, config.dimension_count])
         x_limit[1] = sample_count - 1
         y_limit[0] = min(y_limit[0], np.min(y), np.min(y_hat))
         y_limit[1] = max(y_limit[1], np.max(y), np.max(y_hat))
@@ -55,6 +58,7 @@ if __name__ == '__main__':
     assert(len(sys.argv) == 2)
     chunks = sys.argv[1].split(':')
     assert(len(chunks) == 2)
+    support.loggalize()
     config = Config({
         'dimension_count': 1,
         'address': (chunks[0], int(chunks[1])),
