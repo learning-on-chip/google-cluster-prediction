@@ -35,7 +35,6 @@ class Learn:
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             saver = Saver(config)
-
         self.graph = graph
         self.model = model
         self.state = state
@@ -69,7 +68,7 @@ class Learn:
         for _ in range(target.sample_count):
             if monitor.should_train(state.time):
                 self._run_train(target, monitor, config, session, state)
-            if monitor.should_predict(state.time):
+            if monitor.should_show(state.time):
                 self._run_predict(target, monitor, config, session, state)
             state.increment_time()
 
@@ -92,7 +91,7 @@ class Learn:
                 feed[self.model.start] = result['finish']
                 y_hat[j, :] = result['y_hat'][-1, :]
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            if not monitor.predict(support.shift(sample, -i - 1), y_hat):
+            if not monitor.show(support.shift(sample, -i - 1), y_hat):
                 break
 
     def _run_train(self, target, monitor, config, session, state):
@@ -136,7 +135,6 @@ class Model:
                 cell, x, initial_state=state, parallel_iterations=1)
             finish = Model._finalize(state, config)
         y_hat, loss = Model._regress(h, y, config)
-
         self.x = x
         self.y = y
         self.y_hat = y_hat
@@ -181,23 +179,23 @@ class Monitor:
         self.sample_count = config.sample_count
         self.bind_address = config.bind_address
         self.train_report_schedule = Schedule(config.train_report_schedule)
-        self.predict_schedule = Schedule(config.predict_schedule)
+        self.show_schedule = Schedule(config.show_schedule)
         self.channels = {}
         self.lock = threading.Lock()
-        worker = threading.Thread(target=self._predict_server, daemon=True)
+        worker = threading.Thread(target=self._show_server, daemon=True)
         worker.start()
 
-    def predict(self, y, y_hat):
-        with self.lock:
-            for channel in self.channels:
-                channel.put((y, y_hat))
-        return len(self.channels) > 0
+    def should_show(self, time):
+        return len(self.channels) > 0 and self.show_schedule.should(time)
 
     def should_train(self, _):
         return True
 
-    def should_predict(self, time):
-        return len(self.channels) > 0 and self.predict_schedule.should(time)
+    def show(self, y, y_hat):
+        with self.lock:
+            for channel in self.channels:
+                channel.put((y, y_hat))
+        return len(self.channels) > 0
 
     def train(self, loss, state):
         if not self.train_report_schedule.should(state.time):
@@ -210,7 +208,7 @@ class Monitor:
             line += ' {:12.4e}'.format(loss)
         support.log(self, line)
 
-    def _predict_client(self, connection, address):
+    def _show_client(self, connection, address):
         support.log(self, 'New listener: {}', address)
         channel = queue.Queue()
         with self.lock:
@@ -228,7 +226,7 @@ class Monitor:
         with self.lock:
             del self.channels[channel]
 
-    def _predict_server(self):
+    def _show_server(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.bind(self.bind_address)
@@ -237,7 +235,7 @@ class Monitor:
         while True:
             try:
                 connection, address = server.accept()
-                worker = threading.Thread(target=self._predict_client,
+                worker = threading.Thread(target=self._show_client,
                                           args=(connection, address),
                                           daemon=True)
                 worker.start()
@@ -371,7 +369,7 @@ if __name__ == '__main__':
         'epoch_count': 100,
         # Monitor
         'bind_address': ('0.0.0.0', 4242),
-        'predict_schedule': [10000 - 10, 10],
+        'show_schedule': [10000 - 10, 10],
         'train_report_schedule': [1000 - 1, 1],
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
