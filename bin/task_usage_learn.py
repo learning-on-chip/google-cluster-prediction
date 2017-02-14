@@ -65,7 +65,7 @@ class Learn:
             self.saver.save(session)
 
     def _run_epoch(self, target, manager, config, session, state):
-        for _ in range(target.sample_count):
+        for _ in range(target.train_sample_count):
             if manager.should_train(state.time):
                 self._run_train(target, manager, config, session, state)
             if manager.should_test(state.time):
@@ -75,7 +75,7 @@ class Learn:
             state.increment_time()
 
     def _run_show(self, target, manager, config, session, state):
-        sample = target.get((sample + 1) % target.sample_count)
+        sample = target.train((state.sample + 1) % target.train_sample_count)
         step_count = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
@@ -97,10 +97,10 @@ class Learn:
                 break
 
     def _run_test(self, target, manager, config, session, state):
-        pass
+        manager.test()
 
     def _run_train(self, target, manager, config, session, state):
-        sample = target.get(state.sample)
+        sample = target.train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
@@ -115,8 +115,8 @@ class Learn:
         result = session.run(fetch, feed)
         loss = result['loss'].flatten()
         assert(np.all([not math.isnan(loss) for loss in loss]))
-        manager.train(loss, state)
         self.logger.add_summary(result['summary'], state.time)
+        manager.train(loss, state)
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
@@ -180,7 +180,7 @@ class Model:
 
 class Manager:
     def __init__(self, config):
-        self.sample_count = config.sample_count
+        self.train_sample_count = config.train_sample_count
         self.show_address = config.show_address
         self.train_schedule = Schedule(config.train_schedule)
         self.train_report_schedule = Schedule(config.train_report_schedule)
@@ -214,7 +214,7 @@ class Manager:
             return
         time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
         line = '{:10d} {:4d} {:10d} ({:6.2f}%)'.format(
-            time, epoch, sample, 100 * sample / self.sample_count)
+            time, epoch, sample, 100 * sample / self.train_sample_count)
         for loss in loss:
             line += ' {:12.4e}'.format(loss)
         support.log(self, line)
@@ -300,7 +300,8 @@ class Target:
     def __init__(self, config):
         support.log(self, 'Index: {}', config.index_path)
         self.dimension_count = 1
-        self.samples = []
+        self.train_samples = []
+        self.test_samples = []
         trace_count = 0
         with open(config.index_path, 'r') as file:
             for record in file:
@@ -311,39 +312,42 @@ class Target:
                     continue
                 if length > config.max_length:
                     continue
-                self.samples.append(
-                    (record[0], int(record[1]), int(record[2])))
-        random.shuffle(self.samples)
-        self.sample_count = len(self.samples)
-        support.log(self, 'Traces: {} ({:.2f}%)', self.sample_count,
-                    100 * self.sample_count / trace_count)
+                sample = (record[0], int(record[1]), int(record[2]))
+                if random.random() < config.train_fraction:
+                    self.train_samples.append(sample)
+                else:
+                    self.test_samples.append(sample)
+        random.shuffle(self.train_samples)
+        random.shuffle(self.test_samples)
+        self.train_sample_count = len(self.train_samples)
+        self.test_sample_count = len(self.test_samples)
+        sample_count = self.train_sample_count + self.test_sample_count
+        support.log(self, 'Samples: {} ({:.2f}%)', sample_count,
+                    100 * sample_count / trace_count)
         self.standard = self._standardize(config.standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     self.standard[0], self.standard[1], config.standard_count)
 
-    def get(self, sample):
-        return (self._get(sample) - self.standard[0]) / self.standard[1]
+    def test(self, sample):
+        return (self._test(sample) - self.standard[0]) / self.standard[1]
 
-    def _get(self, sample):
-        return task_usage.select(*self.samples[sample])
+    def train(self, sample):
+        return (self._train(sample) - self.standard[0]) / self.standard[1]
+
+    def _test(self, sample):
+        return task_usage.select(*self.test_samples[sample])
+
+    def _train(self, sample):
+        return task_usage.select(*self.train_samples[sample])
 
     def _standardize(self, count):
         standard = (0.0, 1.0)
         data = np.array([], dtype=np.float32)
         for sample in range(count):
-            data = np.append(data, self._get(sample))
+            data = np.append(data, self._train(sample))
         if len(data) > 0:
             standard = (np.mean(data), np.std(data))
         return standard
-
-class TestTarget:
-    def __init__(self, config):
-        self.dimension_count = 1
-        self.sample_count = 10000
-
-    def get(self, sample):
-        assert(sample < self.sample_count)
-        return np.reshape(np.sin(4 * np.pi / 40 * np.arange(0, 40)), [-1, 1])
 
 def main(config):
     target = Target(config)
@@ -352,7 +356,7 @@ def main(config):
     })
     learn = Learn(config)
     config.update({
-        'sample_count': target.sample_count,
+        'train_sample_count': target.train_sample_count,
     })
     manager = Manager(config)
     learn.run(target, manager, config)
@@ -366,7 +370,7 @@ if __name__ == '__main__':
         'min_length': 0,
         'max_length': 50,
         'standard_count': 1000,
-        # Model
+        # Modeling
         'layer_count': 1,
         'unit_count': 200,
         'cell_clip': 1.0,
@@ -374,11 +378,12 @@ if __name__ == '__main__':
         'use_peepholes': True,
         'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
         'regression_initializer': tf.random_normal_initializer(stddev=0.01),
-        # Optimize
+        # Training
+        'train_fraction': 0.7,
         'gradient_clip': 1.0,
         'learning_rate': 1e-3,
         'epoch_count': 100,
-        # Manager
+        # Managing
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
         'test_schedule': [10000 - 10, 10],
