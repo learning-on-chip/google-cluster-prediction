@@ -123,29 +123,12 @@ class Learn:
 
 class Model:
     def __init__(self, config):
-        x = tf.placeholder(
+        self.x = tf.placeholder(
             tf.float32, [1, None, config.dimension_count], name='x')
-        y = tf.placeholder(
+        self.y = tf.placeholder(
             tf.float32, [1, None, config.dimension_count], name='y')
-        with tf.variable_scope('network') as scope:
-            cell = tf.nn.rnn_cell.LSTMCell(
-                config.unit_count, state_is_tuple=True,
-                cell_clip=config.cell_clip, forget_bias=config.forget_bias,
-                use_peepholes=config.use_peepholes,
-                initializer=config.network_initializer)
-            cell = tf.nn.rnn_cell.MultiRNNCell(
-                [cell] * config.layer_count, state_is_tuple=True)
-            start, state = Model._initialize(config)
-            h, state = tf.nn.dynamic_rnn(
-                cell, x, initial_state=state, parallel_iterations=1)
-            finish = Model._finalize(state, config)
-        y_hat, loss = Model._regress(h, y, config)
-        self.x = x
-        self.y = y
-        self.y_hat = y_hat
-        self.loss = loss
-        self.start = start
-        self.finish = finish
+        self.start, self.finish, h = Model._network(self.x, config)
+        self.y_hat, self.loss = Model._regress(h, self.y, config)
 
     def _finalize(state, config):
         parts = []
@@ -164,6 +147,21 @@ class Model:
             c, h = parts[2 * i], parts[2*i + 1]
             state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
         return start, tuple(state)
+
+    def _network(x, config):
+        with tf.variable_scope('network') as scope:
+            cell = tf.nn.rnn_cell.LSTMCell(
+                config.unit_count, state_is_tuple=True,
+                cell_clip=config.cell_clip, forget_bias=config.forget_bias,
+                use_peepholes=config.use_peepholes,
+                initializer=config.network_initializer)
+            cell = tf.nn.rnn_cell.MultiRNNCell(
+                [cell] * config.layer_count, state_is_tuple=True)
+            start, state = Model._initialize(config)
+            h, state = tf.nn.dynamic_rnn(
+                cell, x, initial_state=state, parallel_iterations=1)
+            finish = Model._finalize(state, config)
+        return start, finish, h
 
     def _regress(x, y, config):
         with tf.variable_scope('regression') as scope:
