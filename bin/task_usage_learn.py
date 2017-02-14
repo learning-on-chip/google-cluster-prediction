@@ -50,29 +50,31 @@ class Learn:
     def count_parameters(self):
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
-    def run(self, target, monitor, config):
+    def run(self, target, manager, config):
         support.log(self, 'Parameters: {}', self.count_parameters())
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.saver.restore(session)
         state = State.deserialize(session.run(self.state))
         for _ in range(config.epoch_count - state.epoch % config.epoch_count):
-            self._run_epoch(target, monitor, config, session, state)
+            self._run_epoch(target, manager, config, session, state)
             state.increment_epoch()
             session.run(self.update_state, {
                 self.state_update: state.serialize(),
             })
             self.saver.save(session)
 
-    def _run_epoch(self, target, monitor, config, session, state):
+    def _run_epoch(self, target, manager, config, session, state):
         for _ in range(target.sample_count):
-            if monitor.should_train(state.time):
-                self._run_train(target, monitor, config, session, state)
-            if monitor.should_show(state.time):
-                self._run_predict(target, monitor, config, session, state)
+            if manager.should_train(state.time):
+                self._run_train(target, manager, config, session, state)
+            if manager.should_test(state.time):
+                self._run_test(target, manager, config, session, state)
+            if manager.should_show(state.time):
+                self._run_show(target, manager, config, session, state)
             state.increment_time()
 
-    def _run_predict(self, target, monitor, config, session, state):
+    def _run_show(self, target, manager, config, session, state):
         sample = target.get((sample + 1) % target.sample_count)
         step_count = sample.shape[0]
         feed = {
@@ -91,10 +93,13 @@ class Learn:
                 feed[self.model.start] = result['finish']
                 y_hat[j, :] = result['y_hat'][-1, :]
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            if not monitor.show(support.shift(sample, -i - 1), y_hat):
+            if not manager.show(support.shift(sample, -i - 1), y_hat):
                 break
 
-    def _run_train(self, target, monitor, config, session, state):
+    def _run_test(self, target, manager, config, session, state):
+        pass
+
+    def _run_train(self, target, manager, config, session, state):
         sample = target.get(state.sample)
         feed = {
             self.model.start: self._zero_start(),
@@ -110,7 +115,7 @@ class Learn:
         result = session.run(fetch, feed)
         loss = result['loss'].flatten()
         assert(np.all([not math.isnan(loss) for loss in loss]))
-        monitor.train(loss, state)
+        manager.train(loss, state)
         self.logger.add_summary(result['summary'], state.time)
 
     def _zero_start(self):
@@ -173,50 +178,56 @@ class Model:
             loss = tf.reduce_mean(tf.squared_difference(y_hat, y))
         return y_hat, loss
 
-class Monitor:
+class Manager:
     def __init__(self, config):
-        self.epoch_count = config.epoch_count
         self.sample_count = config.sample_count
-        self.bind_address = config.bind_address
+        self.show_address = config.show_address
+        self.train_schedule = Schedule(config.train_schedule)
         self.train_report_schedule = Schedule(config.train_report_schedule)
+        self.test_schedule = Schedule(config.test_schedule)
         self.show_schedule = Schedule(config.show_schedule)
-        self.channels = {}
+        self.listeners = {}
         self.lock = threading.Lock()
         worker = threading.Thread(target=self._show_server, daemon=True)
         worker.start()
 
     def should_show(self, time):
-        return len(self.channels) > 0 and self.show_schedule.should(time)
+        return len(self.listeners) > 0 and self.show_schedule.should(time)
 
-    def should_train(self, _):
-        return True
+    def should_test(self, time):
+        return self.test_schedule.should(time)
+
+    def should_train(self, time):
+        return self.train_schedule.should(time)
 
     def show(self, y, y_hat):
         with self.lock:
-            for channel in self.channels:
-                channel.put((y, y_hat))
-        return len(self.channels) > 0
+            for listener in self.listeners:
+                listener.put((y, y_hat))
+        return len(self.listeners) > 0
+
+    def test(self):
+        pass
 
     def train(self, loss, state):
         if not self.train_report_schedule.should(state.time):
             return
         time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
-        line = '{:10d} {:4d} ({:6.2f}%) {:10d} ({:6.2f}%)'.format(
-            time, epoch, 100 * epoch / self.epoch_count, sample,
-            100 * sample / self.sample_count)
+        line = '{:10d} {:4d} {:10d} ({:6.2f}%)'.format(
+            time, epoch, sample, 100 * sample / self.sample_count)
         for loss in loss:
             line += ' {:12.4e}'.format(loss)
         support.log(self, line)
 
     def _show_client(self, connection, address):
         support.log(self, 'New listener: {}', address)
-        channel = queue.Queue()
+        listener = queue.Queue()
         with self.lock:
-            self.channels[channel] = True
+            self.listeners[listener] = True
         try:
             client = connection.makefile(mode='w')
             while True:
-                y, y_hat = channel.get()
+                y, y_hat = listener.get()
                 values = [str(value) for value in y.flatten()]
                 client.write(','.join(values) + ',')
                 values = [str(value) for value in y_hat.flatten()]
@@ -224,14 +235,14 @@ class Monitor:
         except Exception as e:
             support.log(self, 'Disconnected listener: {} ({})', address, e)
         with self.lock:
-            del self.channels[channel]
+            del self.listeners[listener]
 
     def _show_server(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind(self.bind_address)
+        server.bind(self.show_address)
         server.listen(1)
-        support.log(self, 'Bind address: {}', self.bind_address)
+        support.log(self, 'Show address: {}', self.show_address)
         while True:
             try:
                 connection, address = server.accept()
@@ -343,8 +354,8 @@ def main(config):
     config.update({
         'sample_count': target.sample_count,
     })
-    monitor = Monitor(config)
-    learn.run(target, monitor, config)
+    manager = Manager(config)
+    learn.run(target, manager, config)
 
 if __name__ == '__main__':
     assert(len(sys.argv) == 2)
@@ -367,10 +378,13 @@ if __name__ == '__main__':
         'gradient_clip': 1.0,
         'learning_rate': 1e-3,
         'epoch_count': 100,
-        # Monitor
-        'bind_address': ('0.0.0.0', 4242),
-        'show_schedule': [10000 - 10, 10],
+        # Manager
+        'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
+        'test_schedule': [10000 - 10, 10],
+        'show_schedule': [10000 - 10, 10],
+        'show_address': ('0.0.0.0', 4242),
+        # Other
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
     })
