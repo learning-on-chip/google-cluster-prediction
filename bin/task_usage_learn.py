@@ -121,60 +121,6 @@ class Learn:
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
 
-class Model:
-    def __init__(self, config):
-        self.x = tf.placeholder(
-            tf.float32, [1, None, config.dimension_count], name='x')
-        self.y = tf.placeholder(
-            tf.float32, [1, None, config.dimension_count], name='y')
-        with tf.variable_scope('network'):
-            self.start, self.finish, h = Model._network(self.x, config)
-        with tf.variable_scope('regression'):
-            self.y_hat, self.loss = Model._regress(h, self.y, config)
-
-    def _finalize(state, config):
-        parts = []
-        for i in range(config.layer_count):
-            parts.append(state[i].c)
-            parts.append(state[i].h)
-        return tf.pack(parts, name='finish')
-
-    def _initialize(config):
-        start = tf.placeholder(
-            tf.float32, [2 * config.layer_count, 1, config.unit_count],
-            name='start')
-        parts = tf.unpack(start)
-        state = []
-        for i in range(config.layer_count):
-            c, h = parts[2 * i], parts[2*i + 1]
-            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
-        return start, tuple(state)
-
-    def _network(x, config):
-        cell = tf.nn.rnn_cell.LSTMCell(
-            config.unit_count, state_is_tuple=True, cell_clip=config.cell_clip,
-            forget_bias=config.forget_bias, use_peepholes=config.use_peepholes,
-            initializer=config.network_initializer)
-        cell = tf.nn.rnn_cell.MultiRNNCell(
-            [cell] * config.layer_count, state_is_tuple=True)
-        start, state = Model._initialize(config)
-        h, state = tf.nn.dynamic_rnn(
-            cell, x, initial_state=state, parallel_iterations=1)
-        finish = Model._finalize(state, config)
-        return start, finish, h
-
-    def _regress(x, y, config):
-        unroll_count = tf.shape(x)[1]
-        x = tf.squeeze(x, squeeze_dims=[0])
-        y = tf.squeeze(y, squeeze_dims=[0])
-        w = tf.get_variable(
-            'w', [config.unit_count, config.dimension_count],
-            initializer=config.regression_initializer)
-        b = tf.get_variable('b', [1, config.dimension_count])
-        y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
-        loss = tf.reduce_mean(tf.squared_difference(y_hat, y))
-        return y_hat, loss
-
 class Manager:
     def __init__(self, config):
         self.train_sample_count = config.train_sample_count
@@ -249,6 +195,60 @@ class Manager:
                 worker.start()
             except Exception as e:
                 support.log(self, 'Exception: {}', e)
+
+class Model:
+    def __init__(self, config):
+        self.x = tf.placeholder(
+            tf.float32, [1, None, config.dimension_count], name='x')
+        self.y = tf.placeholder(
+            tf.float32, [1, None, config.dimension_count], name='y')
+        with tf.variable_scope('network'):
+            self.start, self.finish, h = Model._network(self.x, config)
+        with tf.variable_scope('regression'):
+            self.y_hat, self.loss = Model._regress(h, self.y, config)
+
+    def _finalize(state, config):
+        parts = []
+        for i in range(config.layer_count):
+            parts.append(state[i].c)
+            parts.append(state[i].h)
+        return tf.pack(parts, name='finish')
+
+    def _initialize(config):
+        start = tf.placeholder(
+            tf.float32, [2 * config.layer_count, 1, config.unit_count],
+            name='start')
+        parts = tf.unpack(start)
+        state = []
+        for i in range(config.layer_count):
+            c, h = parts[2 * i], parts[2*i + 1]
+            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
+        return start, tuple(state)
+
+    def _network(x, config):
+        cell = tf.nn.rnn_cell.LSTMCell(
+            config.unit_count, state_is_tuple=True, cell_clip=config.cell_clip,
+            forget_bias=config.forget_bias, use_peepholes=config.use_peepholes,
+            initializer=config.network_initializer)
+        cell = tf.nn.rnn_cell.MultiRNNCell(
+            [cell] * config.layer_count, state_is_tuple=True)
+        start, state = Model._initialize(config)
+        h, state = tf.nn.dynamic_rnn(
+            cell, x, initial_state=state, parallel_iterations=1)
+        finish = Model._finalize(state, config)
+        return start, finish, h
+
+    def _regress(x, y, config):
+        unroll_count = tf.shape(x)[1]
+        x = tf.squeeze(x, squeeze_dims=[0])
+        y = tf.squeeze(y, squeeze_dims=[0])
+        w = tf.get_variable(
+            'w', [config.unit_count, config.dimension_count],
+            initializer=config.regression_initializer)
+        b = tf.get_variable('b', [1, config.dimension_count])
+        y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
+        loss = tf.reduce_mean(tf.squared_difference(y_hat, y))
+        return y_hat, loss
 
 class Saver:
     def __init__(self, config):
