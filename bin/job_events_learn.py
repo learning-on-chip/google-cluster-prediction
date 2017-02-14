@@ -145,13 +145,22 @@ def monitor(y, y_hat, progress, loss):
         pp.legend(['Observed', 'Predicted'])
     pp.pause(1e-3)
 
+def normalize(data):
+    return (data - np.mean(data)) / np.sqrt(np.var(data))
+
+def standardize(data):
+    unique = np.unique(data)
+    for i, value in enumerate(unique):
+        data[data == value] = i
+    return data / len(unique)
+
 def main(data_path):
     support.figure()
     pp.pause(1e-3)
 
     data = job_events.select(data_path, app=None, user=381)
-    data0 = support.normalize(np.diff(data[:, 0]))
-    data1 = support.standardize(data[1:, 1])
+    data0 = normalize(np.diff(data[:, 0]))
+    data1 = standardize(data[1:, 1])
     data = np.transpose(np.vstack((data0, data1)))
 
     learn(lambda i: data[i, :],

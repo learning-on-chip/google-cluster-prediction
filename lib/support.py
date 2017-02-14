@@ -31,9 +31,6 @@ def loggalize(level=logging.INFO):
     logging.basicConfig(format='%(asctime)s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S', level=level)
 
-def normalize(data):
-    return (data - np.mean(data)) / np.sqrt(np.var(data))
-
 def shift(data, amount, padding=0.0):
     data = np.roll(data, amount, axis=0)
     if amount > 0:
@@ -41,9 +38,3 @@ def shift(data, amount, padding=0.0):
     elif amount < 0:
         data[amount:, :] = padding
     return data
-
-def standardize(data):
-    unique = np.unique(data)
-    for i, value in enumerate(unique):
-        data[data == value] = i
-    return data / len(unique)
