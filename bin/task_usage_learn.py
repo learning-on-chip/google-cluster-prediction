@@ -76,7 +76,7 @@ class Learn:
 
     def _run_show(self, target, manager, config, session, state):
         sample = target.train((state.sample + 1) % target.train_sample_count)
-        step_count = sample.shape[0]
+        length = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
         }
@@ -84,11 +84,11 @@ class Learn:
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        for i in range(step_count):
+        for i in range(length):
             feed[self.model.x] = np.reshape(
                 sample[:(i + 1), :], [1, i + 1, -1])
-            y_hat = np.zeros([step_count, target.dimension_count])
-            for j in range(step_count - i - 1):
+            y_hat = np.zeros([length, target.dimension_count])
+            for j in range(length - i - 1):
                 result = session.run(fetch, feed)
                 feed[self.model.start] = result['finish']
                 y_hat[j, :] = result['y_hat'][-1, :]
@@ -346,8 +346,33 @@ class Target:
     def _train(self, sample):
         return task_usage.select(*self.train_samples[sample])
 
+class TestTarget:
+    def __init__(self, config):
+        self.dimension_count = 1
+        self.train_sample_count = 7000
+        self.test_sample_count = 3000
+        self.train_samples = TestTarget._generate(self.train_sample_count)
+        self.test_samples = TestTarget._generate(self.test_sample_count)
+
+    def test(self, sample):
+        return TestTarget._compute(self.test_samples[sample, :])
+
+    def train(self, sample):
+        return TestTarget._compute(self.train_samples[sample, :])
+
+    def _compute(sample):
+        a, b, n = sample[0], sample[1], int(round(sample[2]))
+        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
+
+    def _generate(count):
+        samples = np.random.rand(count, 3)
+        samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
+        samples[:, 1] = 5 * samples[:, 1]
+        samples[:, 2] = 10 + 10 * samples[:, 2]
+        return samples
+
 def main(config):
-    target = Target(config)
+    target = TestTarget(config)
     config.update({
         'dimension_count': target.dimension_count,
     })
