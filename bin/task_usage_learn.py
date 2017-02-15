@@ -331,12 +331,6 @@ class Target:
     def train(self, sample):
         return (self._train(sample) - self.standard[0]) / self.standard[1]
 
-    def _test(self, sample):
-        return task_usage.select(*self.test_samples[sample])
-
-    def _train(self, sample):
-        return task_usage.select(*self.train_samples[sample])
-
     def _standardize(self, count):
         standard = (0.0, 1.0)
         data = np.array([], dtype=np.float32)
@@ -345,6 +339,12 @@ class Target:
         if len(data) > 0:
             standard = (np.mean(data), np.std(data))
         return standard
+
+    def _test(self, sample):
+        return task_usage.select(*self.test_samples[sample])
+
+    def _train(self, sample):
+        return task_usage.select(*self.train_samples[sample])
 
 def main(config):
     target = Target(config)
