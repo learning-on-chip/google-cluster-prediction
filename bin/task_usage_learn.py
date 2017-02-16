@@ -1,16 +1,24 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os
+import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 from tensorflow.contrib import rnn as crnn
 from tensorflow.python.ops import rnn
-import glob, math, queue, random, socket, subprocess, threading
+import glob
+import math
 import numpy as np
+import queue
+import random
+import socket
+import subprocess
 import tensorflow as tf
+import threading
 
 from support import Config
-import support, task_usage
+import support
+import task_usage
 
 class Learn:
     def __init__(self, config):

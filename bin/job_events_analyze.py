@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os
+import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import math
 import matplotlib.pyplot as pp
 import numpy as np
 
-import job_events, support
+import job_events
+import support
 
 def main(data_path, plot):
     print('Apps:')

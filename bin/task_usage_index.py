@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os
+import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import glob
 
-import support, task_usage
+import support
+import task_usage
 
 def main(data_path, index_path, report_each=10000):
     support.log('Data: {}', data_path)
