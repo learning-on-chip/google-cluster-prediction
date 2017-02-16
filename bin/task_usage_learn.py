@@ -68,25 +68,24 @@ class Learn:
         self.saver.restore(session)
         state = State.deserialize(session.run(self.state))
         for _ in range(config.epoch_count - state.epoch % config.epoch_count):
-            self._run_epoch(target, manager, config, session, state)
+            self._run_epoch(target, manager, session, state)
             state.increment_epoch()
             session.run(self.update_state, {
                 self.state_update: state.serialize(),
             })
             self.saver.save(session)
 
-    def _run_epoch(self, target, manager, config, session, state):
+    def _run_epoch(self, target, manager, session, state):
         for _ in range(target.train_sample_count):
             if manager.should_train(state.time):
-                self._run_train(target, manager, config, session, state)
+                self._run_train(target, manager, session, state)
             if manager.should_test(state.time):
-                self._run_test(target, manager, config, session, state)
+                self._run_test(target, manager, session, state)
             if manager.should_show(state.time):
-                self._run_show(target, manager, config, session, state)
+                self._run_show(target, manager, session, state)
             state.increment_time()
 
-    def _run_show(self, target, manager, config, session, state):
-        sample = target.train((state.sample + 1) % target.train_sample_count)
+    def _run_sample(self, target, session, sample, callback):
         length = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
@@ -95,24 +94,31 @@ class Learn:
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
+        y_hat = np.empty([length, target.dimension_count])
         for i in range(length):
-            feed[self.model.x] = np.reshape(
-                sample[:(i + 1), :], [1, i + 1, -1])
-            y_hat = np.zeros([length, target.dimension_count])
-            y_hat[:] = np.NAN
-            for j in range(length - i - 1):
+            past = i + 1
+            y_hat[:past] = np.NAN
+            feed[self.model.x] = np.reshape(sample[:past, :], [1, past, -1])
+            for j in range(past, length):
                 result = session.run(fetch, feed)
-                feed[self.model.start] = result['finish']
                 y_hat[j, :] = result['y_hat'][-1, :]
+                feed[self.model.start] = result['finish']
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            y = support.shift(sample, -i - 1, padding=np.NAN)
-            if not manager.show(y, y_hat):
+            if not callback(y_hat, past):
                 break
 
-    def _run_test(self, target, manager, config, session, state):
-        manager.test()
+    def _run_show(self, target, manager, session, state):
+        sample = target.train((state.sample + 1) % target.train_sample_count)
+        def _callback(y_hat, past):
+            y = support.shift(sample, -past, padding=np.NAN)
+            y_hat = support.shift(y_hat, -past, padding=np.NAN)
+            return manager.show(y, y_hat)
+        self._run_sample(target, session, sample, _callback)
 
-    def _run_train(self, target, manager, config, session, state):
+    def _run_test(self, target, manager, session, state):
+        manager.test(None, state)
+
+    def _run_train(self, target, manager, session, state):
         sample = target.train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
@@ -163,7 +169,7 @@ class Manager:
                 listener.put((y, y_hat))
         return len(self.listeners) > 0
 
-    def test(self):
+    def test(self, loss, state):
         pass
 
     def train(self, loss, state):
