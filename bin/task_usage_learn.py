@@ -386,7 +386,7 @@ class TestTarget:
         samples = np.random.rand(count, 3)
         samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
         samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = 10 + 10 * samples[:, 2]
+        samples[:, 2] = 50 + 50 * samples[:, 2]
         return samples
 
 
@@ -427,8 +427,8 @@ if __name__ == '__main__':
         # Managing
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
-        'test_schedule': [10000 - 10, 10],
-        'show_schedule': [10000 - 10, 10],
+        'test_schedule': [10000 - 1, 1],
+        'show_schedule': [7000 - 10, 10],
         'show_address': ('0.0.0.0', 4242),
         # Other
         'log_path': os.path.join('output', 'log'),
