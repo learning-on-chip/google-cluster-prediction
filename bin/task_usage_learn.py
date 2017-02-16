@@ -49,11 +49,12 @@ class Learn:
                 tf.global_variables(), name='initialize')
             self.saver = Saver(config)
 
-    def count_parameters(self):
+    @property
+    def parameter_count(self):
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
     def run(self, target, manager, config):
-        support.log(self, 'Parameters: {}', self.count_parameters())
+        support.log(self, 'Parameters: {}', self.parameter_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.saver.restore(session)
