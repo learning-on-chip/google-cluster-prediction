@@ -234,7 +234,7 @@ class Model:
         parts = tf.unstack(start)
         state = []
         for i in range(config.layer_count):
-            c, h = parts[2 * i], parts[2*i + 1]
+            c, h = parts[2 * i], parts[2 * i + 1]
             state.append(crnn.LSTMStateTuple(c, h))
         return start, tuple(state)
 

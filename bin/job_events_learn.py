@@ -19,8 +19,8 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
     assert(predict_each % train_each == 0)
 
     n = sample_count // predict_each
-    while n > 0 and n*predict_each + predict_count > sample_count: n -= 1
-    sample_count = n*predict_each + predict_count
+    while n > 0 and n * predict_each + predict_count > sample_count: n -= 1
+    sample_count = n * predict_each + predict_count
     if n == 0: return
 
     layer_count = 1
@@ -109,7 +109,7 @@ def configure(dimension_count, layer_count, unit_count):
         parts = tf.unstack(start)
         state = []
         for i in range(layer_count):
-            c, h = parts[2 * i], parts[2*i + 1]
+            c, h = parts[2 * i], parts[2 * i + 1]
             state.append(crnn.LSTMStateTuple(c, h))
         return start, tuple(state)
 
