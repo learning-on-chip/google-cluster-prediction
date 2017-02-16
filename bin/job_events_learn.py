@@ -120,8 +120,7 @@ def configure(dimension_count, layer_count, unit_count):
             forget_bias=0.0, use_peepholes=True)
         cell = crnn.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
         start, state = initialize()
-        h, state = rnn.dynamic_rnn(
-            cell, x, initial_state=state, parallel_iterations=1)
+        h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
         finish = finalize(state)
         return start, finish, h
 

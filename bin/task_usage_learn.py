@@ -246,8 +246,7 @@ class Model:
         cell = crnn.MultiRNNCell(
             [cell] * config.layer_count, state_is_tuple=True)
         start, state = Model._initialize(config)
-        h, state = rnn.dynamic_rnn(
-            cell, x, initial_state=state, parallel_iterations=1)
+        h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
         finish = Model._finalize(state, config)
         return start, finish, h
 
@@ -275,7 +274,8 @@ class Saver:
 
     def restore(self, session):
         if len(glob.glob('{}*'.format(self.path))) > 0:
-            if input('Restore "{}"? '.format(self.path)) != 'no':
+            answer = input('Restore "{}"? '.format(self.path))
+            if not answer.lower().startswith('n'):
                 self.backend.restore(session, self.path)
 
 
