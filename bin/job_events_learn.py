@@ -116,9 +116,9 @@ def configure(dimension_count, layer_count, unit_count):
     def network(x):
         initializer = tf.random_uniform_initializer(-0.1, 0.1)
         cell = crnn.LSTMCell(
-            unit_count, state_is_tuple=True, initializer=initializer,
-            forget_bias=0.0, use_peepholes=True)
-        cell = crnn.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
+            unit_count, initializer=initializer, forget_bias=0.0,
+            use_peepholes=True)
+        cell = crnn.MultiRNNCell([cell] * layer_count)
         start, state = initialize()
         h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
         finish = finalize(state)

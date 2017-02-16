@@ -240,11 +240,10 @@ class Model:
 
     def _network(x, config):
         cell = crnn.LSTMCell(
-            config.unit_count, state_is_tuple=True, cell_clip=config.cell_clip,
+            config.unit_count, cell_clip=config.cell_clip,
             forget_bias=config.forget_bias, use_peepholes=config.use_peepholes,
             initializer=config.network_initializer)
-        cell = crnn.MultiRNNCell(
-            [cell] * config.layer_count, state_is_tuple=True)
+        cell = crnn.MultiRNNCell([cell] * config.layer_count)
         start, state = Model._initialize(config)
         h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
         finish = Model._finalize(state, config)
