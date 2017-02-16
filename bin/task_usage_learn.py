@@ -99,12 +99,14 @@ class Learn:
             feed[self.model.x] = np.reshape(
                 sample[:(i + 1), :], [1, i + 1, -1])
             y_hat = np.zeros([length, target.dimension_count])
+            y_hat[:] = np.NAN
             for j in range(length - i - 1):
                 result = session.run(fetch, feed)
                 feed[self.model.start] = result['finish']
                 y_hat[j, :] = result['y_hat'][-1, :]
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            if not manager.show(support.shift(sample, -i - 1), y_hat):
+            y = support.shift(sample, -i - 1, padding=np.NAN)
+            if not manager.show(y, y_hat):
                 break
 
     def _run_test(self, target, manager, config, session, state):
@@ -115,8 +117,8 @@ class Learn:
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
-            self.model.y: np.reshape(
-                support.shift(sample, -1), [1, -1, target.dimension_count]),
+            self.model.y: np.reshape(support.shift(sample, -1, padding=0),
+                                     [1, -1, target.dimension_count]),
         }
         fetch = {
             'train': self.train,
