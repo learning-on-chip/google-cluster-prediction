@@ -20,6 +20,7 @@ from support import Config
 import support
 import task_usage
 
+
 class Learn:
     def __init__(self, config):
         graph = tf.Graph()
@@ -131,6 +132,7 @@ class Learn:
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
 
+
 class Manager:
     def __init__(self, config):
         self.train_sample_count = config.train_sample_count
@@ -206,6 +208,7 @@ class Manager:
             except Exception as e:
                 support.log(self, 'Exception: {}', e)
 
+
 class Model:
     def __init__(self, config):
         self.x = tf.placeholder(
@@ -260,6 +263,7 @@ class Model:
         loss = tf.reduce_mean(tf.squared_difference(y_hat, y))
         return y_hat, loss
 
+
 class Saver:
     def __init__(self, config):
         self.backend = tf.train.Saver()
@@ -274,6 +278,7 @@ class Saver:
             if input('Restore "{}"? '.format(self.path)) != 'no':
                 self.backend.restore(session, self.path)
 
+
 class Schedule:
     def __init__(self, schedule):
         self.schedule = np.cumsum(schedule)
@@ -282,6 +287,7 @@ class Schedule:
         time = time % self.schedule[-1] + 1
         phase = np.nonzero(self.schedule >= time)[0][0]
         return phase % 2 == 1
+
 
 class State:
     def deserialize(state):
@@ -302,6 +308,7 @@ class State:
 
     def serialize(self):
         return [self.time, self.epoch]
+
 
 class Target:
     def __init__(self, config):
@@ -356,6 +363,7 @@ class Target:
     def _train(self, sample):
         return task_usage.select(*self.train_samples[sample])
 
+
 class TestTarget:
     def __init__(self, config):
         self.dimension_count = 1
@@ -380,6 +388,7 @@ class TestTarget:
         samples[:, 1] = 5 * samples[:, 1]
         samples[:, 2] = 10 + 10 * samples[:, 2]
         return samples
+
 
 def main(config):
     target = TestTarget(config)

@@ -4,6 +4,7 @@ import numpy as np
 
 LOG_SOURCE_LIMIT = 8
 
+
 class Config:
     def __init__(self, options={}):
         self.update(options)
@@ -11,6 +12,7 @@ class Config:
     def update(self, options):
         for key in options:
             setattr(self, key, options[key])
+
 
 def figure(width=14, height=6):
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
