@@ -23,40 +23,31 @@ import task_usage
 
 class Learn:
     def __init__(self, config):
-        graph = tf.Graph()
-        with graph.as_default():
-            model = Model(config)
+        self.dimension_count = config.dimension_count
+        self.graph = tf.Graph()
+        with self.graph.as_default():
+            self.model = Model(config)
             with tf.variable_scope('optimization'):
-                state = tf.Variable(
+                self.state = tf.Variable(
                     [0, 0], name='state', dtype=tf.int64, trainable=False)
-                state_update = tf.placeholder(
+                self.state_update = tf.placeholder(
                     tf.int64, shape=(2), name='state_update')
-                update_state = state.assign(state_update)
-                parameters = tf.trainable_variables()
-                gradient = tf.gradients(model.loss, parameters)
+                self.update_state = self.state.assign(self.state_update)
+                self.parameters = tf.trainable_variables()
+                gradient = tf.gradients(self.model.loss, self.parameters)
                 gradient, _ = tf.clip_by_global_norm(
                     gradient, config.gradient_clip)
                 optimizer = tf.train.AdamOptimizer(config.learning_rate)
-                train = optimizer.apply_gradients(zip(gradient, parameters))
+                self.train = optimizer.apply_gradients(
+                    zip(gradient, self.parameters))
             with tf.variable_scope('summary'):
                 tf.summary.scalar(
-                    'log_loss', tf.log(tf.reduce_sum(model.loss)))
-            logger = tf.summary.FileWriter(config.log_path, graph)
-            summary = tf.summary.merge_all()
-            initialize = tf.variables_initializer(
+                    'log_loss', tf.log(tf.reduce_sum(self.model.loss)))
+            self.logger = tf.summary.FileWriter(config.log_path, self.graph)
+            self.summary = tf.summary.merge_all()
+            self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
-            saver = Saver(config)
-        self.graph = graph
-        self.model = model
-        self.state = state
-        self.state_update = state_update
-        self.update_state = update_state
-        self.parameters = parameters
-        self.train = train
-        self.logger = logger
-        self.summary = summary
-        self.initialize = initialize
-        self.saver = saver
+            self.saver = Saver(config)
 
     def count_parameters(self):
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
@@ -85,7 +76,7 @@ class Learn:
                 self._run_show(target, manager, session, state)
             state.increment_time()
 
-    def _run_sample(self, target, session, sample, callback):
+    def _run_sample(self, session, sample, callback):
         length = sample.shape[0]
         feed = {
             self.model.start: self._zero_start(),
@@ -94,7 +85,7 @@ class Learn:
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([length, target.dimension_count])
+        y_hat = np.empty([length, self.dimension_count])
         for i in range(length):
             past = i + 1
             y_hat[:past] = np.NAN
@@ -113,7 +104,7 @@ class Learn:
             y = support.shift(sample, -past, padding=np.NAN)
             y_hat = support.shift(y_hat, -past, padding=np.NAN)
             return manager.show(y, y_hat)
-        self._run_sample(target, session, sample, _callback)
+        self._run_sample(session, sample, _callback)
 
     def _run_test(self, target, manager, session, state):
         manager.test(None, state)
@@ -122,9 +113,9 @@ class Learn:
         sample = target.train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
-            self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
+            self.model.x: np.reshape(sample, [1, -1, self.dimension_count]),
             self.model.y: np.reshape(support.shift(sample, -1, padding=0),
-                                     [1, -1, target.dimension_count]),
+                                     [1, -1, self.dimension_count]),
         }
         fetch = {
             'train': self.train,
