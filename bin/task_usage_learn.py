@@ -3,8 +3,10 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-import numpy as np
+from tensorflow.contrib import rnn as crnn
+from tensorflow.python.ops import rnn
 import glob, math, queue, random, socket, subprocess, threading
+import numpy as np
 import tensorflow as tf
 
 from support import Config
@@ -212,36 +214,36 @@ class Model:
         for i in range(config.layer_count):
             parts.append(state[i].c)
             parts.append(state[i].h)
-        return tf.pack(parts, name='finish')
+        return tf.stack(parts, name='finish')
 
     def _initialize(config):
         start = tf.placeholder(
             tf.float32, [2 * config.layer_count, 1, config.unit_count],
             name='start')
-        parts = tf.unpack(start)
+        parts = tf.unstack(start)
         state = []
         for i in range(config.layer_count):
             c, h = parts[2 * i], parts[2*i + 1]
-            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
+            state.append(crnn.LSTMStateTuple(c, h))
         return start, tuple(state)
 
     def _network(x, config):
-        cell = tf.nn.rnn_cell.LSTMCell(
+        cell = crnn.LSTMCell(
             config.unit_count, state_is_tuple=True, cell_clip=config.cell_clip,
             forget_bias=config.forget_bias, use_peepholes=config.use_peepholes,
             initializer=config.network_initializer)
-        cell = tf.nn.rnn_cell.MultiRNNCell(
+        cell = crnn.MultiRNNCell(
             [cell] * config.layer_count, state_is_tuple=True)
         start, state = Model._initialize(config)
-        h, state = tf.nn.dynamic_rnn(
+        h, state = rnn.dynamic_rnn(
             cell, x, initial_state=state, parallel_iterations=1)
         finish = Model._finalize(state, config)
         return start, finish, h
 
     def _regress(x, y, config):
         unroll_count = tf.shape(x)[1]
-        x = tf.squeeze(x, squeeze_dims=[0])
-        y = tf.squeeze(y, squeeze_dims=[0])
+        x = tf.squeeze(x, axis=[0])
+        y = tf.squeeze(y, axis=[0])
         w = tf.get_variable(
             'w', [config.unit_count, config.dimension_count],
             initializer=config.regression_initializer)

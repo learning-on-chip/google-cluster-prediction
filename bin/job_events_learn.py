@@ -3,6 +3,8 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
+from tensorflow.contrib import rnn as crnn
+from tensorflow.python.ops import rnn
 import matplotlib.pyplot as pp
 import numpy as np
 import tensorflow as tf
@@ -86,47 +88,51 @@ def learn(f, dimension_count, sample_count, train_each, predict_each,
 
 def configure(dimension_count, layer_count, unit_count):
     def compute(x, y):
-        with tf.variable_scope('network') as scope:
-            initializer = tf.random_uniform_initializer(-0.1, 0.1)
-            cell = tf.nn.rnn_cell.LSTMCell(unit_count, initializer=initializer,
-                                           forget_bias=0.0, use_peepholes=True,
-                                           state_is_tuple=True)
-            cell = tf.nn.rnn_cell.MultiRNNCell([cell] * layer_count,
-                                               state_is_tuple=True)
-            start, state = initialize()
-            h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state,
-                                         parallel_iterations=1)
-            finish = finalize(state)
-        return regress(h, y), (start, finish)
+        with tf.variable_scope('network'):
+            start, finish, h = network(x)
+        with tf.variable_scope('regression'):
+            y_hat, loss = regress(h, y)
+        return (y_hat, loss), (start, finish)
 
     def finalize(state):
         parts = []
         for i in range(layer_count):
             parts.append(state[i].c)
             parts.append(state[i].h)
-        return tf.pack(parts, name='finish')
+        return tf.stack(parts, name='finish')
 
     def initialize():
         start = tf.placeholder(tf.float32, [2 * layer_count, 1, unit_count],
                                name='start')
-        parts = tf.unpack(start)
+        parts = tf.unstack(start)
         state = []
         for i in range(layer_count):
             c, h = parts[2 * i], parts[2*i + 1]
-            state.append(tf.nn.rnn_cell.LSTMStateTuple(c, h))
+            state.append(crnn.LSTMStateTuple(c, h))
         return start, tuple(state)
 
+    def network(x):
+        initializer = tf.random_uniform_initializer(-0.1, 0.1)
+        cell = crnn.LSTMCell(
+            unit_count, state_is_tuple=True, initializer=initializer,
+            forget_bias=0.0, use_peepholes=True)
+        cell = crnn.MultiRNNCell([cell] * layer_count, state_is_tuple=True)
+        start, state = initialize()
+        h, state = rnn.dynamic_rnn(
+            cell, x, initial_state=state, parallel_iterations=1)
+        finish = finalize(state)
+        return start, finish, h
+
     def regress(x, y):
-        with tf.variable_scope('regression') as scope:
-            unroll_count = tf.shape(x)[1]
-            x = tf.squeeze(x, squeeze_dims=[0])
-            y = tf.squeeze(y, squeeze_dims=[0])
-            initializer = tf.random_normal_initializer(stddev=0.1)
-            w = tf.get_variable('w', [unit_count, dimension_count],
-                                initializer=initializer)
-            b = tf.get_variable('b', [1, dimension_count])
-            y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
-            loss = tf.reduce_sum(tf.square(tf.sub(y_hat, y)))
+        unroll_count = tf.shape(x)[1]
+        x = tf.squeeze(x, axis=[0])
+        y = tf.squeeze(y, axis=[0])
+        initializer = tf.random_normal_initializer(stddev=0.1)
+        w = tf.get_variable('w', [unit_count, dimension_count],
+                            initializer=initializer)
+        b = tf.get_variable('b', [1, dimension_count])
+        y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
+        loss = tf.reduce_sum(tf.square(tf.subtract(y_hat, y)))
         return y_hat, loss
 
     return compute
