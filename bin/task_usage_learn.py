@@ -22,6 +22,7 @@ import task_usage
 
 class Learn:
     def __init__(self, config):
+        assert(config.batch_size == 1)
         self.dimension_count = config.dimension_count
         self.graph = tf.Graph()
         with self.graph.as_default():
@@ -40,8 +41,7 @@ class Learn:
                 self.train = optimizer.apply_gradients(
                     zip(gradient, self.parameters))
             with tf.variable_scope('summary'):
-                tf.summary.scalar(
-                    'log_loss', tf.log(tf.reduce_sum(self.model.loss)))
+                tf.summary.scalar('log_loss', tf.log(self.model.loss))
             self.logger = tf.summary.FileWriter(config.log_path, self.graph)
             self.summary = tf.summary.merge_all()
             self.initialize = tf.variables_initializer(
@@ -134,10 +134,8 @@ class Learn:
             'summary': self.summary,
         }
         result = session.run(fetch, feed)
-        loss = result['loss'].flatten()
-        assert(np.all([not math.isnan(loss) for loss in loss]))
         self.logger.add_summary(result['summary'], state.time)
-        manager.train(loss, state)
+        manager.train(result['loss'], state)
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
@@ -172,18 +170,11 @@ class Manager:
         return len(self.listeners) > 0
 
     def test(self, loss, state):
-        line = self._stamp(state)
-        for loss in loss:
-            line += ' {:12.4e}'.format(loss)
-        support.log(self, line + ' (test)')
+        support.log(self, '{} {:12.4e} (test)', self._stamp(state), loss)
 
     def train(self, loss, state):
-        if not self.train_report_schedule.should(state.time):
-            return
-        line = self._stamp(state)
-        for loss in loss:
-            line += ' {:12.4e}'.format(loss)
-        support.log(self, line)
+        if self.train_report_schedule.should(state.time):
+            support.log(self, '{} {:12.4e}', self._stamp(state), loss)
 
     def _stamp(self, state):
         time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
@@ -227,10 +218,9 @@ class Manager:
 
 class Model:
     def __init__(self, config):
-        self.x = tf.placeholder(
-            tf.float32, [1, None, config.dimension_count], name='x')
-        self.y = tf.placeholder(
-            tf.float32, [1, None, config.dimension_count], name='y')
+        shape = [config.batch_size, None, config.dimension_count]
+        self.x = tf.placeholder(tf.float32, shape, name='x')
+        self.y = tf.placeholder(tf.float32, shape, name='y')
         with tf.variable_scope('network'):
             self.start, self.finish, h = Model._network(self.x, config)
         with tf.variable_scope('regression'):
@@ -244,9 +234,8 @@ class Model:
         return tf.stack(parts, name='finish')
 
     def _initialize(config):
-        start = tf.placeholder(
-            tf.float32, [2 * config.layer_count, 1, config.unit_count],
-            name='start')
+        shape = [2 * config.layer_count, 1, config.unit_count]
+        start = tf.placeholder(tf.float32, shape, name='start')
         parts = tf.unstack(start)
         state = []
         for i in range(config.layer_count):
@@ -255,7 +244,7 @@ class Model:
         return start, tuple(state)
 
     def _loss(y, y_hat):
-        return tf.reduce_mean(tf.squared_difference(y, y_hat), axis=0)
+        return tf.reduce_mean(tf.squared_difference(y, y_hat))
 
     def _network(x, config):
         cell = crnn.LSTMCell(
@@ -268,15 +257,15 @@ class Model:
         finish = Model._finalize(state, config)
         return start, finish, h
 
-    def _regress(x, y, config):
-        unroll_count = tf.shape(x)[1]
-        x = tf.squeeze(x, axis=[0])
-        y = tf.squeeze(y, axis=[0])
+    def _regress(h, y, config):
+        unroll_count = tf.shape(h)[1]
         w = tf.get_variable(
-            'w', [config.unit_count, config.dimension_count],
+            'w', [1, config.unit_count, config.dimension_count],
             initializer=config.regression_initializer)
-        b = tf.get_variable('b', [1, config.dimension_count])
-        y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
+        b = tf.get_variable('b', [1, 1, config.dimension_count])
+        w = tf.tile(w, [config.batch_size, 1, 1])
+        b = tf.tile(b, [config.batch_size, unroll_count, 1])
+        y_hat = tf.matmul(h, w) + b
         return y_hat, Model._loss(y, y_hat)
 
 
@@ -437,6 +426,7 @@ if __name__ == '__main__':
         'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
         'regression_initializer': tf.random_normal_initializer(stddev=0.01),
         # Training
+        'batch_size': 1,
         'train_fraction': 0.7,
         'gradient_clip': 1.0,
         'learning_rate': 1e-3,
