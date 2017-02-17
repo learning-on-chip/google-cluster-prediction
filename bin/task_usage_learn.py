@@ -350,7 +350,7 @@ class Target:
                     _format(self.train_sample_count, selected_count))
         support.log(self, 'Test samples: {}',
                     _format(self.test_sample_count, selected_count))
-        standard_count = min(tconfig.standard_coun, self.train_sample_count)
+        standard_count = min(config.standard_count, self.train_sample_count)
         self.standard = self._standardize(standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     self.standard[0], self.standard[1], standard_count)
