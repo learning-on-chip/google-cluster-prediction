@@ -320,31 +320,40 @@ class Target:
         self.dimension_count = 1
         self.train_samples = []
         self.test_samples = []
-        trace_count = 0
+        found_count, selected_count = 0, 0
         with open(config.index_path, 'r') as file:
             for record in file:
-                trace_count += 1
+                found_count += 1
                 record = record.split(',')
                 length = int(record[-1])
                 if length < config.min_length:
                     continue
                 if length > config.max_length:
                     continue
+                selected_count +=1
                 sample = (record[0], int(record[1]), int(record[2]))
                 if np.random.rand() < config.train_fraction:
                     self.train_samples.append(sample)
                 else:
                     self.test_samples.append(sample)
+                if selected_count == config.max_sample:
+                    break
         np.random.shuffle(self.train_samples)
         np.random.shuffle(self.test_samples)
         self.train_sample_count = len(self.train_samples)
         self.test_sample_count = len(self.test_samples)
-        sample_count = self.train_sample_count + self.test_sample_count
-        support.log(self, 'Samples: {} ({:.2f}%)', sample_count,
-                    100 * sample_count / trace_count)
-        self.standard = self._standardize(config.standard_count)
+        def _format(count, total):
+            return '{} ({:.2f}%)'.format(count, 100 * count / total)
+        support.log(self, 'Total samples: {}',
+                    _format(selected_count, found_count))
+        support.log(self, 'Train samples: {}',
+                    _format(self.train_sample_count, selected_count))
+        support.log(self, 'Test samples: {}',
+                    _format(self.test_sample_count, selected_count))
+        standard_count = min(tconfig.standard_coun, self.train_sample_count)
+        self.standard = self._standardize(standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
-                    self.standard[0], self.standard[1], config.standard_count)
+                    self.standard[0], self.standard[1], standard_count)
 
     def test(self, sample):
         return (self._test(sample) - self.standard[0]) / self.standard[1]
@@ -412,7 +421,8 @@ if __name__ == '__main__':
     config = Config({
         # Target
         'index_path': sys.argv[1],
-        'min_length': 0,
+        'max_sample': 1000000,
+        'min_length': 2,
         'max_length': 50,
         'standard_count': 1000,
         # Modeling
