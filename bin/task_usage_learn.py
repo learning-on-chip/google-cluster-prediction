@@ -100,7 +100,7 @@ class Learn:
                 break
 
     def _run_show(self, target, manager, session, state):
-        sample = target.train((state.sample + 1) % target.train_sample_count)
+        sample = target.train(state.sample)
         def _callback(y_hat, past):
             y = support.shift(sample, -past, padding=np.NAN)
             y_hat = support.shift(y_hat, -past, padding=np.NAN)
