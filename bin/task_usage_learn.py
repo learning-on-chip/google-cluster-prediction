@@ -387,8 +387,9 @@ class Target:
 class TestTarget:
     def __init__(self, config):
         self.dimension_count = 1
-        self.train_sample_count = 7000
-        self.test_sample_count = 3000
+        sample_count = min(10000, config.max_sample_count)
+        self.train_sample_count = int(config.train_fraction * sample_count)
+        self.test_sample_count = sample_count - self.train_sample_count
         self.train_samples = TestTarget._generate(self.train_sample_count)
         self.test_samples = TestTarget._generate(self.test_sample_count)
 
