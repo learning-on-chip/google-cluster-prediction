@@ -404,7 +404,7 @@ class TestTarget:
 
 
 def main(config):
-    target = TestTarget(config)
+    target = Target(config)
     config.update({
         'dimension_count': target.dimension_count,
     })
@@ -442,8 +442,8 @@ if __name__ == '__main__':
         # Managing
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
-        'test_schedule': [7000 - 1, 1],
-        'show_schedule': [7000 - 10, 10],
+        'test_schedule': [10000 - 1, 1],
+        'show_schedule': [10000 - 1, 1],
         'show_address': ('0.0.0.0', 4242),
         # Other
         'log_path': os.path.join('output', 'log'),
