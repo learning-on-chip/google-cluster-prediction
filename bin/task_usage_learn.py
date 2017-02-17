@@ -108,17 +108,15 @@ class Learn:
         self._run_sample(session, sample, _callback)
 
     def _run_test(self, target, manager, session, state):
-        sum = np.zeros([1, self.dimension_count])
-        prediction_count = [0]
+        sum, count = [0], [0]
         for sample in range(target.test_sample_count):
             sample = target.test(sample)
             length = sample.shape[0]
             def _callback(y_hat, past):
-                sum[:] += np.sum((sample[past:, :] - y_hat[past:, :])**2,
-                                 axis=0)
-                prediction_count[0] += length - past
+                sum[0] += np.sum((sample[past:, :] - y_hat[past:, :])**2)
+                count[0] += length - past
             self._run_sample(session, sample, _callback)
-        manager.test(sum.flatten() / prediction_count[0], state)
+        manager.test(sum[0] / count[0], state)
 
     def _run_train(self, target, manager, session, state):
         sample = target.train(state.sample)
