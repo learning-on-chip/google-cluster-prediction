@@ -79,9 +79,6 @@ class Learn:
 
     def _run_sample(self, session, sample, callback):
         length = sample.shape[0]
-        feed = {
-            self.model.start: self._zero_start(),
-        }
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
@@ -90,7 +87,10 @@ class Learn:
         for i in range(length):
             past = i + 1
             y_hat[:past] = np.NAN
-            feed[self.model.x] = np.reshape(sample[:past, :], [1, past, -1])
+            feed = {
+                self.model.start: self._zero_start(),
+                self.model.x: np.reshape(sample[:past, :], [1, past, -1]),
+            }
             for j in range(past, length):
                 result = session.run(fetch, feed)
                 y_hat[j, :] = result['y_hat'][-1, :]
