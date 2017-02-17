@@ -54,6 +54,7 @@ class Learn:
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
     def run(self, target, manager, config):
+        assert(self.dimension_count == target.dimension_count)
         support.log(self, 'Parameters: {}', self.parameter_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
@@ -108,7 +109,17 @@ class Learn:
         self._run_sample(session, sample, _callback)
 
     def _run_test(self, target, manager, session, state):
-        manager.test(None, state)
+        sum = np.zeros([1, self.dimension_count])
+        prediction_count = [0]
+        for sample in range(target.test_sample_count):
+            sample = target.test(sample)
+            length = sample.shape[0]
+            def _callback(y_hat, past):
+                sum[:] += np.sum((sample[past:, :] - y_hat[past:, :])**2,
+                                 axis=0)
+                prediction_count[0] += length - past
+            self._run_sample(session, sample, _callback)
+        manager.test(sum.flatten() / prediction_count[0], state)
 
     def _run_train(self, target, manager, session, state):
         sample = target.train(state.sample)
@@ -162,17 +173,23 @@ class Manager:
         return len(self.listeners) > 0
 
     def test(self, loss, state):
-        pass
+        line = self._stamp(state)
+        for loss in loss:
+            line += ' {:12.4e}'.format(loss)
+        support.log(self, line + ' (test)')
 
     def train(self, loss, state):
         if not self.train_report_schedule.should(state.time):
             return
-        time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
-        line = '{:10d} {:4d} {:10d} ({:6.2f}%)'.format(
-            time, epoch, sample, 100 * sample / self.train_sample_count)
+        line = self._stamp(state)
         for loss in loss:
             line += ' {:12.4e}'.format(loss)
         support.log(self, line)
+
+    def _stamp(self, state):
+        time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
+        return '{:10d} {:4d} {:10d} ({:6.2f}%)'.format(
+            time, epoch, sample, 100 * sample / self.train_sample_count)
 
     def _show_client(self, connection, address):
         support.log(self, 'New listener: {}', address)
@@ -238,6 +255,9 @@ class Model:
             state.append(crnn.LSTMStateTuple(c, h))
         return start, tuple(state)
 
+    def _loss(y, y_hat):
+        return tf.reduce_mean(tf.squared_difference(y, y_hat), axis=0)
+
     def _network(x, config):
         cell = crnn.LSTMCell(
             config.unit_count, cell_clip=config.cell_clip,
@@ -258,8 +278,7 @@ class Model:
             initializer=config.regression_initializer)
         b = tf.get_variable('b', [1, config.dimension_count])
         y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
-        loss = tf.reduce_mean(tf.squared_difference(y_hat, y), axis=0)
-        return y_hat, loss
+        return y_hat, Model._loss(y, y_hat)
 
 
 class Saver:
@@ -426,7 +445,7 @@ if __name__ == '__main__':
         # Managing
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
-        'test_schedule': [10000 - 1, 1],
+        'test_schedule': [7000 - 1, 1],
         'show_schedule': [7000 - 10, 10],
         'show_address': ('0.0.0.0', 4242),
         # Other
