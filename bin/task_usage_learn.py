@@ -258,7 +258,7 @@ class Model:
             initializer=config.regression_initializer)
         b = tf.get_variable('b', [1, config.dimension_count])
         y_hat = tf.matmul(x, w) + tf.tile(b, [unroll_count, 1])
-        loss = tf.reduce_mean(tf.squared_difference(y_hat, y))
+        loss = tf.reduce_mean(tf.squared_difference(y_hat, y), axis=0)
         return y_hat, loss
 
 
