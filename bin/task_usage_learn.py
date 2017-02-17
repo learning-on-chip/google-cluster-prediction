@@ -456,5 +456,4 @@ if __name__ == '__main__':
         'log_path': os.path.join('output', 'log'),
         'save_path': os.path.join('output', 'model'),
     })
-    np.random.seed(0)
     main(config)
