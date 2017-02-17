@@ -10,7 +10,6 @@ import glob
 import math
 import numpy as np
 import queue
-import random
 import socket
 import subprocess
 import tensorflow as tf
@@ -345,12 +344,12 @@ class Target:
                 if length > config.max_length:
                     continue
                 sample = (record[0], int(record[1]), int(record[2]))
-                if random.random() < config.train_fraction:
+                if np.rand() < config.train_fraction:
                     self.train_samples.append(sample)
                 else:
                     self.test_samples.append(sample)
-        random.shuffle(self.train_samples)
-        random.shuffle(self.test_samples)
+        np.random.shuffle(self.train_samples)
+        np.random.shuffle(self.test_samples)
         self.train_sample_count = len(self.train_samples)
         self.test_sample_count = len(self.test_samples)
         sample_count = self.train_sample_count + self.test_sample_count
@@ -453,5 +452,4 @@ if __name__ == '__main__':
         'save_path': os.path.join('output', 'model'),
     })
     np.random.seed(0)
-    random.seed(0)
     main(config)

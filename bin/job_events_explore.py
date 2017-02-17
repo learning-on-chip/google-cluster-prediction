@@ -6,7 +6,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import matplotlib.pyplot as pp
 import numpy as np
-import random
 
 import job_events
 import support
@@ -40,7 +39,7 @@ def main_random(data_path):
     while True:
         while True:
             app = None
-            user = random.randrange(user_count)
+            user = np.random.randint(0, user_count)
             data = job_events.select(data_path, app=app, user=user)[:, 0]
             if len(data) >= 10: break
         display(1e-6 * data, app=app, user=user)
