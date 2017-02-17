@@ -331,7 +331,7 @@ class Target:
                 if length > config.max_length:
                     continue
                 sample = (record[0], int(record[1]), int(record[2]))
-                if np.rand() < config.train_fraction:
+                if np.random.rand() < config.train_fraction:
                     self.train_samples.append(sample)
                 else:
                     self.test_samples.append(sample)
