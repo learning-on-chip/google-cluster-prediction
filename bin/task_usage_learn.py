@@ -326,9 +326,9 @@ class Target:
                 found_count += 1
                 record = record.split(',')
                 length = int(record[-1])
-                if length < config.min_length:
+                if length < config.min_sample_length:
                     continue
-                if length > config.max_length:
+                if length > config.max_sample_length:
                     continue
                 selected_count +=1
                 sample = (record[0], int(record[1]), int(record[2]))
@@ -336,15 +336,22 @@ class Target:
                     self.train_samples.append(sample)
                 else:
                     self.test_samples.append(sample)
-                if selected_count == config.max_sample:
-                    break
         np.random.shuffle(self.train_samples)
         np.random.shuffle(self.test_samples)
+        if selected_count > config.max_sample_count:
+            def _limit(samples, fraction, total):
+                return samples[:min(len(samples), int(fraction * total))]
+            self.train_samples = _limit(self.train_samples,
+                                        config.train_fraction,
+                                        config.max_sample_count)
+            self.test_samples = _limit(self.test_samples,
+                                       1 - config.train_fraction,
+                                       config.max_sample_count)
         self.train_sample_count = len(self.train_samples)
         self.test_sample_count = len(self.test_samples)
         def _format(count, total):
             return '{} ({:.2f}%)'.format(count, 100 * count / total)
-        support.log(self, 'Total samples: {}',
+        support.log(self, 'Selected samples: {}',
                     _format(selected_count, found_count))
         support.log(self, 'Train samples: {}',
                     _format(self.train_sample_count, selected_count))
@@ -421,9 +428,9 @@ if __name__ == '__main__':
     config = Config({
         # Target
         'index_path': sys.argv[1],
-        'max_sample': 1000000,
-        'min_length': 2,
-        'max_length': 50,
+        'max_sample_count': 1000000,
+        'min_sample_length': 2,
+        'max_sample_length': 50,
         'standard_count': 1000,
         # Modeling
         'layer_count': 1,
