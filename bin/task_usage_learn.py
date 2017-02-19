@@ -216,7 +216,7 @@ class Manager:
 
 class Model:
     def __init__(self, config):
-        shape = [config.batch_size, None, config.dimension_count]
+        shape = [None, None, config.dimension_count]
         self.x = tf.placeholder(tf.float32, shape, name='x')
         self.y = tf.placeholder(tf.float32, shape, name='y')
         with tf.variable_scope('network'):
@@ -257,12 +257,13 @@ class Model:
 
     def _regress(h, y, config):
         unroll_count = tf.shape(h)[1]
+        batch_size = tf.shape(y)[0]
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
             initializer=config.regression_initializer)
         b = tf.get_variable('b', [1, 1, config.dimension_count])
-        w = tf.tile(w, [config.batch_size, 1, 1])
-        b = tf.tile(b, [config.batch_size, unroll_count, 1])
+        w = tf.tile(w, [batch_size, 1, 1])
+        b = tf.tile(b, [batch_size, unroll_count, 1])
         y_hat = tf.matmul(h, w) + b
         return y_hat, Model._loss(y, y_hat)
 
