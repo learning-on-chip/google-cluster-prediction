@@ -390,8 +390,10 @@ class TestTarget:
         sample_count = min(10000, config.max_sample_count)
         self.train_sample_count = int(config.train_fraction * sample_count)
         self.test_sample_count = sample_count - self.train_sample_count
-        self.train_samples = TestTarget._generate(self.train_sample_count)
-        self.test_samples = TestTarget._generate(self.test_sample_count)
+        self.train_samples = TestTarget._generate(
+            self.train_sample_count, config)
+        self.test_samples = TestTarget._generate(
+            self.test_sample_count, config)
 
     def test(self, sample):
         return TestTarget._compute(self.test_samples[sample, :])
@@ -400,19 +402,21 @@ class TestTarget:
         return TestTarget._compute(self.train_samples[sample, :])
 
     def _compute(sample):
-        a, b, n = sample[0], sample[1], int(round(sample[2]))
+        a, b, n = sample[0], sample[1], int(sample[2])
         return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
 
-    def _generate(count):
+    def _generate(count, config):
+        min = config.min_sample_length
+        max = config.max_sample_length
         samples = np.random.rand(count, 3)
         samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
         samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = 50 + 50 * samples[:, 2]
+        samples[:, 2] = np.round(min + (max - min) * samples[:, 2])
         return samples
 
 
 def main(config):
-    target = Target(config)
+    target = TestTarget(config) if config.test else Target(config)
     config.update({
         'dimension_count': target.dimension_count,
     })
@@ -424,13 +428,13 @@ def main(config):
     learn.run(target, manager, config)
 
 if __name__ == '__main__':
-    assert(len(sys.argv) == 2)
     support.loggalize()
     config = Config({
         # Target
-        'index_path': sys.argv[1],
+        'test': len(sys.argv) == 1,
+        'index_path': sys.argv[1] if len(sys.argv) > 1 else None,
         'max_sample_count': 1000000,
-        'min_sample_length': 2,
+        'min_sample_length': 5,
         'max_sample_length': 50,
         'standard_count': 1000,
         # Modeling
