@@ -20,7 +20,54 @@ import support
 import task_usage
 
 
-class Learn:
+class Backup:
+    def __init__(self, config):
+        self.backend = tf.train.Saver()
+        self.path = config.backup_path
+
+    def save(self, session):
+        path = self.backend.save(session, self.path)
+        support.log(self, 'New backup: {}', path)
+
+    def restore(self, session):
+        if len(glob.glob('{}*'.format(self.path))) > 0:
+            answer = input('Restore backup "{}"? '.format(self.path))
+            if not answer.lower().startswith('n'):
+                self.backend.restore(session, self.path)
+
+
+class DummyTarget:
+    def __init__(self, config):
+        self.dimension_count = 1
+        sample_count = min(10000, config.max_sample_count)
+        self.train_sample_count = int(config.train_fraction * sample_count)
+        self.test_sample_count = sample_count - self.train_sample_count
+        self.train_samples = DummyTarget._generate(
+            self.train_sample_count, config)
+        self.test_samples = DummyTarget._generate(
+            self.test_sample_count, config)
+
+    def test(self, sample):
+        return DummyTarget._compute(self.test_samples[sample, :])
+
+    def train(self, sample):
+        return DummyTarget._compute(self.train_samples[sample, :])
+
+    def _compute(sample):
+        a, b, n = sample[0], sample[1], int(sample[2])
+        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
+
+    def _generate(count, config):
+        min = config.min_sample_length
+        max = config.max_sample_length
+        samples = np.random.rand(count, 3)
+        samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
+        samples[:, 1] = 5 * samples[:, 1]
+        samples[:, 2] = np.round(min + (max - min) * samples[:, 2])
+        return samples
+
+
+class Learner:
     def __init__(self, config):
         assert(config.batch_size == 1)
         self.dimension_count = config.dimension_count
@@ -48,7 +95,7 @@ class Learn:
             self.summary = tf.summary.merge_all()
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
-            self.saver = Saver(config)
+            self.backup = Backup(config)
 
     @property
     def parameter_count(self):
@@ -59,7 +106,7 @@ class Learn:
         support.log(self, 'Parameters: {}', self.parameter_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
-        self.saver.restore(session)
+        self.backup.restore(session)
         state = State.deserialize(session.run(self.state))
         for _ in range(config.epoch_count - state.epoch % config.epoch_count):
             self._run_epoch(target, manager, session, state)
@@ -67,7 +114,7 @@ class Learn:
             session.run(self.update_state, {
                 self.state_update: state.serialize(),
             })
-            self.saver.save(session)
+            self.backup.save(session)
 
     def _run_epoch(self, target, manager, session, state):
         for _ in range(target.train_sample_count):
@@ -273,22 +320,6 @@ class Model:
         return y_hat, Model._loss(y, y_hat)
 
 
-class Saver:
-    def __init__(self, config):
-        self.backend = tf.train.Saver()
-        self.path = config.save_path
-
-    def save(self, session):
-        path = self.backend.save(session, self.path)
-        support.log(self, 'New checkpoint: {}', path)
-
-    def restore(self, session):
-        if len(glob.glob('{}*'.format(self.path))) > 0:
-            answer = input('Restore "{}"? '.format(self.path))
-            if not answer.lower().startswith('n'):
-                self.backend.restore(session, self.path)
-
-
 class Schedule:
     def __init__(self, schedule):
         self.schedule = np.cumsum(schedule)
@@ -390,60 +421,29 @@ class Target:
         return task_usage.select(*self.train_samples[sample])
 
 
-class TestTarget:
-    def __init__(self, config):
-        self.dimension_count = 1
-        sample_count = min(10000, config.max_sample_count)
-        self.train_sample_count = int(config.train_fraction * sample_count)
-        self.test_sample_count = sample_count - self.train_sample_count
-        self.train_samples = TestTarget._generate(
-            self.train_sample_count, config)
-        self.test_samples = TestTarget._generate(
-            self.test_sample_count, config)
-
-    def test(self, sample):
-        return TestTarget._compute(self.test_samples[sample, :])
-
-    def train(self, sample):
-        return TestTarget._compute(self.train_samples[sample, :])
-
-    def _compute(sample):
-        a, b, n = sample[0], sample[1], int(sample[2])
-        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
-
-    def _generate(count, config):
-        min = config.min_sample_length
-        max = config.max_sample_length
-        samples = np.random.rand(count, 3)
-        samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
-        samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = np.round(min + (max - min) * samples[:, 2])
-        return samples
-
-
 def main(config):
-    target = TestTarget(config) if config.test else Target(config)
+    target = DummyTarget(config) if config.dummy else Target(config)
     config.update({
         'dimension_count': target.dimension_count,
     })
-    learn = Learn(config)
+    learner = Learner(config)
     config.update({
         'train_sample_count': target.train_sample_count,
     })
     manager = Manager(config)
-    learn.run(target, manager, config)
+    learner.run(target, manager, config)
 
 if __name__ == '__main__':
     support.loggalize()
     config = Config({
         # Target
-        'test': len(sys.argv) == 1,
+        'dummy': len(sys.argv) == 1,
         'index_path': sys.argv[1] if len(sys.argv) > 1 else None,
         'max_sample_count': 1000000,
         'min_sample_length': 5,
         'max_sample_length': 50,
         'standard_count': 1000,
-        # Modeling
+        # Model
         'layer_count': 1,
         'unit_count': 200,
         'cell_clip': 1.0,
@@ -451,20 +451,22 @@ if __name__ == '__main__':
         'use_peepholes': True,
         'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
         'regression_initializer': tf.random_normal_initializer(stddev=0.01),
-        # Training
+        # Train
         'batch_size': 1,
         'train_fraction': 0.7,
         'gradient_clip': 1.0,
         'learning_rate': 1e-3,
         'epoch_count': 100,
-        # Managing
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
+        # Test
         'test_schedule': [10000 - 1, 1],
+        # Show
         'show_schedule': [10000 - 1, 1],
         'show_address': ('0.0.0.0', 4242),
-        # Other
+        # Backup
+        'backup_path': os.path.join('output', 'backup'),
+        # Summay
         'summary_path': os.path.join('output', 'summary'),
-        'save_path': os.path.join('output', 'model'),
     })
     main(config)
