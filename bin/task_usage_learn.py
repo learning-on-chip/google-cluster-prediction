@@ -155,10 +155,9 @@ class Learner:
             sample = target.test(sample)
             def _callback(y_hat, offset):
                 length = min(sample.shape[0] - offset, y_hat.shape[0])
-                delta = y_hat
-                delta[:length, :] -= sample[offset:(offset + length), :]
+                delta = y_hat[:length, :] - sample[offset:(offset + length), :]
                 accumulator[0] += np.sum(delta**2)
-                count[0] += y_hat.shape[0]
+                count[0] += length
             self._run_sample(session, sample, _callback, config)
         loss = accumulator[0] / count[0]
         summary = tf.Summary(
