@@ -26,7 +26,8 @@ class Learn:
         self.dimension_count = config.dimension_count
         self.graph = tf.Graph()
         with self.graph.as_default():
-            self.model = Model(config)
+            with tf.variable_scope('model'):
+                self.model = Model(config)
             with tf.variable_scope('optimization'):
                 self.state = tf.Variable(
                     [0, 0], name='state', dtype=tf.int64, trainable=False)
@@ -220,10 +221,12 @@ class Model:
         shape = [None, None, config.dimension_count]
         self.x = tf.placeholder(tf.float32, shape, name='x')
         self.y = tf.placeholder(tf.float32, shape, name='y')
-        self.batch_size = tf.identity(tf.shape(self.x)[0], name='batch_size')
+        with tf.variable_scope('batch_size'):
+            self.batch_size = tf.shape(self.x)[0]
         with tf.variable_scope('network'):
             self.start, self.finish, h = Model._network(self.x, config)
-        self.unroll_count = tf.identity(tf.shape(h)[1], name='unroll_count')
+        with tf.variable_scope('unroll_count'):
+            self.unroll_count = tf.shape(h)[1]
         with tf.variable_scope('regression'):
             self.y_hat, self.loss = Model._regress(
                 h, self.y, self.batch_size, self.unroll_count, config)
