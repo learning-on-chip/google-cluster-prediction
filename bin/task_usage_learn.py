@@ -87,11 +87,10 @@ class Learner:
                 optimizer = tf.train.AdamOptimizer(config.learning_rate)
                 self.train = optimizer.apply_gradients(
                     zip(gradient, self.parameters))
-            with tf.variable_scope('summary'):
-                tf.summary.scalar('loss', self.model.loss)
+            self.train_summary = tf.summary.scalar(
+                'train_loss', self.model.loss)
             self.summary_writer = tf.summary.FileWriter(
                 config.summary_path, self.graph)
-            self.summary = tf.summary.merge_all()
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             self.backup = Backup(config)
@@ -161,7 +160,11 @@ class Learner:
                 accumulator[0] += np.sum(delta**2)
                 count[0] += y_hat.shape[0]
             self._run_sample(session, sample, _callback, config)
-        manager.test(accumulator[0] / count[0], state)
+        loss = accumulator[0] / count[0]
+        summary = tf.Summary(
+            value=[tf.Summary.Value(tag='test_loss', simple_value=loss)])
+        self.summary_writer.add_summary(summary, state.time)
+        manager.test(loss, state)
 
     def _run_train(self, target, manager, session, state, config):
         sample = target.train(state.sample)
@@ -174,10 +177,10 @@ class Learner:
         fetch = {
             'train': self.train,
             'loss': self.model.loss,
-            'summary': self.summary,
+            'train_summary': self.train_summary,
         }
         result = session.run(fetch, feed)
-        self.summary_writer.add_summary(result['summary'], state.time)
+        self.summary_writer.add_summary(result['train_summary'], state.time)
         manager.train(result['loss'], state)
 
     def _zero_start(self):
@@ -270,8 +273,6 @@ class Model:
         shape = [None, None, config.dimension_count]
         self.x = tf.placeholder(tf.float32, shape, name='x')
         self.y = tf.placeholder(tf.float32, shape, name='y')
-        with tf.variable_scope('y_last'):
-            self.y_last = tf.squeeze(self.y[0, -1, :], axis=[0])
         with tf.variable_scope('batch_size'):
             self.batch_size = tf.shape(self.x)[0]
         with tf.variable_scope('network'):
