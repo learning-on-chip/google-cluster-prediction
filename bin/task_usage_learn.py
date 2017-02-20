@@ -70,7 +70,6 @@ class DummyTarget:
 class Learner:
     def __init__(self, config):
         assert(config.batch_size == 1)
-        self.dimension_count = config.dimension_count
         self.graph = tf.Graph()
         with self.graph.as_default():
             with tf.variable_scope('model'):
@@ -102,37 +101,36 @@ class Learner:
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
     def run(self, target, manager, config):
-        assert(self.dimension_count == target.dimension_count)
         support.log(self, 'Parameters: {}', self.parameter_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
         state = State.deserialize(session.run(self.state))
         for _ in range(config.epoch_count - state.epoch % config.epoch_count):
-            self._run_epoch(target, manager, session, state)
+            self._run_epoch(target, manager, session, state, config)
             state.increment_epoch()
             session.run(self.update_state, {
                 self.state_update: state.serialize(),
             })
             self.backup.save(session)
 
-    def _run_epoch(self, target, manager, session, state):
+    def _run_epoch(self, target, manager, session, state, config):
         for _ in range(target.train_sample_count):
             if manager.should_train(state.time):
-                self._run_train(target, manager, session, state)
+                self._run_train(target, manager, session, state, config)
             if manager.should_test(state.time):
-                self._run_test(target, manager, session, state)
+                self._run_test(target, manager, session, state, config)
             if manager.should_show(state.time):
-                self._run_show(target, manager, session, state)
+                self._run_show(target, manager, session, state, config)
             state.increment_time()
 
-    def _run_sample(self, session, sample, callback):
+    def _run_sample(self, session, sample, callback, config):
         length = sample.shape[0]
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([length, self.dimension_count])
+        y_hat = np.empty([length, config.dimension_count])
         for i in range(length):
             past = i + 1
             y_hat[:past, :] = np.NAN
@@ -148,15 +146,15 @@ class Learner:
             if not callback(y_hat, past):
                 break
 
-    def _run_show(self, target, manager, session, state):
+    def _run_show(self, target, manager, session, state, config):
         sample = target.train(state.sample)
         def _callback(y_hat, past):
             y = support.shift(sample, -past, padding=np.NAN)
             y_hat = support.shift(y_hat, -past, padding=np.NAN)
             return manager.show(y, y_hat)
-        self._run_sample(session, sample, _callback)
+        self._run_sample(session, sample, _callback, config)
 
-    def _run_test(self, target, manager, session, state):
+    def _run_test(self, target, manager, session, state, config):
         sum, count = [0], [0]
         for sample in range(target.test_sample_count):
             sample = target.test(sample)
@@ -164,16 +162,16 @@ class Learner:
             def _callback(y_hat, past):
                 sum[0] += np.sum((sample[past:, :] - y_hat[past:, :])**2)
                 count[0] += length - past
-            self._run_sample(session, sample, _callback)
+            self._run_sample(session, sample, _callback, config)
         manager.test(sum[0] / count[0], state)
 
-    def _run_train(self, target, manager, session, state):
+    def _run_train(self, target, manager, session, state, config):
         sample = target.train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
-            self.model.x: np.reshape(sample, [1, -1, self.dimension_count]),
+            self.model.x: np.reshape(sample, [1, -1, config.dimension_count]),
             self.model.y: np.reshape(support.shift(sample, -1, padding=0),
-                                     [1, -1, self.dimension_count]),
+                                     [1, -1, config.dimension_count]),
         }
         fetch = {
             'train': self.train,
