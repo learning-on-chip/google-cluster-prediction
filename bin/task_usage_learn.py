@@ -150,20 +150,23 @@ class Learner:
         self._run_sample(session, sample, _callback, config)
 
     def _run_test(self, target, manager, session, state, config):
-        accumulator, count = [0], [0]
+        sums = np.zeros([config.future_length])
+        counts = np.zeros([config.future_length], dtype=np.int)
         for sample in range(target.test_sample_count):
             sample = target.test(sample)
             def _callback(y_hat, offset):
                 length = min(sample.shape[0] - offset, y_hat.shape[0])
                 delta = y_hat[:length, :] - sample[offset:(offset + length), :]
-                accumulator[0] += np.sum(delta**2)
-                count[0] += length
+                sums[:length] += np.sum(delta**2, axis=0)
+                counts[:length] += 1
             self._run_sample(session, sample, _callback, config)
-        loss = accumulator[0] / count[0]
-        summary = tf.Summary(
-            value=[tf.Summary.Value(tag='test_loss', simple_value=loss)])
-        self.summary_writer.add_summary(summary, state.time)
-        manager.test(loss, state)
+        loss = sums / counts
+        for i in range(config.future_length):
+            value = tf.Summary.Value(
+                tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
+            self.summary_writer.add_summary(
+                tf.Summary(value=[value]), state.time)
+        manager.test(np.sum(loss), state)
 
     def _run_train(self, target, manager, session, state, config):
         sample = target.train(state.sample)
