@@ -42,7 +42,7 @@ class Learn:
                 self.train = optimizer.apply_gradients(
                     zip(gradient, self.parameters))
             with tf.variable_scope('summary'):
-                tf.summary.scalar('loss', self.model.loss)
+                tf.summary.scalar('train_loss', self.model.loss)
             self.summary_writer = tf.summary.FileWriter(
                 config.summary_path, self.graph)
             self.summary = tf.summary.merge_all()
