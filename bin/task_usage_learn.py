@@ -88,7 +88,7 @@ class Learner:
                 self.train = optimizer.apply_gradients(
                     zip(gradient, self.parameters))
             with tf.variable_scope('summary'):
-                tf.summary.scalar('train_loss', self.model.loss)
+                tf.summary.scalar('loss', self.model.loss)
             self.summary_writer = tf.summary.FileWriter(
                 config.summary_path, self.graph)
             self.summary = tf.summary.merge_all()
@@ -270,6 +270,8 @@ class Model:
         shape = [None, None, config.dimension_count]
         self.x = tf.placeholder(tf.float32, shape, name='x')
         self.y = tf.placeholder(tf.float32, shape, name='y')
+        with tf.variable_scope('y_last'):
+            self.y_last = tf.squeeze(self.y[0, -1, :], axis=[0])
         with tf.variable_scope('batch_size'):
             self.batch_size = tf.shape(self.x)[0]
         with tf.variable_scope('network'):
@@ -277,8 +279,12 @@ class Model:
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(h)[1]
         with tf.variable_scope('regression'):
-            self.y_hat, self.loss = Model._regress(
-                h, self.y, self.batch_size, self.unroll_count, config)
+            w, b = Model._regression(self.y, self.batch_size,
+                                     self.unroll_count, config)
+        with tf.variable_scope('y_hat'):
+            self.y_hat = tf.matmul(h, w) + b
+        with tf.variable_scope('loss'):
+            self.loss = Model._loss(self.y, self.y_hat)
 
     def _finalize(state, config):
         parts = []
@@ -311,15 +317,14 @@ class Model:
         finish = Model._finalize(state, config)
         return start, finish, h
 
-    def _regress(h, y, batch_size, unroll_count, config):
+    def _regression(y, batch_size, unroll_count, config):
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
             initializer=config.regression_initializer)
         b = tf.get_variable('b', [1, 1, config.dimension_count])
         w = tf.tile(w, [batch_size, 1, 1])
         b = tf.tile(b, [batch_size, unroll_count, 1])
-        y_hat = tf.matmul(h, w) + b
-        return y_hat, Model._loss(y, y_hat)
+        return w, b
 
 
 class Schedule:
