@@ -17,31 +17,33 @@ def main(config):
     client.connect(config.address)
     client = client.makefile(mode='r')
     plots = _prepare(config.dimension_count)
-    x_limit = [0, 1]
     y_limit = [-1, 1]
     while True:
-        row = [float(number) for number in client.readline().split(',')]
-        sample_count = len(row) // 2
-        if sample_count <= 1:
-            continue
-        x = np.arange(0, sample_count)
-        y = np.reshape(np.array(row[0:sample_count]),
-                       [-1, config.dimension_count])
-        y_hat = np.reshape(np.array(row[sample_count:]),
-                           [-1, config.dimension_count])
-        x_limit[1] = sample_count - 1
-        y_limit[0] = min(y_limit[0], np.min(y), np.min(y_hat))
-        y_limit[1] = max(y_limit[1], np.max(y), np.max(y_hat))
+        row = client.readline().split(',')
+        count0 = int(row[0])
+        count1 = int(row[1])
+        count2 = int(row[2])
+        row = [float(number) for number in row[3:]]
+        x1 = np.arange(0, count1)
+        x2 = np.arange(0, count2)
+        y1 = np.reshape(np.array(row[:count1]), [-1, config.dimension_count])
+        y2 = np.reshape(np.array(row[count1:]), [-1, config.dimension_count])
+        if count1 > 0:
+            y_limit[0] = min(y_limit[0], np.min(y1))
+            y_limit[1] = max(y_limit[1], np.max(y1))
+        if count2 > 0:
+            y_limit[0] = min(y_limit[0], np.min(y2))
+            y_limit[1] = max(y_limit[1], np.max(y2))
         for i in range(config.dimension_count):
-            plots[3 * i + 0].set_xdata(x)
-            plots[3 * i + 0].set_ydata(y[:, i])
-            plots[3 * i + 1].set_xdata(x)
-            plots[3 * i + 1].set_ydata(y_hat[:, i])
-            plots[3 * i + 2].set_xdata(x_limit)
+            plots[3 * i + 0].set_xdata(x1)
+            plots[3 * i + 0].set_ydata(y1[:, i])
+            plots[3 * i + 1].set_xdata(x2)
+            plots[3 * i + 1].set_ydata(y2[:, i])
+            plots[3 * i + 2].set_xdata([0, count1 - 1])
             pp.subplot(config.dimension_count, 1, i + 1)
-            pp.xlim(x_limit)
+            pp.xlim([0, count0 - 1])
             pp.ylim(y_limit)
-        pp.pause(1e-3)
+        pp.pause(1e-1)
 
 def _prepare(dimension_count):
     pp.figure(figsize=(14, 6), dpi=80, facecolor='w', edgecolor='k')

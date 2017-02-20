@@ -130,40 +130,38 @@ class Learner:
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([length, config.dimension_count])
+        y_hat = np.empty([config.future_length, config.dimension_count])
         for i in range(length):
-            past = i + 1
-            y_hat[:past, :] = np.NAN
             feed = {
                 self.model.start: self._zero_start(),
-                self.model.x: np.reshape(sample[:past, :], [1, past, -1]),
+                self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
             }
-            for j in range(past, length):
+            for j in range(config.future_length):
                 result = session.run(fetch, feed)
                 y_hat[j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            if not callback(y_hat, past):
+            if not callback(y_hat, i + 1):
                 break
 
     def _run_show(self, target, manager, session, state, config):
         sample = target.train(state.sample)
-        def _callback(y_hat, past):
-            y = support.shift(sample, -past, padding=np.NAN)
-            y_hat = support.shift(y_hat, -past, padding=np.NAN)
-            return manager.show(y, y_hat)
+        def _callback(y_hat, offset):
+            return manager.show(sample, y_hat, offset)
         self._run_sample(session, sample, _callback, config)
 
     def _run_test(self, target, manager, session, state, config):
-        sum, count = [0], [0]
+        accumulator, count = [0], [0]
         for sample in range(target.test_sample_count):
             sample = target.test(sample)
-            length = sample.shape[0]
-            def _callback(y_hat, past):
-                sum[0] += np.sum((sample[past:, :] - y_hat[past:, :])**2)
-                count[0] += length - past
+            def _callback(y_hat, offset):
+                length = min(sample.shape[0] - offset, y_hat.shape[0])
+                delta = y_hat
+                delta[:length, :] -= sample[offset:(offset + length), :]
+                accumulator[0] += np.sum(delta**2)
+                count[0] += y_hat.shape[0]
             self._run_sample(session, sample, _callback, config)
-        manager.test(sum[0] / count[0], state)
+        manager.test(accumulator[0] / count[0], state)
 
     def _run_train(self, target, manager, session, state, config):
         sample = target.train(state.sample)
@@ -208,11 +206,17 @@ class Manager:
     def should_train(self, time):
         return self.train_schedule.should(time)
 
-    def show(self, y, y_hat):
+    def show(self, sample, y_hat, offset):
+        count0 = sample.shape[0]
+        count1 = count0 - offset
+        count2 = y_hat.shape[0]
+        count0 = count0 + count2
+        message = (np.array([count0, count1, count2]),
+                   sample[offset:, :], y_hat)
         with self.lock:
             for listener in self.listeners:
-                listener.put((y, y_hat))
-        return len(self.listeners) > 0
+                listener.put(message)
+            return len(self.listeners) > 0
 
     def test(self, loss, state):
         support.log(self, '{} {:12.4e} (test)', self._stamp(state), loss)
@@ -234,11 +238,11 @@ class Manager:
         try:
             client = connection.makefile(mode='w')
             while True:
-                y, y_hat = listener.get()
-                values = [str(value) for value in y.flatten()]
-                client.write(','.join(values) + ',')
-                values = [str(value) for value in y_hat.flatten()]
+                values = []
+                for chunk in listener.get():
+                    values.extend([str(value) for value in chunk.flatten()])
                 client.write(','.join(values) + '\n')
+                client.flush()
         except Exception as e:
             support.log(self, 'Disconnected listener: {} ({})', address, e)
         with self.lock:
@@ -458,6 +462,7 @@ if __name__ == '__main__':
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
         # Test
+        'future_length': 10,
         'test_schedule': [10000 - 1, 1],
         # Show
         'show_schedule': [10000 - 1, 1],

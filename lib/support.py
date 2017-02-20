@@ -1,8 +1,5 @@
 import logging
-import matplotlib.pyplot as pp
 import numpy as np
-
-LOG_SOURCE_LIMIT = 8
 
 
 class Config:
@@ -15,18 +12,19 @@ class Config:
 
 
 def figure(width=14, height=6):
+    import matplotlib.pyplot as pp
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
-def log(*arguments):
+def log(*arguments, limit=7):
     arguments = list(arguments)
     first = arguments.pop(0)
     if isinstance(first, str):
         template, source = first, 'Main'
     else:
         template, source = arguments.pop(0), first.__class__.__name__
-    if len(source) > LOG_SOURCE_LIMIT:
-        source = source[:(LOG_SOURCE_LIMIT - 1)] + '…'
-    logging.info('[%-' + str(LOG_SOURCE_LIMIT) + 's] %s', source.upper(),
+    if len(source) > limit:
+        source = source[:(limit - 1)] + '…'
+    logging.info('[%-' + str(limit) + 's] %s', source.upper(),
                  template.format(*arguments))
 
 def loggalize(level=logging.INFO):
