@@ -220,10 +220,13 @@ class Model:
         shape = [None, None, config.dimension_count]
         self.x = tf.placeholder(tf.float32, shape, name='x')
         self.y = tf.placeholder(tf.float32, shape, name='y')
+        self.batch_size = tf.identity(tf.shape(self.x)[0], name='batch_size')
         with tf.variable_scope('network'):
             self.start, self.finish, h = Model._network(self.x, config)
+        self.unroll_count = tf.identity(tf.shape(h)[1], name='unroll_count')
         with tf.variable_scope('regression'):
-            self.y_hat, self.loss = Model._regress(h, self.y, config)
+            self.y_hat, self.loss = Model._regress(
+                h, self.y, self.batch_size, self.unroll_count, config)
 
     def _finalize(state, config):
         parts = []
@@ -256,9 +259,7 @@ class Model:
         finish = Model._finalize(state, config)
         return start, finish, h
 
-    def _regress(h, y, config):
-        unroll_count = tf.shape(h)[1]
-        batch_size = tf.shape(y)[0]
+    def _regress(h, y, batch_size, unroll_count, config):
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
             initializer=config.regression_initializer)
