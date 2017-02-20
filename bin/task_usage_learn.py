@@ -87,14 +87,14 @@ class Learn:
         y_hat = np.empty([length, self.dimension_count])
         for i in range(length):
             past = i + 1
-            y_hat[:past] = np.NAN
+            y_hat[:past, :] = np.NAN
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:past, :], [1, past, -1]),
             }
             for j in range(past, length):
                 result = session.run(fetch, feed)
-                y_hat[j, :] = result['y_hat'][-1, :]
+                y_hat[j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
             if not callback(y_hat, past):
