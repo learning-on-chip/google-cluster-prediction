@@ -41,8 +41,9 @@ class Learn:
                 self.train = optimizer.apply_gradients(
                     zip(gradient, self.parameters))
             with tf.variable_scope('summary'):
-                tf.summary.scalar('log_loss', tf.log(self.model.loss))
-            self.logger = tf.summary.FileWriter(config.log_path, self.graph)
+                tf.summary.scalar('loss', self.model.loss)
+            self.summary_writer = tf.summary.FileWriter(
+                config.summary_path, self.graph)
             self.summary = tf.summary.merge_all()
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
@@ -132,7 +133,7 @@ class Learn:
             'summary': self.summary,
         }
         result = session.run(fetch, feed)
-        self.logger.add_summary(result['summary'], state.time)
+        self.summary_writer.add_summary(result['summary'], state.time)
         manager.train(result['loss'], state)
 
     def _zero_start(self):
@@ -459,7 +460,7 @@ if __name__ == '__main__':
         'show_schedule': [10000 - 1, 1],
         'show_address': ('0.0.0.0', 4242),
         # Other
-        'log_path': os.path.join('output', 'log'),
+        'summary_path': os.path.join('output', 'summary'),
         'save_path': os.path.join('output', 'model'),
     })
     main(config)
