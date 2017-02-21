@@ -310,11 +310,11 @@ class Model:
         return tf.reduce_mean(tf.squared_difference(y, y_hat))
 
     def _network(x, config):
-        cell = crnn.LSTMCell(
-            config.unit_count, cell_clip=config.cell_clip,
-            forget_bias=config.forget_bias, use_peepholes=config.use_peepholes,
-            initializer=config.network_initializer)
+        cell = crnn.LSTMCell(config.unit_count,
+                             initializer=config.network_initializer,
+                             **config.cell_options)
         cell = crnn.MultiRNNCell([cell] * config.layer_count)
+        cell = crnn.DropoutWrapper(cell, **config.dropout_options)
         start, state = Model._initialize(config)
         h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
         finish = Model._finalize(state, config)
@@ -456,9 +456,15 @@ if __name__ == '__main__':
         # Model
         'layer_count': 1,
         'unit_count': 200,
-        'cell_clip': 1.0,
-        'forget_bias': 1.0,
-        'use_peepholes': True,
+        'dropout_options': {
+            'input_keep_prob': 1.0,
+            'output_keep_prob': 1.0,
+        },
+        'cell_options': {
+            'cell_clip': 1.0,
+            'forget_bias': 1.0,
+            'use_peepholes': True,
+        },
         'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
         'regression_initializer': tf.random_normal_initializer(stddev=0.01),
         # Train
