@@ -14,7 +14,7 @@ task_usage_analyze: input/task_usage_distribution.csv
 	./bin/task_usage_analyze.py $<
 
 task_usage_learn: input/task_usage_distribution.csv
-	./bin/task_usage_learn.py $<
+	./bin/task_usage_learn.py --input $<
 
 task_usage_watch:
 	./bin/task_usage_watch.py 0.0.0.0:4242
