@@ -473,7 +473,7 @@ if __name__ == '__main__':
         'batch_size': 1,
         'train_fraction': 0.7,
         'gradient_clip': 1.0,
-        'learning_rate': 1e-3,
+        'learning_rate': 1e-4,
         'epoch_count': 100,
         'train_schedule': [0, 1],
         'train_report_schedule': [1000 - 1, 1],
