@@ -33,8 +33,7 @@ class Backup:
                 self.backend.restore(session, self.path)
 
     def save(self, session):
-        path = self.backend.save(session, self.path)
-        support.log(self, 'New backup: {}', path)
+        return self.backend.save(session, self.path)
 
 
 class DummyTarget:
@@ -73,9 +72,9 @@ class Learner:
                 self.model = Model(config)
             with tf.variable_scope('optimization'):
                 self.state = tf.Variable(
-                    [0, 0], name='state', dtype=tf.int64, trainable=False)
+                    [0, 0, 0], name='state', dtype=tf.int64, trainable=False)
                 self.state_update = tf.placeholder(
-                    tf.int64, shape=(2), name='state_update')
+                    tf.int64, shape=(3), name='state_update')
                 self.update_state = self.state.assign(self.state_update)
                 self.parameters = tf.trainable_variables()
                 gradient = tf.gradients(self.model.loss, self.parameters)
@@ -104,24 +103,32 @@ class Learner:
         session.run(self.initialize)
         self.backup.restore(session)
         state = State.deserialize(session.run(self.state))
-        for _ in range(config.epoch_count - state.epoch % config.epoch_count):
-            support.log(self, 'Current epoch: {}', state.epoch + 1)
-            self._run_epoch(target, manager, session, state, config)
+        for _ in range(state.epoch, config.epoch_count):
+            support.log(self, 'Current state: time {}, epoch {}, sample {}',
+                        state.time, state.epoch, state.sample)
+            self._run_epoch(session, state, target, manager, config)
             state.increment_epoch()
-            session.run(self.update_state, {
-                self.state_update: state.serialize(),
-            })
-            self.backup.save(session)
 
-    def _run_epoch(self, target, manager, session, state, config):
-        for _ in range(target.train_sample_count):
+    def _run_epoch(self, session, state, target, manager, config):
+        for _ in range(state.sample, target.train_sample_count):
             if manager.should_train(state.time):
-                self._run_train(target, manager, session, state, config)
+                self._run_train(session, state, target, config)
             if manager.should_test(state.time):
-                self._run_test(target, manager, session, state, config)
+                self._run_test(session, state, target, config)
             if manager.should_show(state.time):
-                self._run_show(target, manager, session, state, config)
-            state.increment_time()
+                self._run_show(session, state, target, manager, config)
+            if manager.should_backup(state.time):
+                state.increment_time()
+                self._run_backup(session, state)
+            else:
+                state.increment_time()
+
+    def _run_backup(self, session, state):
+        session.run(self.update_state, {
+            self.state_update: state.serialize(),
+        })
+        path = self.backup.save(session)
+        support.log(self, 'Backup: {}', path)
 
     def _run_sample(self, session, sample, callback, config):
         length = sample.shape[0]
@@ -129,13 +136,13 @@ class Learner:
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([config.future_length, config.dimension_count])
+        y_hat = np.empty([config.test_length, config.dimension_count])
         for i in range(length):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
             }
-            for j in range(config.future_length):
+            for j in range(config.test_length):
                 result = session.run(fetch, feed)
                 y_hat[j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
@@ -143,15 +150,15 @@ class Learner:
             if not callback(y_hat, i + 1):
                 break
 
-    def _run_show(self, target, manager, session, state, config):
+    def _run_show(self, session, state, target, manager, config):
         sample = target.train(state.sample)
         def _callback(y_hat, offset):
             return manager.show(sample, y_hat, offset)
         self._run_sample(session, sample, _callback, config)
 
-    def _run_test(self, target, _, session, state, config):
-        sums = np.zeros([config.future_length])
-        counts = np.zeros([config.future_length], dtype=np.int)
+    def _run_test(self, session, state, target, config):
+        sums = np.zeros([config.test_length])
+        counts = np.zeros([config.test_length], dtype=np.int)
         for sample in range(target.test_sample_count):
             sample = target.test(sample)
             def _callback(y_hat, offset):
@@ -161,13 +168,13 @@ class Learner:
                 counts[:length] += 1
             self._run_sample(session, sample, _callback, config)
         loss = sums / counts
-        for i in range(config.future_length):
+        for i in range(config.test_length):
             value = tf.Summary.Value(
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
             self.summary_writer.add_summary(
                 tf.Summary(value=[value]), state.time)
 
-    def _run_train(self, target, _, session, state, config):
+    def _run_train(self, session, state, target, config):
         sample = target.train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
@@ -189,13 +196,17 @@ class Learner:
 
 class Manager:
     def __init__(self, config):
-        self.show_address = config.show_address
         self.test_schedule = Schedule(config.test_schedule)
+        self.backup_schedule = Schedule(config.backup_schedule)
         self.show_schedule = Schedule(config.show_schedule)
+        self.show_address = config.show_address
         self.listeners = {}
         self.lock = threading.Lock()
         worker = threading.Thread(target=self._show_server, daemon=True)
         worker.start()
+
+    def should_backup(self, time):
+        return self.backup_schedule.should(time)
 
     def should_show(self, time):
         return len(self.listeners) > 0 and self.show_schedule.should(time)
@@ -325,12 +336,12 @@ class Schedule:
 
 class State:
     def deserialize(state):
-        return State(state[0], state[1])
+        return State(*state)
 
-    def __init__(self, time, epoch):
+    def __init__(self, time, epoch, sample):
         self.time = time
         self.epoch = epoch
-        self.sample = 0
+        self.sample = sample
 
     def increment_epoch(self):
         self.epoch += 1
@@ -341,7 +352,7 @@ class State:
         self.sample += 1
 
     def serialize(self):
-        return [self.time, self.epoch]
+        return [self.time, self.epoch, self.sample]
 
 
 class Target:
@@ -454,15 +465,16 @@ if __name__ == '__main__':
         'learning_rate': 1e-4,
         'epoch_count': 100,
         # Test
-        'future_length': 10,
         'test_schedule': [1000 - 1, 1],
+        'test_length': 10,
+        # Backup
+        'backup_schedule': [1000 - 1, 1],
+        'backup_path': os.path.join(output_path, 'backup'),
         # Show
         'show_schedule': [1000 - 1, 1],
         'show_address': ('0.0.0.0', 4242),
         # Summay
         'summary_path': output_path,
-        # Backup
-        'backup_path': os.path.join(output_path, 'backup'),
     })
     if arguments.input is not None:
         config.update({
