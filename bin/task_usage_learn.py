@@ -56,11 +56,10 @@ class DummyTarget:
         return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
 
     def _generate(count):
-        min, max = 5, 50
         samples = np.random.rand(count, 3)
         samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
         samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = np.round(min + (max - min) * samples[:, 2])
+        samples[:, 2] = np.round(5 + 45 * samples[:, 2])
         return samples
 
 
@@ -445,7 +444,6 @@ def main(config):
 
 if __name__ == '__main__':
     support.loggalize()
-    dummy = len(sys.argv) == 1
     output_path = os.path.join('output', support.timestamp())
     config = Config({
         # Model
@@ -460,10 +458,9 @@ if __name__ == '__main__':
             'forget_bias': 1.0,
             'use_peepholes': True,
         },
-        'network_initializer':
-            tf.random_uniform_initializer(minval=-0.01, maxval=0.01),
-        'regression_initializer':
-            tf.random_normal_initializer(stddev=0.01),
+        'network_initializer': tf.random_uniform_initializer(minval=-0.01,
+                                                             maxval=0.01),
+        'regression_initializer': tf.random_normal_initializer(stddev=0.01),
         # Train
         'batch_size': 1,
         'train_fraction': 0.7,
@@ -474,16 +471,16 @@ if __name__ == '__main__':
         'train_report_schedule': [1000 - 1, 1],
         # Test
         'future_length': 10,
-        'test_schedule': [10000 - 1, 1],
+        'test_schedule': [1000 - 1, 1],
         # Show
-        'show_schedule': [10000 - 1, 1],
+        'show_schedule': [1000 - 1, 1],
         'show_address': ('0.0.0.0', 4242),
         # Summay
         'summary_path': output_path,
         # Backup
         'backup_path': os.path.join(output_path, 'backup'),
     })
-    if not dummy:
+    if len(sys.argv) > 1:
         config.update({
             # Target
             'index_path': sys.argv[1],
