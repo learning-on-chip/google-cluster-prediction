@@ -38,14 +38,12 @@ class Backup:
 
 class DummyTarget:
     def __init__(self, config):
+        sample_count = 10000
         self.dimension_count = 1
-        sample_count = min(10000, config.max_sample_count)
         self.train_sample_count = int(config.train_fraction * sample_count)
         self.test_sample_count = sample_count - self.train_sample_count
-        self.train_samples = DummyTarget._generate(
-            self.train_sample_count, config)
-        self.test_samples = DummyTarget._generate(
-            self.test_sample_count, config)
+        self.train_samples = DummyTarget._generate(self.train_sample_count)
+        self.test_samples = DummyTarget._generate(self.test_sample_count)
 
     def test(self, sample):
         return DummyTarget._compute(self.test_samples[sample, :])
@@ -57,9 +55,8 @@ class DummyTarget:
         a, b, n = sample[0], sample[1], int(sample[2])
         return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
 
-    def _generate(count, config):
-        min = config.min_sample_length
-        max = config.max_sample_length
+    def _generate(count):
+        min, max = 5, 50
         samples = np.random.rand(count, 3)
         samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
         samples[:, 1] = 5 * samples[:, 1]
@@ -432,7 +429,10 @@ class Target:
 
 
 def main(config):
-    target = DummyTarget(config) if config.dummy else Target(config)
+    if config.has('index_path'):
+        target = Target(config)
+    else:
+        target = DummyTarget(config)
     config.update({
         'dimension_count': target.dimension_count,
     })
@@ -445,14 +445,9 @@ def main(config):
 
 if __name__ == '__main__':
     support.loggalize()
+    dummy = len(sys.argv) == 1
+    output_path = os.path.join('output', support.timestamp())
     config = Config({
-        # Target
-        'dummy': len(sys.argv) == 1,
-        'index_path': sys.argv[1] if len(sys.argv) > 1 else None,
-        'max_sample_count': 1000000,
-        'min_sample_length': 5,
-        'max_sample_length': 50,
-        'standard_count': 1000,
         # Model
         'layer_count': 1,
         'unit_count': 200,
@@ -465,8 +460,10 @@ if __name__ == '__main__':
             'forget_bias': 1.0,
             'use_peepholes': True,
         },
-        'network_initializer': tf.random_uniform_initializer(-0.01, 0.01),
-        'regression_initializer': tf.random_normal_initializer(stddev=0.01),
+        'network_initializer':
+            tf.random_uniform_initializer(minval=-0.01, maxval=0.01),
+        'regression_initializer':
+            tf.random_normal_initializer(stddev=0.01),
         # Train
         'batch_size': 1,
         'train_fraction': 0.7,
@@ -481,9 +478,18 @@ if __name__ == '__main__':
         # Show
         'show_schedule': [10000 - 1, 1],
         'show_address': ('0.0.0.0', 4242),
-        # Backup
-        'backup_path': os.path.join('output', 'backup'),
         # Summay
-        'summary_path': os.path.join('output', 'summary'),
+        'summary_path': output_path,
+        # Backup
+        'backup_path': os.path.join(output_path, 'backup'),
     })
+    if not dummy:
+        config.update({
+            # Target
+            'index_path': sys.argv[1],
+            'standard_count': 1000,
+            'max_sample_count': 1000000,
+            'min_sample_length': 5,
+            'max_sample_length': 50,
+        })
     main(config)

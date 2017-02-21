@@ -1,3 +1,4 @@
+import datetime
 import logging
 import numpy as np
 
@@ -5,6 +6,9 @@ import numpy as np
 class Config:
     def __init__(self, options={}):
         self.update(options)
+
+    def has(self, key):
+        return hasattr(self, key)
 
     def update(self, options):
         for key in options:
@@ -38,3 +42,6 @@ def shift(data, amount, padding=0.0):
     elif amount < 0:
         data[amount:, :] = padding
     return data
+
+def timestamp():
+    return '{:%Y-%m-%d %H-%M-%S}'.format(datetime.datetime.now())
