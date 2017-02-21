@@ -26,15 +26,15 @@ class Backup:
         self.backend = tf.train.Saver()
         self.path = config.backup_path
 
-    def save(self, session):
-        path = self.backend.save(session, self.path)
-        support.log(self, 'New backup: {}', path)
-
     def restore(self, session):
         if len(glob.glob('{}*'.format(self.path))) > 0:
             answer = input('Restore backup "{}"? '.format(self.path))
             if not answer.lower().startswith('n'):
                 self.backend.restore(session, self.path)
+
+    def save(self, session):
+        path = self.backend.save(session, self.path)
+        support.log(self, 'New backup: {}', path)
 
 
 class DummyTarget:
@@ -98,11 +98,14 @@ class Learner:
 
     def run(self, target, manager, config):
         support.log(self, 'Parameters: {}', self.parameter_count)
+        support.log(self, 'Train samples: {}', target.train_sample_count)
+        support.log(self, 'Test samples: {}', target.test_sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
         state = State.deserialize(session.run(self.state))
         for _ in range(config.epoch_count - state.epoch % config.epoch_count):
+            support.log(self, 'Current epoch: {}', state.epoch + 1)
             self._run_epoch(target, manager, session, state, config)
             state.increment_epoch()
             session.run(self.update_state, {
@@ -146,7 +149,7 @@ class Learner:
             return manager.show(sample, y_hat, offset)
         self._run_sample(session, sample, _callback, config)
 
-    def _run_test(self, target, manager, session, state, config):
+    def _run_test(self, target, _, session, state, config):
         sums = np.zeros([config.future_length])
         counts = np.zeros([config.future_length], dtype=np.int)
         for sample in range(target.test_sample_count):
@@ -163,9 +166,8 @@ class Learner:
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
             self.summary_writer.add_summary(
                 tf.Summary(value=[value]), state.time)
-        manager.test(np.sum(loss), state)
 
-    def _run_train(self, target, manager, session, state, config):
+    def _run_train(self, target, _, session, state, config):
         sample = target.train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
@@ -180,7 +182,6 @@ class Learner:
         }
         result = session.run(fetch, feed)
         self.summary_writer.add_summary(result['train_summary'], state.time)
-        manager.train(result['loss'], state)
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
@@ -188,10 +189,7 @@ class Learner:
 
 class Manager:
     def __init__(self, config):
-        self.train_sample_count = config.train_sample_count
         self.show_address = config.show_address
-        self.train_schedule = Schedule(config.train_schedule)
-        self.train_report_schedule = Schedule(config.train_report_schedule)
         self.test_schedule = Schedule(config.test_schedule)
         self.show_schedule = Schedule(config.show_schedule)
         self.listeners = {}
@@ -205,8 +203,8 @@ class Manager:
     def should_test(self, time):
         return self.test_schedule.should(time)
 
-    def should_train(self, time):
-        return self.train_schedule.should(time)
+    def should_train(self, _):
+        return True
 
     def show(self, sample, y_hat, offset):
         count0 = sample.shape[0]
@@ -219,18 +217,6 @@ class Manager:
             for listener in self.listeners:
                 listener.put(message)
             return len(self.listeners) > 0
-
-    def test(self, loss, state):
-        support.log(self, '{} {:12.4e} (test)', self._stamp(state), loss)
-
-    def train(self, loss, state):
-        if self.train_report_schedule.should(state.time):
-            support.log(self, '{} {:12.4e}', self._stamp(state), loss)
-
-    def _stamp(self, state):
-        time, epoch, sample = state.time + 1, state.epoch + 1, state.sample + 1
-        return '{:10d} {:4d} {:10d} ({:6.2f}%)'.format(
-            time, epoch, sample, 100 * sample / self.train_sample_count)
 
     def _show_client(self, connection, address):
         support.log(self, 'New listener: {}', address)
@@ -393,14 +379,9 @@ class Target:
                                        config.max_sample_count)
         self.train_sample_count = len(self.train_samples)
         self.test_sample_count = len(self.test_samples)
-        def _format(count, total):
-            return '{} ({:.2f}%)'.format(count, 100 * count / total)
+        support.log(self, 'Total samples: {}', found_count)
         support.log(self, 'Selected samples: {}',
-                    _format(selected_count, found_count))
-        support.log(self, 'Train samples: {}',
-                    _format(self.train_sample_count, selected_count))
-        support.log(self, 'Test samples: {}',
-                    _format(self.test_sample_count, selected_count))
+                    support.format_percentage(selected_count, found_count))
         standard_count = min(config.standard_count, self.train_sample_count)
         self.standard = self._standardize(standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
@@ -437,9 +418,6 @@ def main(config):
         'dimension_count': target.dimension_count,
     })
     learner = Learner(config)
-    config.update({
-        'train_sample_count': target.train_sample_count,
-    })
     manager = Manager(config)
     learner.run(target, manager, config)
 
@@ -450,7 +428,7 @@ if __name__ == '__main__':
     parser.add_argument('--output')
     arguments = parser.parse_args()
     if arguments.output is None:
-        output_path = os.path.join('output', support.timestamp())
+        output_path = os.path.join('output', support.format_timestamp())
     else:
         output_path = arguments.output
     config = Config({
@@ -475,8 +453,6 @@ if __name__ == '__main__':
         'gradient_clip': 1.0,
         'learning_rate': 1e-4,
         'epoch_count': 100,
-        'train_schedule': [0, 1],
-        'train_report_schedule': [1000 - 1, 1],
         # Test
         'future_length': 10,
         'test_schedule': [1000 - 1, 1],

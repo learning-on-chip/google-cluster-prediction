@@ -19,6 +19,12 @@ def figure(width=14, height=6):
     import matplotlib.pyplot as pp
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
+def format_timestamp():
+    return '{:%Y-%m-%d %H-%M-%S}'.format(datetime.datetime.now())
+
+def format_percentage(count, total):
+    return '{} ({:.2f}%)'.format(count, 100 * count / total)
+
 def log(*arguments, limit=7):
     arguments = list(arguments)
     first = arguments.pop(0)
@@ -42,6 +48,3 @@ def shift(data, amount, padding=0.0):
     elif amount < 0:
         data[amount:, :] = padding
     return data
-
-def timestamp():
-    return '{:%Y-%m-%d %H-%M-%S}'.format(datetime.datetime.now())
