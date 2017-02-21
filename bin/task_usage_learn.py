@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 from tensorflow.contrib import rnn as crnn
 from tensorflow.python.ops import rnn
+import argparse
 import glob
 import math
 import numpy as np
@@ -444,7 +445,14 @@ def main(config):
 
 if __name__ == '__main__':
     support.loggalize()
-    output_path = os.path.join('output', support.timestamp())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input')
+    parser.add_argument('--output')
+    arguments = parser.parse_args()
+    if arguments.output is None:
+        output_path = os.path.join('output', support.timestamp())
+    else:
+        output_path = arguments.output
     config = Config({
         # Model
         'layer_count': 1,
@@ -480,10 +488,10 @@ if __name__ == '__main__':
         # Backup
         'backup_path': os.path.join(output_path, 'backup'),
     })
-    if len(sys.argv) > 1:
+    if arguments.input is not None:
         config.update({
             # Target
-            'index_path': sys.argv[1],
+            'index_path': arguments.input,
             'standard_count': 1000,
             'max_sample_count': 1000000,
             'min_sample_length': 5,
