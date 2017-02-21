@@ -468,7 +468,7 @@ if __name__ == '__main__':
         'test_schedule': [1000 - 1, 1],
         'test_length': 10,
         # Backup
-        'backup_schedule': [1000 - 1, 1],
+        'backup_schedule': [10000 - 1, 1],
         'backup_path': os.path.join(output_path, 'backup'),
         # Show
         'show_schedule': [1000 - 1, 1],
