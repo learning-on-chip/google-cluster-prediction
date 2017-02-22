@@ -436,12 +436,12 @@ if __name__ == '__main__':
     support.loggalize()
     parser = argparse.ArgumentParser()
     parser.add_argument('--input')
-    parser.add_argument('--output')
+    parser.add_argument(
+        '--output', default=os.path.join('output', support.format_timestamp()))
+    parser.add_argument('--seed', default=0)
     arguments = parser.parse_args()
-    if arguments.output is None:
-        output_path = os.path.join('output', support.format_timestamp())
-    else:
-        output_path = arguments.output
+    output_path = arguments.output
+    np.random.seed(arguments.seed)
     config = Config({
         # Model
         'layer_count': 1,
