@@ -420,7 +420,7 @@ class TargetReal(Target):
     def _standardize(self, count):
         standard = (0.0, 1.0)
         data = np.array([], dtype=np.float32)
-        for sample in range(count):
+        for sample in np.random.permutation(self.train_sample_count)[:count]:
             data = np.append(data, self._train(sample))
         if len(data) > 0:
             standard = (np.mean(data), np.std(data))
