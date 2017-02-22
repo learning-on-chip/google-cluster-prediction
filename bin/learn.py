@@ -36,33 +36,6 @@ class Backup:
         return self.backend.save(session, self.path)
 
 
-class DummyTarget:
-    def __init__(self, config):
-        sample_count = 10000
-        self.dimension_count = 1
-        self.train_sample_count = int(config.train_fraction * sample_count)
-        self.test_sample_count = sample_count - self.train_sample_count
-        self.train_samples = DummyTarget._generate(self.train_sample_count)
-        self.test_samples = DummyTarget._generate(self.test_sample_count)
-
-    def test(self, sample):
-        return DummyTarget._compute(self.test_samples[sample, :])
-
-    def train(self, sample):
-        return DummyTarget._compute(self.train_samples[sample, :])
-
-    def _compute(sample):
-        a, b, n = sample[0], sample[1], int(sample[2])
-        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
-
-    def _generate(count):
-        samples = np.random.rand(count, 3)
-        samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
-        samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = np.round(5 + 45 * samples[:, 2])
-        return samples
-
-
 class Learner:
     def __init__(self, config):
         assert(config.batch_size == 1)
@@ -110,6 +83,7 @@ class Learner:
             state.increment_epoch()
 
     def _run_epoch(self, session, state, target, manager, config):
+        target.on_epoch(state)
         for _ in range(state.sample, target.train_sample_count):
             if manager.should_train(state.time):
                 self._run_train(session, state, target, config)
@@ -151,16 +125,16 @@ class Learner:
                 break
 
     def _run_show(self, session, state, target, manager, config):
-        sample = target.train(state.sample)
+        sample = target.get_train(state.sample)
         def _callback(y_hat, offset):
-            return manager.show(sample, y_hat, offset)
+            return manager.on_show(sample, y_hat, offset)
         self._run_sample(session, sample, _callback, config)
 
     def _run_test(self, session, state, target, config):
         sums = np.zeros([config.test_length])
         counts = np.zeros([config.test_length], dtype=np.int)
         for sample in range(target.test_sample_count):
-            sample = target.test(sample)
+            sample = target.get_test(sample)
             def _callback(y_hat, offset):
                 length = min(sample.shape[0] - offset, y_hat.shape[0])
                 delta = y_hat[:length, :] - sample[offset:(offset + length), :]
@@ -175,7 +149,7 @@ class Learner:
                 tf.Summary(value=[value]), state.time)
 
     def _run_train(self, session, state, target, config):
-        sample = target.train(state.sample)
+        sample = target.get_train(state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, config.dimension_count]),
@@ -205,6 +179,18 @@ class Manager:
         worker = threading.Thread(target=self._show_server, daemon=True)
         worker.start()
 
+    def on_show(self, sample, y_hat, offset):
+        count0 = sample.shape[0]
+        count1 = count0 - offset
+        count2 = y_hat.shape[0]
+        count0 = count0 + count2
+        message = (np.array([count0, count1, count2]),
+                   sample[offset:, :], y_hat)
+        with self.lock:
+            for listener in self.listeners:
+                listener.put(message)
+            return len(self.listeners) > 0
+
     def should_backup(self, time):
         return self.backup_schedule.should(time)
 
@@ -216,18 +202,6 @@ class Manager:
 
     def should_train(self, _):
         return True
-
-    def show(self, sample, y_hat, offset):
-        count0 = sample.shape[0]
-        count1 = count0 - offset
-        count2 = y_hat.shape[0]
-        count0 = count0 + count2
-        message = (np.array([count0, count1, count2]),
-                   sample[offset:, :], y_hat)
-        with self.lock:
-            for listener in self.listeners:
-                listener.put(message)
-            return len(self.listeners) > 0
 
     def _show_client(self, connection, address):
         support.log(self, 'New listener: {}', address)
@@ -356,6 +330,47 @@ class State:
 
 
 class Target:
+    def get_test(self, _):
+        raise Exception('not implemented')
+
+    def get_train(self, _):
+        raise Exception('not implemented')
+
+    def on_epoch(self, state):
+        random_state = np.random.get_state()
+        np.random.seed(state.epoch)
+        np.random.shuffle(self.train_samples)
+        np.random.set_state(random_state)
+
+
+class TargetFake(Target):
+    def __init__(self, config):
+        sample_count = 10000
+        self.dimension_count = 1
+        self.train_sample_count = int(config.train_fraction * sample_count)
+        self.test_sample_count = sample_count - self.train_sample_count
+        self.train_samples = TargetFake._generate(self.train_sample_count)
+        self.test_samples = TargetFake._generate(self.test_sample_count)
+
+    def get_test(self, sample):
+        return TargetFake._compute(self.test_samples[sample, :])
+
+    def get_train(self, sample):
+        return TargetFake._compute(self.train_samples[sample, :])
+
+    def _compute(sample):
+        a, b, n = sample[0], sample[1], int(sample[2])
+        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
+
+    def _generate(count):
+        samples = np.random.rand(count, 3)
+        samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
+        samples[:, 1] = 5 * samples[:, 1]
+        samples[:, 2] = np.round(5 + 45 * samples[:, 2])
+        return samples
+
+
+class TargetReal(Target):
     def __init__(self, config):
         support.log(self, 'Index: {}', config.index_path)
         self.dimension_count = 1
@@ -377,8 +392,6 @@ class Target:
                     self.train_samples.append(sample)
                 else:
                     self.test_samples.append(sample)
-        np.random.shuffle(self.train_samples)
-        np.random.shuffle(self.test_samples)
         if selected_count > config.max_sample_count:
             def _limit(samples, fraction, total):
                 return samples[:min(len(samples), int(fraction * total))]
@@ -398,10 +411,10 @@ class Target:
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     self.standard[0], self.standard[1], standard_count)
 
-    def test(self, sample):
+    def get_test(self, sample):
         return (self._test(sample) - self.standard[0]) / self.standard[1]
 
-    def train(self, sample):
+    def get_train(self, sample):
         return (self._train(sample) - self.standard[0]) / self.standard[1]
 
     def _standardize(self, count):
@@ -422,9 +435,9 @@ class Target:
 
 def main(config):
     if config.has('index_path'):
-        target = Target(config)
+        target = TargetReal(config)
     else:
-        target = DummyTarget(config)
+        target = TargetFake(config)
     config.update({
         'dimension_count': target.dimension_count,
     })
