@@ -478,13 +478,13 @@ if __name__ == '__main__':
         'learning_rate': 1e-4,
         'epoch_count': 100,
         # Test
-        'test_schedule': [1000 - 1, 1],
+        'test_schedule': [1000, 1],
         'test_length': 10,
         # Backup
-        'backup_schedule': [10000 - 1, 1],
+        'backup_schedule': [10000, 1],
         'backup_path': os.path.join(output_path, 'backup'),
         # Show
-        'show_schedule': [1000 - 1, 1],
+        'show_schedule': [1000, 1],
         'show_address': ('0.0.0.0', 4242),
         # Summay
         'summary_path': output_path,
