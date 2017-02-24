@@ -56,8 +56,9 @@ class Learner:
                 optimizer = tf.train.AdamOptimizer(config.learning_rate)
                 self.train = optimizer.apply_gradients(
                     zip(gradient, self.parameters))
-            self.train_summary = tf.summary.scalar(
-                'train_loss', self.model.loss)
+            tf.summary.scalar('train_loss', self.model.loss)
+            tf.summary.scalar('unroll_count', self.model.unroll_count)
+            self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
                 config.summary_path, self.graph)
             self.initialize = tf.variables_initializer(
