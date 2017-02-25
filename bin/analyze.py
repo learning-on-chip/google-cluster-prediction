@@ -6,7 +6,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 import glob
 import matplotlib.pyplot as pp
-
 import support
 
 def main(index_path, min_length=0, max_length=50, report_each=1000000):

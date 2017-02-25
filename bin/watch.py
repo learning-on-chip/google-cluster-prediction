@@ -4,11 +4,10 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
+from support import Config
 import matplotlib.pyplot as pp
 import numpy as np
 import socket
-
-from support import Config
 import support
 
 def main(config):
