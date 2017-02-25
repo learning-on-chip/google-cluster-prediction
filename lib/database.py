@@ -10,7 +10,7 @@ def count_job_task_samples(path):
     """
     return _execute(path, query, dtype=np.int)
 
-def select(path, job, task):
+def select_task_usage(path, job, task):
     query = """
         SELECT `CPU rate`
         FROM `task_usage`

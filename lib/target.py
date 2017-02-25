@@ -1,6 +1,6 @@
+import database
 import numpy as np
 import support
-import task_usage
 
 class Target:
     def on_epoch(self, state):
@@ -47,7 +47,7 @@ class TaskUsage(Target):
             self.standard = standard
 
         def get(self, sample):
-            data = task_usage.select(*self.samples[sample])
+            data = database.select_task_usage(*self.samples[sample])
             return (data - self.standard[0]) / self.standard[1]
 
     def __init__(self, config):
@@ -89,7 +89,8 @@ class TaskUsage(Target):
     def _standardize(samples, count):
         data = np.array([], dtype=np.float32)
         for sample in np.random.permutation(len(samples))[:count]:
-            data = np.append(data, task_usage.select(*samples[sample]))
+            data = np.append(
+                data, database.select_task_usage(*samples[sample]))
         if len(data) > 0:
             return (np.mean(data), np.std(data))
         else:

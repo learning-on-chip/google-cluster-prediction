@@ -4,9 +4,9 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
+import database
 import glob
 import support
-import task_usage
 
 def main(data_path, index_path, report_each=10000):
     support.loggalize()
@@ -18,7 +18,7 @@ def main(data_path, index_path, report_each=10000):
     with open(index_path, 'w') as file:
         for path in sorted(paths):
             done_count += 1
-            data = task_usage.count_job_task_samples(path)
+            data = database.count_job_task_samples(path)
             trace_count += data.shape[0]
             for i in range(data.shape[0]):
                 record = [path, data[i, 0], data[i, 1], data[i, 2]]
