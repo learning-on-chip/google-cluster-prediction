@@ -71,8 +71,8 @@ class Learner:
 
     def run(self, target, manager, config):
         support.log(self, 'Parameters: {}', self.parameter_count)
-        support.log(self, 'Train samples: {}', target.train_sample_count)
-        support.log(self, 'Test samples: {}', target.test_sample_count)
+        support.log(self, 'Train samples: {}', target.train.sample_count)
+        support.log(self, 'Test samples: {}', target.test.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
@@ -85,7 +85,7 @@ class Learner:
 
     def _run_epoch(self, session, state, target, manager, config):
         target.on_epoch(state)
-        for _ in range(state.sample, target.train_sample_count):
+        for _ in range(state.sample, target.train.sample_count):
             if manager.should_train(state.time):
                 self._run_train(session, state, target, config)
             if manager.should_test(state.time):
@@ -126,7 +126,7 @@ class Learner:
                 break
 
     def _run_show(self, session, state, target, manager, config):
-        sample = target.get_train(state.sample)
+        sample = target.train.get(state.sample)
         def _callback(y_hat, offset):
             return manager.on_show(sample, y_hat, offset)
         self._run_sample(session, sample, _callback, config)
@@ -134,8 +134,8 @@ class Learner:
     def _run_test(self, session, state, target, config):
         sums = np.zeros([config.test_length])
         counts = np.zeros([config.test_length], dtype=np.int)
-        for sample in range(target.test_sample_count):
-            sample = target.get_test(sample)
+        for sample in range(target.test.sample_count):
+            sample = target.test.get(sample)
             def _callback(y_hat, offset):
                 length = min(sample.shape[0] - offset, y_hat.shape[0])
                 delta = y_hat[:length, :] - sample[offset:(offset + length), :]
@@ -150,7 +150,7 @@ class Learner:
                 tf.Summary(value=[value]), state.time)
 
     def _run_train(self, session, state, target, config):
-        sample = target.get_train(state.sample)
+        sample = target.train.get(state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(sample, [1, -1, config.dimension_count]),
@@ -331,33 +331,29 @@ class State:
 
 
 class Target:
-    def get_test(self, _):
-        raise Exception('not implemented')
-
-    def get_train(self, _):
-        raise Exception('not implemented')
-
     def on_epoch(self, state):
         random_state = np.random.get_state()
         np.random.seed(state.epoch)
-        np.random.shuffle(self.train_samples)
+        np.random.shuffle(self.train.samples)
         np.random.set_state(random_state)
 
 
 class TargetFake(Target):
+    class Part:
+        def __init__(self, samples):
+            self.sample_count = len(samples)
+            self.samples = samples
+
+        def get(self, sample):
+            return TargetFake._compute(self.samples[sample, :])
+
     def __init__(self, config):
-        sample_count = 10000
         self.dimension_count = 1
-        self.train_sample_count = int(config.train_fraction * sample_count)
-        self.test_sample_count = sample_count - self.train_sample_count
-        self.train_samples = TargetFake._generate(self.train_sample_count)
-        self.test_samples = TargetFake._generate(self.test_sample_count)
-
-    def get_test(self, sample):
-        return TargetFake._compute(self.test_samples[sample, :])
-
-    def get_train(self, sample):
-        return TargetFake._compute(self.train_samples[sample, :])
+        sample_count = 10000
+        train_sample_count = int(config.train_fraction * sample_count)
+        test_sample_count = sample_count - train_sample_count
+        self.train = TargetFake.Part(TargetFake._generate(train_sample_count))
+        self.test = TargetFake.Part(TargetFake._generate(test_sample_count))
 
     def _compute(sample):
         a, b, n = sample[0], sample[1], int(sample[2])
@@ -372,12 +368,21 @@ class TargetFake(Target):
 
 
 class TargetReal(Target):
+    class Part:
+        def __init__(self, samples, standard):
+            self.sample_count = len(samples)
+            self.samples = samples
+            self.standard = standard
+
+        def get(self, sample):
+            data = task_usage.select(*self.samples[sample])
+            return (data - self.standard[0]) / self.standard[1]
+
     def __init__(self, config):
-        support.log(self, 'Index: {}', config.index_path)
         self.dimension_count = 1
-        self.train_samples = []
-        self.test_samples = []
-        found_count, selected_count = 0, 0
+        support.log(self, 'Index: {}', config.index_path)
+        found_count = 0
+        samples = []
         with open(config.index_path, 'r') as file:
             for record in file:
                 found_count += 1
@@ -387,51 +392,36 @@ class TargetReal(Target):
                     continue
                 if length > config.max_sample_length:
                     continue
-                selected_count +=1
-                sample = (record[0], int(record[1]), int(record[2]))
-                if np.random.rand() < config.train_fraction:
-                    self.train_samples.append(sample)
-                else:
-                    self.test_samples.append(sample)
+                samples.append((record[0], int(record[1]), int(record[2])))
+        np.random.shuffle(samples)
+        selected_count = len(samples)
         if selected_count > config.max_sample_count:
-            def _limit(samples, fraction, total):
-                return samples[:min(len(samples), int(fraction * total))]
-            self.train_samples = _limit(self.train_samples,
-                                        config.train_fraction,
-                                        config.max_sample_count)
-            self.test_samples = _limit(self.test_samples,
-                                       1 - config.train_fraction,
-                                       config.max_sample_count)
-        self.train_sample_count = len(self.train_samples)
-        self.test_sample_count = len(self.test_samples)
-        support.log(self, 'Total samples: {}', found_count)
+            samples = samples[:config.max_sample_count]
+        preserved_count = len(samples)
+        support.log(self, 'Found samples: {}', found_count)
         support.log(self, 'Selected samples: {}',
                     support.format_percentage(selected_count, found_count))
-        standard_count = min(config.standard_count, self.train_sample_count)
-        self.standard = self._standardize(standard_count)
+        support.log(self, 'Preserved samples: {}',
+                    support.format_percentage(preserved_count, found_count))
+        train_sample_count = int(config.train_fraction * len(samples))
+        test_sample_count = len(samples) - train_sample_count
+        train_samples = samples[:train_sample_count]
+        test_samples = samples[train_sample_count:]
+        standard_count = min(config.standard_count, train_sample_count)
+        standard = TargetReal._standardize(train_samples, standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
-                    self.standard[0], self.standard[1], standard_count)
+                    standard[0], standard[1], standard_count)
+        self.train = TargetReal.Part(train_samples, standard)
+        self.test = TargetReal.Part(test_samples, standard)
 
-    def get_test(self, sample):
-        return (self._test(sample) - self.standard[0]) / self.standard[1]
-
-    def get_train(self, sample):
-        return (self._train(sample) - self.standard[0]) / self.standard[1]
-
-    def _standardize(self, count):
-        standard = (0.0, 1.0)
+    def _standardize(samples, count):
         data = np.array([], dtype=np.float32)
-        for sample in np.random.permutation(self.train_sample_count)[:count]:
-            data = np.append(data, self._train(sample))
+        for sample in np.random.permutation(len(samples))[:count]:
+            data = np.append(data, task_usage.select(*samples[sample]))
         if len(data) > 0:
-            standard = (np.mean(data), np.std(data))
-        return standard
-
-    def _test(self, sample):
-        return task_usage.select(*self.test_samples[sample])
-
-    def _train(self, sample):
-        return task_usage.select(*self.train_samples[sample])
+            return (np.mean(data), np.std(data))
+        else:
+            return (0.0, 1.0)
 
 
 def main(config):

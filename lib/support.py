@@ -10,9 +10,12 @@ class Config:
     def has(self, key):
         return hasattr(self, key)
 
+    def set(self, key, value):
+        setattr(self, key, value)
+
     def update(self, options):
         for key in options:
-            setattr(self, key, options[key])
+            self.set(key, options[key])
 
 
 def figure(width=14, height=6):
