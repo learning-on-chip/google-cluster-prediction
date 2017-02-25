@@ -4,13 +4,14 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-from support import Config
+from config import Config
 import matplotlib.pyplot as pp
 import numpy as np
 import socket
 import support
 
 def main(config):
+    support.loggalize()
     support.log('Address: {}', config.address)
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(config.address)
@@ -60,7 +61,6 @@ if __name__ == '__main__':
     assert(len(sys.argv) == 2)
     chunks = sys.argv[1].split(':')
     assert(len(chunks) == 2)
-    support.loggalize()
     config = Config({
         'dimension_count': 1,
         'address': (chunks[0], int(chunks[1])),

@@ -9,6 +9,7 @@ import support
 import task_usage
 
 def main(data_path, index_path, report_each=10000):
+    support.loggalize()
     support.log('Data: {}', data_path)
     paths = glob.glob('{}/**/*.sqlite3'.format(data_path))
     database_count = len(paths)
@@ -29,5 +30,4 @@ def main(data_path, index_path, report_each=10000):
 
 if __name__ == '__main__':
     assert(len(sys.argv) == 3)
-    support.loggalize()
     main(sys.argv[1], sys.argv[2])

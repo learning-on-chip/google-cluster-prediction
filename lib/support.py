@@ -2,22 +2,6 @@ import datetime
 import logging
 import numpy as np
 
-
-class Config:
-    def __init__(self, options={}):
-        self.update(options)
-
-    def has(self, key):
-        return hasattr(self, key)
-
-    def set(self, key, value):
-        setattr(self, key, value)
-
-    def update(self, options):
-        for key in options:
-            self.set(key, options[key])
-
-
 def figure(width=14, height=6):
     import matplotlib.pyplot as pp
     pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')

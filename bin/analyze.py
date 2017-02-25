@@ -9,6 +9,7 @@ import matplotlib.pyplot as pp
 import support
 
 def main(index_path, min_length=0, max_length=50, report_each=1000000):
+    support.loggalize()
     def report():
         status = 'Processed: {}, selected: {} ({:.2f}%)'.format(
             trace_count, len(samples), 100 * len(samples) / trace_count)
@@ -34,5 +35,4 @@ def main(index_path, min_length=0, max_length=50, report_each=1000000):
 
 if __name__ == '__main__':
     assert(len(sys.argv) == 2)
-    support.loggalize()
     main(sys.argv[1])

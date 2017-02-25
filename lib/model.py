@@ -33,13 +33,15 @@ class Model:
         return tf.stack(parts, name='finish')
 
     def _initialize(config):
-        return tf.random_uniform_initializer(**config.initializer_options)
+        name = 'random_{}_initializer'.format(config.initializer.type)
+        return getattr(tf, name)(**config.initializer.options)
 
     def _network(x, config):
-        cell = crnn.LSTMCell(
-            config.unit_count, initializer=Model._initialize(config),
-            **config.cell_options)
-        cell = crnn.DropoutWrapper(cell, **config.dropout_options)
+        name = '{}Cell'.format(config.cell.type)
+        cell = getattr(crnn, name)(config.unit_count,
+                                   initializer=Model._initialize(config),
+                                   **config.cell.options)
+        cell = crnn.DropoutWrapper(cell, **config.dropout.options)
         cell = crnn.MultiRNNCell([cell] * config.layer_count)
         start, state = Model._start(config)
         h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
@@ -50,9 +52,7 @@ class Model:
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
             initializer=Model._initialize(config))
-        b = tf.get_variable(
-            'b', [1, 1, config.dimension_count],
-            initializer=Model._initialize(config))
+        b = tf.get_variable('b', [1, 1, config.dimension_count])
         w = tf.tile(w, [batch_size, 1, 1])
         b = tf.tile(b, [batch_size, unroll_count, 1])
         return w, b

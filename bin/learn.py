@@ -4,6 +4,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
+from config import Config
 from learner import Learner
 from manager import Manager
 from target import SineWave, TaskUsage
@@ -12,7 +13,9 @@ import numpy as np
 import support
 
 def main(config):
-    if config.has('index_path'):
+    support.loggalize()
+    np.random.seed(config.seed)
+    if 'index_path' in config:
         target = TaskUsage(config)
     else:
         target = SineWave(config)
@@ -24,32 +27,38 @@ def main(config):
     learner.run(target, manager, config)
 
 if __name__ == '__main__':
-    support.loggalize()
     parser = argparse.ArgumentParser()
     parser.add_argument('--input')
     parser.add_argument(
         '--output', default=os.path.join('output', support.format_timestamp()))
     parser.add_argument('--seed', default=0)
     arguments = parser.parse_args()
-    output_path = arguments.output
-    np.random.seed(arguments.seed)
-    config = support.Config({
+    config = Config({
+        'seed': arguments.seed,
         # Model
         'layer_count': 1,
         'unit_count': 200,
-        'dropout_options': {
-            'input_keep_prob': 1.0,
-            'output_keep_prob': 1.0,
-        },
-        'cell_options': {
-            'cell_clip': 1.0,
-            'forget_bias': 1.0,
-            'use_peepholes': True,
-        },
-        'initializer_options': {
-            'minval': -0.01,
-            'maxval': 0.01,
-        },
+        'cell': Config({
+            'type': 'LSTM',
+            'options': {
+                'cell_clip': 1.0,
+                'forget_bias': 1.0,
+                'use_peepholes': True,
+            },
+        }),
+        'initializer': Config({
+            'type': 'uniform',
+            'options': {
+                'minval': -0.01,
+                'maxval': 0.01,
+            },
+        }),
+        'dropout': Config({
+            'options': {
+                'input_keep_prob': 1.0,
+                'output_keep_prob': 1.0,
+            },
+        }),
         # Train
         'batch_size': 1,
         'train_fraction': 0.7,
@@ -61,12 +70,12 @@ if __name__ == '__main__':
         'test_length': 10,
         # Backup
         'backup_schedule': [10000, 1],
-        'backup_path': os.path.join(output_path, 'backup'),
+        'backup_path': os.path.join(arguments.output, 'backup'),
         # Show
         'show_schedule': [1000, 1],
         'show_address': ('0.0.0.0', 4242),
         # Summay
-        'summary_path': output_path,
+        'summary_path': arguments.output,
     })
     if arguments.input is not None:
         config.update({
