@@ -53,10 +53,10 @@ class TaskUsage(Target):
 
     def __init__(self, config):
         self.dimension_count = 1
-        support.log(self, 'Index: {}', config.index_path)
+        support.log(self, 'Index: {}', config.input_path)
         found_count = 0
         samples = []
-        with open(config.index_path, 'r') as file:
+        with open(config.input_path, 'r') as file:
             for record in file:
                 found_count += 1
                 record = record.split(',')

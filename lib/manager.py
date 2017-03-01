@@ -10,7 +10,7 @@ class Manager:
         self.test_schedule = Schedule(config.test_schedule)
         self.backup_schedule = Schedule(config.backup_schedule)
         self.show_schedule = Schedule(config.show_schedule)
-        self.show_address = config.show_address
+        self.show_address = tuple(config.show_address)
         self.listeners = {}
         self.lock = threading.Lock()
         worker = threading.Thread(target=self._show_server, daemon=True)

@@ -1,6 +1,7 @@
 from model import Model
 import glob
 import numpy as np
+import os
 import support
 import tensorflow as tf
 
@@ -29,7 +30,7 @@ class Learner:
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
-                config.summary_path, self.graph)
+                config.output_path, self.graph)
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             self.backup = Backup(config)
@@ -141,7 +142,7 @@ class Learner:
 class Backup:
     def __init__(self, config):
         self.backend = tf.train.Saver()
-        self.path = config.backup_path
+        self.path = os.path.join(config.output_path, 'backup')
 
     def restore(self, session):
         if len(glob.glob('{}*'.format(self.path))) > 0:

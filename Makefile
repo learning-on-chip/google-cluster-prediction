@@ -5,7 +5,7 @@ analyze: input/distribution.csv
 	./bin/analyze.py $<
 
 learn: input/distribution.csv
-	./bin/learn.py --input $<
+	./bin/learn.py --config config/default.json --input $<
 
 watch:
 	./bin/watch.py 0.0.0.0:4242
