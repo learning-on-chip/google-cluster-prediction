@@ -1,5 +1,6 @@
 from tensorflow.contrib import rnn as crnn
 from tensorflow.python.ops import rnn
+import numpy as np
 import tensorflow as tf
 
 
@@ -15,15 +16,17 @@ class Model:
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(h)[1]
         with tf.variable_scope('regression'):
-            w, b = Model._regress(self.y, self.batch_size, self.unroll_count,
-                                  config)
+            w, b = Model._regression(self.y, self.batch_size,
+                                     self.unroll_count, config)
         with tf.variable_scope('y_hat'):
             self.y_hat = tf.matmul(h, w) + b
         with tf.variable_scope('loss'):
-            self.loss = Model._assess(self.y, self.y_hat)
+            self.loss = Model._loss(self.y, self.y_hat)
+        self.parameters = tf.trainable_variables()
 
-    def _assess(y, y_hat):
-        return tf.reduce_mean(tf.squared_difference(y, y_hat))
+    @property
+    def parameter_count(self):
+        return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
     def _finish(state, config):
         parts = []
@@ -35,6 +38,9 @@ class Model:
     def _initialize(config):
         name = 'random_{}_initializer'.format(config.initializer.type)
         return getattr(tf, name)(**config.initializer.options)
+
+    def _loss(y, y_hat):
+        return tf.reduce_mean(tf.squared_difference(y, y_hat))
 
     def _network(x, config):
         name = '{}Cell'.format(config.cell.type)
@@ -48,7 +54,7 @@ class Model:
         finish = Model._finish(state, config)
         return start, finish, h
 
-    def _regress(y, batch_size, unroll_count, config):
+    def _regression(y, batch_size, unroll_count, config):
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
             initializer=Model._initialize(config))

@@ -1,4 +1,5 @@
 from model import Model
+from optimizer import Optimizer
 import glob
 import numpy as np
 import os
@@ -13,19 +14,8 @@ class Learner:
         with self.graph.as_default():
             with tf.variable_scope('model'):
                 self.model = Model(config)
-            with tf.variable_scope('optimization'):
-                self.state = tf.Variable(
-                    [0, 0, 0], name='state', dtype=tf.int64, trainable=False)
-                self.state_update = tf.placeholder(
-                    tf.int64, shape=3, name='state_update')
-                self.update_state = self.state.assign(self.state_update)
-                self.parameters = tf.trainable_variables()
-                gradient = tf.gradients(self.model.loss, self.parameters)
-                gradient, _ = tf.clip_by_global_norm(
-                    gradient, config.gradient_clip)
-                optimizer = tf.train.AdamOptimizer(config.learning_rate)
-                self.train = optimizer.apply_gradients(
-                    zip(gradient, self.parameters))
+            with tf.variable_scope('optimizer'):
+                self.optimizer = Optimizer(self.model, config)
             tf.summary.scalar('train_loss', self.model.loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
@@ -35,18 +25,14 @@ class Learner:
                 tf.global_variables(), name='initialize')
             self.backup = Backup(config)
 
-    @property
-    def parameter_count(self):
-        return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
-
     def run(self, target, manager, config):
-        support.log(self, 'Parameters: {}', self.parameter_count)
+        support.log(self, 'Parameters: {}', self.model.parameter_count)
         support.log(self, 'Train samples: {}', target.train.sample_count)
         support.log(self, 'Test samples: {}', target.test.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
-        state = State.deserialize(session.run(self.state))
+        state = self.optimizer.get_state(session)
         for _ in range(state.epoch, config.epoch_count):
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         state.time, state.epoch, state.sample)
@@ -69,9 +55,7 @@ class Learner:
                 state.increment_time()
 
     def _run_backup(self, session, state):
-        session.run(self.update_state, {
-            self.state_update: state.serialize(),
-        })
+        self.optimizer.set_state(session, state)
         path = self.backup.save(session)
         support.log(self, 'Backup: {}', path)
 
@@ -128,7 +112,7 @@ class Learner:
                                      [1, -1, config.dimension_count]),
         }
         fetch = {
-            'train': self.train,
+            'step': self.optimizer.step,
             'loss': self.model.loss,
             'train_summary': self.train_summary,
         }
@@ -152,24 +136,3 @@ class Backup:
 
     def save(self, session):
         return self.backend.save(session, self.path)
-
-
-class State:
-    def deserialize(state):
-        return State(*state)
-
-    def __init__(self, time, epoch, sample):
-        self.time = time
-        self.epoch = epoch
-        self.sample = sample
-
-    def increment_epoch(self):
-        self.epoch += 1
-        self.sample = 0
-
-    def increment_time(self):
-        self.time += 1
-        self.sample += 1
-
-    def serialize(self):
-        return [self.time, self.epoch, self.sample]
