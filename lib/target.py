@@ -2,6 +2,7 @@ import database
 import numpy as np
 import support
 
+
 class Target:
     def on_epoch(self, state):
         random_state = np.random.get_state()
