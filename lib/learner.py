@@ -16,7 +16,7 @@ class Learner:
                 self.state = tf.Variable(
                     [0, 0, 0], name='state', dtype=tf.int64, trainable=False)
                 self.state_update = tf.placeholder(
-                    tf.int64, shape=(3), name='state_update')
+                    tf.int64, shape=3, name='state_update')
                 self.update_state = self.state.assign(self.state_update)
                 self.parameters = tf.trainable_variables()
                 gradient = tf.gradients(self.model.loss, self.parameters)
