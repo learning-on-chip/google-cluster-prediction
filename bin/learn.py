@@ -38,27 +38,27 @@ if __name__ == '__main__':
         # Model
         'layer_count': 1,
         'unit_count': 200,
-        'cell': Config({
+        'cell': {
             'type': 'LSTM',
             'options': {
                 'cell_clip': 1.0,
                 'forget_bias': 1.0,
                 'use_peepholes': True,
             },
-        }),
-        'initializer': Config({
+        },
+        'initializer': {
             'type': 'uniform',
             'options': {
                 'minval': -0.01,
                 'maxval': 0.01,
             },
-        }),
-        'dropout': Config({
+        },
+        'dropout': {
             'options': {
                 'input_keep_prob': 1.0,
                 'output_keep_prob': 1.0,
             },
-        }),
+        },
         # Train
         'batch_size': 1,
         'train_fraction': 0.7,

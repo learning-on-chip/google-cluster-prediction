@@ -2,10 +2,19 @@ RESERVED_KEYS = vars(dict).keys()
 
 
 class Config(dict):
-    def __init__(self, *arguments, **key_arguments):
+    def __init__(self, options={}):
         super(Config, self).__init__()
-        [self.update(argument) for argument in arguments]
-        self.update(key_arguments)
+        self.update(options)
+
+    def update(self, options):
+        copy = {}
+        for key in options:
+            value = options[key]
+            if isinstance(value, dict) and not isinstance(value, Config):
+                copy[key] = Config(value)
+            else:
+                copy[key] = value
+        return super(Config, self).update(copy)
 
     def __getattr__(self, key):
         if key not in RESERVED_KEYS:
