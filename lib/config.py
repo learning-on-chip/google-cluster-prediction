@@ -6,6 +6,9 @@ class Config(dict):
         super(Config, self).__init__()
         self.update(options)
 
+    def copy(self):
+        return self.__copy__()
+
     def update(self, options):
         copy = {}
         for key in options:
@@ -15,6 +18,9 @@ class Config(dict):
             else:
                 copy[key] = value
         return super(Config, self).update(copy)
+
+    def __copy__(self):
+        return self.__class__(self)
 
     def __getattr__(self, key):
         if key not in RESERVED_KEYS:
