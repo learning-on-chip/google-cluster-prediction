@@ -7,8 +7,9 @@ import threading
 
 class Manager:
     def __init__(self, config):
-        self.test_schedule = Schedule(config.test_schedule)
+        self.max_epoch_count = config.max_epoch_count
         self.backup_schedule = Schedule(config.backup_schedule)
+        self.test_schedule = Schedule(config.test_schedule)
         self.show_schedule = Schedule(config.show_schedule)
         self.show_address = tuple(config.show_address)
         self.listeners = {}
@@ -28,14 +29,18 @@ class Manager:
                 listener.put(message)
             return len(self.listeners) > 0
 
-    def should_backup(self, time):
-        return self.backup_schedule.should(time)
+    def should_backup(self, state):
+        return self.backup_schedule.should(state.time)
 
-    def should_show(self, time):
-        return len(self.listeners) > 0 and self.show_schedule.should(time)
+    def should_continue(self, state):
+        return state.epoch < self.max_epoch_count
 
-    def should_test(self, time):
-        return self.test_schedule.should(time)
+    def should_show(self, state):
+        return len(self.listeners) > 0 and \
+               self.show_schedule.should(state.time)
+
+    def should_test(self, state):
+        return self.test_schedule.should(state.time)
 
     def should_train(self, _):
         return True

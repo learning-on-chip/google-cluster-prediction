@@ -35,31 +35,32 @@ class System:
         session.run(self.initialize)
         self.backup.restore(session)
         state = self.trainer.get_state(session)
-        for _ in range(state.epoch, self.trainer.epoch_count):
+        support.log(self, 'Initial state: time {}, epoch {}, sample {}',
+                    state.time, state.epoch, state.sample)
+        data.on_epoch(state)
+        while self.manager.should_continue(state):
+            self._run(session, state, data)
+
+    def _run(self, session, state, data):
+        should_backup = self.manager.should_backup(state)
+        if self.manager.should_train(state):
+            self._run_train(session, state, data)
+        if self.manager.should_test(state):
+            self._run_test(session, state, data)
+        if self.manager.should_show(state):
+            self._run_show(session, state, data)
+        state.increment_time()
+        if state.sample == data.train.sample_count:
+            state.increment_epoch()
+            data.on_epoch(state)
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         state.time, state.epoch, state.sample)
-            self._run_epoch(session, state, data)
-            state.increment_epoch()
-
-    def _run_epoch(self, session, state, data):
-        data.on_epoch(state)
-        for _ in range(state.sample, data.train.sample_count):
-            if self.manager.should_train(state.time):
-                self._run_train(session, state, data)
-            if self.manager.should_test(state.time):
-                self._run_test(session, state, data)
-            if self.manager.should_show(state.time):
-                self._run_show(session, state, data)
-            if self.manager.should_backup(state.time):
-                state.increment_time()
-                self._run_backup(session, state)
-            else:
-                state.increment_time()
+        if should_backup:
+            self._run_backup(session, state)
 
     def _run_backup(self, session, state):
         self.trainer.set_state(session, state)
-        path = self.backup.save(session)
-        support.log(self, 'Backup: {}', path)
+        support.log(self, 'New backup: {}', self.backup.save(session))
 
     def _run_sample(self, session, data, sample, callback):
         length = sample.shape[0]
