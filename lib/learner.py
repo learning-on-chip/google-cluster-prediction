@@ -1,10 +1,12 @@
 import tensorflow as tf
 
 
-class Trainer:
+class Learner:
     def __init__(self, model, config):
+        self.epoch_count = config.epoch_count
+        self.test_length = config.test_length
         with tf.variable_scope('loss'):
-            self.loss = Trainer._loss(model.y, model.y_hat)
+            self.loss = Learner._loss(model.y, model.y_hat)
         gradient = tf.gradients(self.loss, model.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
         name = '{}Optimizer'.format(config.optimizer.name)

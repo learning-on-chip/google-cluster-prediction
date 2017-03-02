@@ -15,9 +15,7 @@ import support
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    data = Data.find(config.data)
-    system = System(config)
-    system.run(data, config)
+    System(config).run(Data.find(config.data))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

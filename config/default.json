@@ -33,8 +33,9 @@
 			}
 		}
 	},
-	"trainer": {
+	"learner": {
 		"epoch_count": 100,
+		"test_length": 10,
 		"gradient_clip": 1.0,
 		"optimizer": {
 			"name": "Adam",
@@ -48,6 +49,5 @@
 		"test_schedule": [1000, 1],
 		"show_schedule": [1000, 1],
 		"show_address": ["0.0.0.0", 4242]
-	},
-	"test_length": 10
+	}
 }

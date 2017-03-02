@@ -1,6 +1,6 @@
+from learner import Learner
 from manager import Manager
 from model import Model
-from trainer import Trainer
 import glob
 import numpy as np
 import os
@@ -14,9 +14,9 @@ class System:
         with self.graph.as_default():
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
-            with tf.variable_scope('trainer'):
-                self.trainer = Trainer(self.model, config.trainer)
-            tf.summary.scalar('train_loss', self.trainer.loss)
+            with tf.variable_scope('learner'):
+                self.learner = Learner(self.model, config.learner)
+            tf.summary.scalar('train_loss', self.learner.loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
@@ -27,29 +27,29 @@ class System:
             self.graph, os.path.join(config.output_path, 'backup'))
         self.manager = Manager(config.manager)
 
-    def run(self, data, config):
+    def run(self, data):
         support.log(self, 'Parameters: {}', self.model.parameter_count)
         support.log(self, 'Train samples: {}', data.train.sample_count)
         support.log(self, 'Test samples: {}', data.test.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
-        state = self.trainer.get_state(session)
-        for _ in range(state.epoch, config.trainer.epoch_count):
+        state = self.learner.get_state(session)
+        for _ in range(state.epoch, self.learner.epoch_count):
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         state.time, state.epoch, state.sample)
-            self._run_epoch(session, state, data, config)
+            self._run_epoch(session, state, data)
             state.increment_epoch()
 
-    def _run_epoch(self, session, state, data, config):
+    def _run_epoch(self, session, state, data):
         data.on_epoch(state)
         for _ in range(state.sample, data.train.sample_count):
             if self.manager.should_train(state.time):
-                self._run_train(session, state, data, config)
+                self._run_train(session, state, data)
             if self.manager.should_test(state.time):
-                self._run_test(session, state, data, config)
+                self._run_test(session, state, data)
             if self.manager.should_show(state.time):
-                self._run_show(session, state, data, config)
+                self._run_show(session, state, data)
             if self.manager.should_backup(state.time):
                 state.increment_time()
                 self._run_backup(session, state)
@@ -57,23 +57,23 @@ class System:
                 state.increment_time()
 
     def _run_backup(self, session, state):
-        self.trainer.set_state(session, state)
+        self.learner.set_state(session, state)
         path = self.backup.save(session)
         support.log(self, 'Backup: {}', path)
 
-    def _run_sample(self, session, data, sample, callback, config):
+    def _run_sample(self, session, data, sample, callback):
         length = sample.shape[0]
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([config.test_length, data.dimension_count])
+        y_hat = np.empty([self.learner.test_length, data.dimension_count])
         for i in range(length):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
             }
-            for j in range(config.test_length):
+            for j in range(self.learner.test_length):
                 result = session.run(fetch, feed)
                 y_hat[j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
@@ -81,15 +81,15 @@ class System:
             if not callback(y_hat, i + 1):
                 break
 
-    def _run_show(self, session, state, data, config):
+    def _run_show(self, session, state, data):
         sample = data.train.get(state.sample)
         def _callback(y_hat, offset):
             return self.manager.on_show(sample, y_hat, offset)
-        self._run_sample(session, data, sample, _callback, config)
+        self._run_sample(session, data, sample, _callback)
 
-    def _run_test(self, session, state, data, config):
-        sums = np.zeros([config.test_length])
-        counts = np.zeros([config.test_length], dtype=np.int)
+    def _run_test(self, session, state, data):
+        sums = np.zeros([self.learner.test_length])
+        counts = np.zeros([self.learner.test_length], dtype=np.int)
         for sample in range(data.test.sample_count):
             sample = data.test.get(sample)
             def _callback(y_hat, offset):
@@ -97,15 +97,15 @@ class System:
                 delta = y_hat[:length, :] - sample[offset:(offset + length), :]
                 sums[:length] += np.sum(delta**2, axis=0)
                 counts[:length] += 1
-            self._run_sample(session, data, sample, _callback, config)
+            self._run_sample(session, data, sample, _callback)
         loss = sums / counts
-        for i in range(config.test_length):
+        for i in range(self.learner.test_length):
             value = tf.Summary.Value(
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
             self.summary_writer.add_summary(
                 tf.Summary(value=[value]), state.time)
 
-    def _run_train(self, session, state, data, config):
+    def _run_train(self, session, state, data):
         sample = data.train.get(state.sample)
         feed = {
             self.model.start: self._zero_start(),
@@ -114,8 +114,8 @@ class System:
                                      [1, -1, data.dimension_count]),
         }
         fetch = {
-            'step': self.trainer.step,
-            'loss': self.trainer.loss,
+            'step': self.learner.step,
+            'loss': self.learner.loss,
             'train_summary': self.train_summary,
         }
         result = session.run(fetch, feed)
