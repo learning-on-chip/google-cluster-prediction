@@ -9,7 +9,7 @@ import numpy as np
 import unittest
 
 
-class HyperbandTestCase(unittest.TestCase):
+class TestCase(unittest.TestCase):
     def test_run(self):
         observed_rs = []
         observed_cs = []
