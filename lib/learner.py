@@ -15,7 +15,7 @@ class Learner:
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
             with tf.variable_scope('optimizer'):
-                self.optimizer = Optimizer(self.model, config)
+                self.optimizer = Optimizer(self.model, config.optimizer)
             tf.summary.scalar('train_loss', self.optimizer.loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
