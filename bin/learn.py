@@ -19,7 +19,7 @@ def main(config):
     target = Target.create(config.target)
     config.model.dimension_count = target.dimension_count
     learner = Learner(config)
-    manager = Manager(config)
+    manager = Manager(config.manager)
     learner.run(target, manager, config)
 
 if __name__ == '__main__':

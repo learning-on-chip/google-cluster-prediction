@@ -38,9 +38,11 @@
 	},
 	"epoch_count": 100,
 	"batch_size": 1,
-	"test_schedule": [1000, 1],
 	"test_length": 10,
-	"show_schedule": [1000, 1],
-	"show_address": ["0.0.0.0", 4242],
-	"backup_schedule": [10000, 1]
+	"manager": {
+		"backup_schedule": [10000, 1],
+		"test_schedule": [1000, 1],
+		"show_schedule": [1000, 1],
+		"show_address": ["0.0.0.0", 4242]
+	}
 }
