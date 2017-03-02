@@ -32,11 +32,14 @@
 			}
 		}
 	},
-	"optimizer": {
+	"trainer": {
+		"epoch_count": 100,
 		"gradient_clip": 1.0,
-		"name": "Adam",
-		"options": {
-			"learning_rate": 1e-4
+		"optimizer": {
+			"name": "Adam",
+			"options": {
+				"learning_rate": 1e-4
+			}
 		}
 	},
 	"manager": {
@@ -45,7 +48,5 @@
 		"show_schedule": [1000, 1],
 		"show_address": ["0.0.0.0", 4242]
 	},
-	"epoch_count": 100,
-	"batch_size": 1,
 	"test_length": 10
 }

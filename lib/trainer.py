@@ -1,14 +1,14 @@
 import tensorflow as tf
 
 
-class Optimizer:
+class Trainer:
     def __init__(self, model, config):
         with tf.variable_scope('loss'):
-            self.loss = Optimizer._loss(model.y, model.y_hat)
+            self.loss = Trainer._loss(model.y, model.y_hat)
         gradient = tf.gradients(self.loss, model.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
-        name = '{}Optimizer'.format(config.name)
-        optimizer = getattr(tf.train, name)(**config.options)
+        name = '{}Optimizer'.format(config.optimizer.name)
+        optimizer = getattr(tf.train, name)(**config.optimizer.options)
         self.step = optimizer.apply_gradients(zip(gradient, model.parameters))
         self.state = tf.Variable([0, 0, 0], name='state', dtype=tf.int64,
                                  trainable=False)

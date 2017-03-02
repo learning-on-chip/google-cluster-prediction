@@ -1,6 +1,6 @@
 from manager import Manager
 from model import Model
-from optimizer import Optimizer
+from trainer import Trainer
 import glob
 import numpy as np
 import os
@@ -10,14 +10,13 @@ import tensorflow as tf
 
 class Learner:
     def __init__(self, config):
-        assert(config.batch_size == 1)
         self.graph = tf.Graph()
         with self.graph.as_default():
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
-            with tf.variable_scope('optimizer'):
-                self.optimizer = Optimizer(self.model, config.optimizer)
-            tf.summary.scalar('train_loss', self.optimizer.loss)
+            with tf.variable_scope('trainer'):
+                self.trainer = Trainer(self.model, config.trainer)
+            tf.summary.scalar('train_loss', self.trainer.loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
@@ -35,8 +34,8 @@ class Learner:
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
-        state = self.optimizer.get_state(session)
-        for _ in range(state.epoch, config.epoch_count):
+        state = self.trainer.get_state(session)
+        for _ in range(state.epoch, config.trainer.epoch_count):
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         state.time, state.epoch, state.sample)
             self._run_epoch(session, state, target, config)
@@ -58,7 +57,7 @@ class Learner:
                 state.increment_time()
 
     def _run_backup(self, session, state):
-        self.optimizer.set_state(session, state)
+        self.trainer.set_state(session, state)
         path = self.backup.save(session)
         support.log(self, 'Backup: {}', path)
 
@@ -115,8 +114,8 @@ class Learner:
                                      [1, -1, target.dimension_count]),
         }
         fetch = {
-            'step': self.optimizer.step,
-            'loss': self.optimizer.loss,
+            'step': self.trainer.step,
+            'loss': self.trainer.loss,
             'train_summary': self.train_summary,
         }
         result = session.run(fetch, feed)
