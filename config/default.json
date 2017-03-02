@@ -33,7 +33,7 @@
 			}
 		}
 	},
-	"learner": {
+	"trainer": {
 		"epoch_count": 100,
 		"test_length": 10,
 		"gradient_clip": 1.0,
