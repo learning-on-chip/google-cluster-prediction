@@ -24,7 +24,7 @@ class Config(dict):
 
     def __getattr__(self, key):
         if key not in RESERVED_KEYS:
-            return self.get(key)
+            return self[key]
         else:
             return getattr(self, key)
 

@@ -3,7 +3,6 @@ import tensorflow as tf
 
 class Trainer:
     def __init__(self, model, config):
-        self.epoch_count = config.epoch_count
         self.test_length = config.test_length
         with tf.variable_scope('loss'):
             self.loss = Trainer._loss(model.y, model.y_hat)

@@ -2,16 +2,17 @@ import numpy as np
 import queue
 import socket
 import support
+import sys
 import threading
 
 
 class Manager:
     def __init__(self, config):
-        self.max_epoch_count = config.max_epoch_count
         self.backup_schedule = Schedule(config.backup_schedule)
         self.test_schedule = Schedule(config.test_schedule)
         self.show_schedule = Schedule(config.show_schedule)
         self.show_address = tuple(config.show_address)
+        self.terminator = Terminator(config)
         self.listeners = {}
         self.lock = threading.Lock()
         worker = threading.Thread(target=self._show_server, daemon=True)
@@ -33,7 +34,7 @@ class Manager:
         return self.backup_schedule.should(state.time)
 
     def should_continue(self, state):
-        return state.epoch < self.max_epoch_count
+        return self.terminator.should_continue(state)
 
     def should_show(self, state):
         return len(self.listeners) > 0 and \
@@ -88,3 +89,13 @@ class Schedule:
         time = time % self.schedule[-1] + 1
         phase = np.nonzero(self.schedule >= time)[0][0]
         return phase % 2 == 1
+
+
+class Terminator:
+    def __init__(self, config):
+        def _get(key, default):
+            return config.get(key) or default
+        self.max_epoch_count = _get('max_epoch_count', sys.maxsize)
+
+    def should_continue(self, state):
+        return state.epoch < self.max_epoch_count
