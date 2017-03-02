@@ -5,7 +5,7 @@ import support
 
 class Data:
     def find(config):
-        if 'input_path' in config and config.input_path is not None:
+        if config.get('input_path') is not None:
             return Real(config)
         else:
             return Fake(config)
@@ -59,7 +59,7 @@ class Real(Data):
 
     def __init__(self, config):
         self.dimension_count = 1
-        support.log(self, 'Index: {}', config.input_path)
+        support.log(self, 'Input path: {}', config.input_path)
         found_count = 0
         samples = []
         with open(config.input_path, 'r') as file:

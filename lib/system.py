@@ -26,6 +26,7 @@ class System:
         self.backup = Backup(
             self.graph, os.path.join(config.output_path, 'backup'))
         self.manager = Manager(config.manager)
+        support.log(self, 'Output path: {}', config.output_path)
 
     def run(self, data):
         support.log(self, 'Parameters: {}', self.model.parameter_count)
