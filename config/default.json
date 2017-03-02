@@ -11,7 +11,7 @@
 		"layer_count": 1,
 		"unit_count": 200,
 		"cell": {
-			"type": "LSTM",
+			"name": "LSTM",
 			"options": {
 				"cell_clip": 1.0,
 				"forget_bias": 1.0,
@@ -19,7 +19,7 @@
 			}
 		},
 		"initializer": {
-			"type": "uniform",
+			"name": "uniform",
 			"options": {
 				"minval": -0.01,
 				"maxval": 0.01
@@ -34,7 +34,10 @@
 	},
 	"optimizer": {
 		"gradient_clip": 1.0,
-		"learning_rate": 1e-4
+		"name": "Adam",
+		"options": {
+			"learning_rate": 1e-4
+		}
 	},
 	"manager": {
 		"backup_schedule": [10000, 1],

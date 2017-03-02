@@ -7,7 +7,8 @@ class Optimizer:
             self.loss = Optimizer._loss(model.y, model.y_hat)
         gradient = tf.gradients(self.loss, model.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
-        optimizer = tf.train.AdamOptimizer(config.learning_rate)
+        name = '{}Optimizer'.format(config.name)
+        optimizer = getattr(tf.train, name)(**config.options)
         self.step = optimizer.apply_gradients(zip(gradient, model.parameters))
         self.state = tf.Variable([0, 0, 0], name='state', dtype=tf.int64,
                                  trainable=False)

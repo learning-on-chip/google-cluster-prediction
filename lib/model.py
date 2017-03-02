@@ -34,11 +34,11 @@ class Model:
         return tf.stack(parts, name='finish')
 
     def _initialize(config):
-        name = 'random_{}_initializer'.format(config.initializer.type)
+        name = 'random_{}_initializer'.format(config.initializer.name)
         return getattr(tf, name)(**config.initializer.options)
 
     def _network(x, config):
-        name = '{}Cell'.format(config.cell.type)
+        name = '{}Cell'.format(config.cell.name)
         cell = getattr(crnn, name)(config.unit_count,
                                    initializer=Model._initialize(config),
                                    **config.cell.options)
