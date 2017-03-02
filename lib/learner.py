@@ -16,7 +16,7 @@ class Learner:
                 self.model = Model(config)
             with tf.variable_scope('optimizer'):
                 self.optimizer = Optimizer(self.model, config)
-            tf.summary.scalar('train_loss', self.model.loss)
+            tf.summary.scalar('train_loss', self.optimizer.loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
@@ -113,7 +113,7 @@ class Learner:
         }
         fetch = {
             'step': self.optimizer.step,
-            'loss': self.model.loss,
+            'loss': self.optimizer.loss,
             'train_summary': self.train_summary,
         }
         result = session.run(fetch, feed)

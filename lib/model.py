@@ -20,8 +20,6 @@ class Model:
                                      self.unroll_count, config)
         with tf.variable_scope('y_hat'):
             self.y_hat = tf.matmul(h, w) + b
-        with tf.variable_scope('loss'):
-            self.loss = Model._loss(self.y, self.y_hat)
         self.parameters = tf.trainable_variables()
 
     @property
@@ -38,9 +36,6 @@ class Model:
     def _initialize(config):
         name = 'random_{}_initializer'.format(config.initializer.type)
         return getattr(tf, name)(**config.initializer.options)
-
-    def _loss(y, y_hat):
-        return tf.reduce_mean(tf.squared_difference(y, y_hat))
 
     def _network(x, config):
         name = '{}Cell'.format(config.cell.type)

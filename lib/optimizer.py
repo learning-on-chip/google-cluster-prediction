@@ -3,7 +3,9 @@ import tensorflow as tf
 
 class Optimizer:
     def __init__(self, model, config):
-        gradient = tf.gradients(model.loss, model.parameters)
+        with tf.variable_scope('loss'):
+            self.loss = Optimizer._loss(model.y, model.y_hat)
+        gradient = tf.gradients(self.loss, model.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
         optimizer = tf.train.AdamOptimizer(config.learning_rate)
         self.step = optimizer.apply_gradients(zip(gradient, model.parameters))
@@ -20,6 +22,9 @@ class Optimizer:
         session.run(self.update_state, {
             self.state_update: state.serialize(),
         })
+
+    def _loss(y, y_hat):
+        return tf.reduce_mean(tf.squared_difference(y, y_hat))
 
 
 class State:
