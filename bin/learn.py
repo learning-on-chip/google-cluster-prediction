@@ -16,7 +16,6 @@ def main(config):
     support.loggalize()
     np.random.seed(config.seed)
     data = Data.find(config.data)
-    config.model.dimension_count = data.dimension_count
     system = System(config)
     system.run(data, config)
 
