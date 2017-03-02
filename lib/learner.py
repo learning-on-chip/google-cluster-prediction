@@ -1,3 +1,4 @@
+from manager import Manager
 from model import Model
 from optimizer import Optimizer
 import glob
@@ -23,9 +24,11 @@ class Learner:
                 config.output_path, self.graph)
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
-            self.backup = Backup(config)
+        self.backup = Backup(
+            self.graph, os.path.join(config.output_path, 'backup'))
+        self.manager = Manager(config.manager)
 
-    def run(self, target, manager, config):
+    def run(self, target, config):
         support.log(self, 'Parameters: {}', self.model.parameter_count)
         support.log(self, 'Train samples: {}', target.train.sample_count)
         support.log(self, 'Test samples: {}', target.test.sample_count)
@@ -36,19 +39,19 @@ class Learner:
         for _ in range(state.epoch, config.epoch_count):
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         state.time, state.epoch, state.sample)
-            self._run_epoch(session, state, target, manager, config)
+            self._run_epoch(session, state, target, config)
             state.increment_epoch()
 
-    def _run_epoch(self, session, state, target, manager, config):
+    def _run_epoch(self, session, state, target, config):
         target.on_epoch(state)
         for _ in range(state.sample, target.train.sample_count):
-            if manager.should_train(state.time):
+            if self.manager.should_train(state.time):
                 self._run_train(session, state, target, config)
-            if manager.should_test(state.time):
+            if self.manager.should_test(state.time):
                 self._run_test(session, state, target, config)
-            if manager.should_show(state.time):
-                self._run_show(session, state, target, manager, config)
-            if manager.should_backup(state.time):
+            if self.manager.should_show(state.time):
+                self._run_show(session, state, target, config)
+            if self.manager.should_backup(state.time):
                 state.increment_time()
                 self._run_backup(session, state)
             else:
@@ -79,10 +82,10 @@ class Learner:
             if not callback(y_hat, i + 1):
                 break
 
-    def _run_show(self, session, state, target, manager, config):
+    def _run_show(self, session, state, target, config):
         sample = target.train.get(state.sample)
         def _callback(y_hat, offset):
-            return manager.on_show(sample, y_hat, offset)
+            return self.manager.on_show(sample, y_hat, offset)
         self._run_sample(session, target, sample, _callback, config)
 
     def _run_test(self, session, state, target, config):
@@ -124,9 +127,10 @@ class Learner:
 
 
 class Backup:
-    def __init__(self, config):
-        self.backend = tf.train.Saver()
-        self.path = os.path.join(config.output_path, 'backup')
+    def __init__(self, graph, path):
+        with graph.as_default():
+            self.backend = tf.train.Saver()
+        self.path = path
 
     def restore(self, session):
         if len(glob.glob('{}*'.format(self.path))) > 0:

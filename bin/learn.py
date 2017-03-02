@@ -6,7 +6,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 from config import Config
 from learner import Learner
-from manager import Manager
 from target import Target
 import argparse
 import json
@@ -19,8 +18,7 @@ def main(config):
     target = Target.create(config.target)
     config.model.dimension_count = target.dimension_count
     learner = Learner(config)
-    manager = Manager(config.manager)
-    learner.run(target, manager, config)
+    learner.run(target, config)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
