@@ -95,7 +95,9 @@ class Terminator:
     def __init__(self, config):
         def _get(key, default):
             return config.get(key) or default
+        self.max_sample_count = _get('max_sample_count', sys.maxsize)
         self.max_epoch_count = _get('max_epoch_count', sys.maxsize)
 
     def should_continue(self, state):
-        return state.epoch < self.max_epoch_count
+        return state.time < self.max_sample_count and \
+               state.epoch < self.max_epoch_count
