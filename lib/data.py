@@ -3,8 +3,8 @@ import numpy as np
 import support
 
 
-class Target:
-    def create(config):
+class Data:
+    def find(config):
         if 'input_path' in config and config.input_path is not None:
             return Real(config)
         else:
@@ -17,7 +17,7 @@ class Target:
         np.random.set_state(random_state)
 
 
-class Fake(Target):
+class Fake(Data):
     class Part:
         def __init__(self, samples):
             self.sample_count = len(samples)
@@ -46,7 +46,7 @@ class Fake(Target):
         return samples
 
 
-class Real(Target):
+class Real(Data):
     class Part:
         def __init__(self, samples, standard):
             self.sample_count = len(samples)

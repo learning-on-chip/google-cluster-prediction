@@ -5,8 +5,8 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 from config import Config
+from data import Data
 from system import System
-from target import Target
 import argparse
 import json
 import numpy as np
@@ -15,10 +15,10 @@ import support
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    target = Target.create(config.target)
-    config.model.dimension_count = target.dimension_count
+    data = Data.find(config.data)
+    config.model.dimension_count = data.dimension_count
     system = System(config)
-    system.run(target, config)
+    system.run(data, config)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     arguments = parser.parse_args()
     config = Config(json.loads(open(arguments.config).read()))
     if arguments.input is not None:
-        config.target.input_path = arguments.input
+        config.data.input_path = arguments.input
     if arguments.output is not None:
         config.output_path = arguments.output
     if 'output_path' not in config or config.output_path is None:

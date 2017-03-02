@@ -27,10 +27,10 @@ class System:
             self.graph, os.path.join(config.output_path, 'backup'))
         self.manager = Manager(config.manager)
 
-    def run(self, target, config):
+    def run(self, data, config):
         support.log(self, 'Parameters: {}', self.model.parameter_count)
-        support.log(self, 'Train samples: {}', target.train.sample_count)
-        support.log(self, 'Test samples: {}', target.test.sample_count)
+        support.log(self, 'Train samples: {}', data.train.sample_count)
+        support.log(self, 'Test samples: {}', data.test.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
         self.backup.restore(session)
@@ -38,18 +38,18 @@ class System:
         for _ in range(state.epoch, config.trainer.epoch_count):
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         state.time, state.epoch, state.sample)
-            self._run_epoch(session, state, target, config)
+            self._run_epoch(session, state, data, config)
             state.increment_epoch()
 
-    def _run_epoch(self, session, state, target, config):
-        target.on_epoch(state)
-        for _ in range(state.sample, target.train.sample_count):
+    def _run_epoch(self, session, state, data, config):
+        data.on_epoch(state)
+        for _ in range(state.sample, data.train.sample_count):
             if self.manager.should_train(state.time):
-                self._run_train(session, state, target, config)
+                self._run_train(session, state, data, config)
             if self.manager.should_test(state.time):
-                self._run_test(session, state, target, config)
+                self._run_test(session, state, data, config)
             if self.manager.should_show(state.time):
-                self._run_show(session, state, target, config)
+                self._run_show(session, state, data, config)
             if self.manager.should_backup(state.time):
                 state.increment_time()
                 self._run_backup(session, state)
@@ -61,13 +61,13 @@ class System:
         path = self.backup.save(session)
         support.log(self, 'Backup: {}', path)
 
-    def _run_sample(self, session, target, sample, callback, config):
+    def _run_sample(self, session, data, sample, callback, config):
         length = sample.shape[0]
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([config.test_length, target.dimension_count])
+        y_hat = np.empty([config.test_length, data.dimension_count])
         for i in range(length):
             feed = {
                 self.model.start: self._zero_start(),
@@ -81,23 +81,23 @@ class System:
             if not callback(y_hat, i + 1):
                 break
 
-    def _run_show(self, session, state, target, config):
-        sample = target.train.get(state.sample)
+    def _run_show(self, session, state, data, config):
+        sample = data.train.get(state.sample)
         def _callback(y_hat, offset):
             return self.manager.on_show(sample, y_hat, offset)
-        self._run_sample(session, target, sample, _callback, config)
+        self._run_sample(session, data, sample, _callback, config)
 
-    def _run_test(self, session, state, target, config):
+    def _run_test(self, session, state, data, config):
         sums = np.zeros([config.test_length])
         counts = np.zeros([config.test_length], dtype=np.int)
-        for sample in range(target.test.sample_count):
-            sample = target.test.get(sample)
+        for sample in range(data.test.sample_count):
+            sample = data.test.get(sample)
             def _callback(y_hat, offset):
                 length = min(sample.shape[0] - offset, y_hat.shape[0])
                 delta = y_hat[:length, :] - sample[offset:(offset + length), :]
                 sums[:length] += np.sum(delta**2, axis=0)
                 counts[:length] += 1
-            self._run_sample(session, target, sample, _callback, config)
+            self._run_sample(session, data, sample, _callback, config)
         loss = sums / counts
         for i in range(config.test_length):
             value = tf.Summary.Value(
@@ -105,13 +105,13 @@ class System:
             self.summary_writer.add_summary(
                 tf.Summary(value=[value]), state.time)
 
-    def _run_train(self, session, state, target, config):
-        sample = target.train.get(state.sample)
+    def _run_train(self, session, state, data, config):
+        sample = data.train.get(state.sample)
         feed = {
             self.model.start: self._zero_start(),
-            self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
+            self.model.x: np.reshape(sample, [1, -1, data.dimension_count]),
             self.model.y: np.reshape(support.shift(sample, -1, padding=0),
-                                     [1, -1, target.dimension_count]),
+                                     [1, -1, data.dimension_count]),
         }
         fetch = {
             'step': self.trainer.step,
