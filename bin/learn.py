@@ -7,7 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 from config import Config
 from learner import Learner
 from manager import Manager
-from target import SineWave, TaskUsage
+from target import Target
 import argparse
 import json
 import numpy as np
@@ -16,10 +16,7 @@ import support
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    if 'input_path' in config and config.input_path is not None:
-        target = TaskUsage(config)
-    else:
-        target = SineWave(config)
+    target = Target.create(config.target)
     config.update({
         'dimension_count': target.dimension_count,
     })
@@ -35,7 +32,7 @@ if __name__ == '__main__':
     arguments = parser.parse_args()
     config = Config(json.loads(open(arguments.config).read()))
     if arguments.input is not None:
-        config.input_path = arguments.input
+        config.target.input_path = arguments.input
     if arguments.output is not None:
         config.output_path = arguments.output
     if 'output_path' not in config or config.output_path is None:

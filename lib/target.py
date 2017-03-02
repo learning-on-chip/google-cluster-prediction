@@ -4,6 +4,12 @@ import support
 
 
 class Target:
+    def create(config):
+        if 'input_path' in config and config.input_path is not None:
+            return Real(config)
+        else:
+            return Fake(config)
+
     def on_epoch(self, state):
         random_state = np.random.get_state()
         np.random.seed(state.epoch)
@@ -11,22 +17,22 @@ class Target:
         np.random.set_state(random_state)
 
 
-class SineWave(Target):
+class Fake(Target):
     class Part:
         def __init__(self, samples):
             self.sample_count = len(samples)
             self.samples = samples
 
         def get(self, sample):
-            return SineWave._compute(self.samples[sample, :])
+            return Fake._compute(self.samples[sample, :])
 
     def __init__(self, config):
         self.dimension_count = 1
         sample_count = 10000
         train_sample_count = int(config.train_fraction * sample_count)
         test_sample_count = sample_count - train_sample_count
-        self.train = SineWave.Part(SineWave._generate(train_sample_count))
-        self.test = SineWave.Part(SineWave._generate(test_sample_count))
+        self.train = Fake.Part(Fake._generate(train_sample_count))
+        self.test = Fake.Part(Fake._generate(test_sample_count))
 
     def _compute(sample):
         a, b, n = sample[0], sample[1], int(sample[2])
@@ -40,7 +46,7 @@ class SineWave(Target):
         return samples
 
 
-class TaskUsage(Target):
+class Real(Target):
     class Part:
         def __init__(self, samples, standard):
             self.sample_count = len(samples)
@@ -81,11 +87,11 @@ class TaskUsage(Target):
         train_samples = samples[:train_sample_count]
         test_samples = samples[train_sample_count:]
         standard_count = min(config.standard_count, train_sample_count)
-        standard = TaskUsage._standardize(train_samples, standard_count)
+        standard = Real._standardize(train_samples, standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     standard[0], standard[1], standard_count)
-        self.train = TaskUsage.Part(train_samples, standard)
-        self.test = TaskUsage.Part(test_samples, standard)
+        self.train = Real.Part(train_samples, standard)
+        self.test = Real.Part(test_samples, standard)
 
     def _standardize(samples, count):
         data = np.array([], dtype=np.float32)

@@ -1,10 +1,13 @@
 {
 	"seed": 0,
 
-	"standard_count": 1000,
-	"max_sample_count": 1000000,
-	"min_sample_length": 5,
-	"max_sample_length": 50,
+	"target": {
+		"max_sample_count": 1000000,
+		"min_sample_length": 5,
+		"max_sample_length": 50,
+		"train_fraction": 0.7,
+		"standard_count": 1000
+	},
 
 	"layer_count": 1,
 	"unit_count": 200,
@@ -30,11 +33,10 @@
 		}
 	},
 
+	"epoch_count": 100,
 	"batch_size": 1,
-	"train_fraction": 0.7,
 	"gradient_clip": 1.0,
 	"learning_rate": 1e-4,
-	"epoch_count": 100,
 
 	"test_schedule": [1000, 1],
 	"test_length": 10,
