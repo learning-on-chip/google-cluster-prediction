@@ -13,7 +13,7 @@ class Learner:
         self.graph = tf.Graph()
         with self.graph.as_default():
             with tf.variable_scope('model'):
-                self.model = Model(config)
+                self.model = Model(config.model)
             with tf.variable_scope('optimizer'):
                 self.optimizer = Optimizer(self.model, config)
             tf.summary.scalar('train_loss', self.optimizer.loss)
@@ -59,13 +59,13 @@ class Learner:
         path = self.backup.save(session)
         support.log(self, 'Backup: {}', path)
 
-    def _run_sample(self, session, sample, callback, config):
+    def _run_sample(self, session, target, sample, callback, config):
         length = sample.shape[0]
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([config.test_length, config.dimension_count])
+        y_hat = np.empty([config.test_length, target.dimension_count])
         for i in range(length):
             feed = {
                 self.model.start: self._zero_start(),
@@ -83,7 +83,7 @@ class Learner:
         sample = target.train.get(state.sample)
         def _callback(y_hat, offset):
             return manager.on_show(sample, y_hat, offset)
-        self._run_sample(session, sample, _callback, config)
+        self._run_sample(session, target, sample, _callback, config)
 
     def _run_test(self, session, state, target, config):
         sums = np.zeros([config.test_length])
@@ -95,7 +95,7 @@ class Learner:
                 delta = y_hat[:length, :] - sample[offset:(offset + length), :]
                 sums[:length] += np.sum(delta**2, axis=0)
                 counts[:length] += 1
-            self._run_sample(session, sample, _callback, config)
+            self._run_sample(session, target, sample, _callback, config)
         loss = sums / counts
         for i in range(config.test_length):
             value = tf.Summary.Value(
@@ -107,9 +107,9 @@ class Learner:
         sample = target.train.get(state.sample)
         feed = {
             self.model.start: self._zero_start(),
-            self.model.x: np.reshape(sample, [1, -1, config.dimension_count]),
+            self.model.x: np.reshape(sample, [1, -1, target.dimension_count]),
             self.model.y: np.reshape(support.shift(sample, -1, padding=0),
-                                     [1, -1, config.dimension_count]),
+                                     [1, -1, target.dimension_count]),
         }
         fetch = {
             'step': self.optimizer.step,

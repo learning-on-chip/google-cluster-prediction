@@ -9,27 +9,29 @@
 		"standard_count": 1000
 	},
 
-	"layer_count": 1,
-	"unit_count": 200,
-	"cell": {
-		"type": "LSTM",
-		"options": {
-			"cell_clip": 1.0,
-			"forget_bias": 1.0,
-			"use_peepholes": true
-		}
-	},
-	"initializer": {
-		"type": "uniform",
-		"options": {
-			"minval": -0.01,
-			"maxval": 0.01
-		}
-	},
-	"dropout": {
-		"options": {
-			"input_keep_prob": 1.0,
-			"output_keep_prob": 1.0
+	"model": {
+		"layer_count": 1,
+		"unit_count": 200,
+		"cell": {
+			"type": "LSTM",
+			"options": {
+				"cell_clip": 1.0,
+				"forget_bias": 1.0,
+				"use_peepholes": true
+			}
+		},
+		"initializer": {
+			"type": "uniform",
+			"options": {
+				"minval": -0.01,
+				"maxval": 0.01
+			}
+		},
+		"dropout": {
+			"options": {
+				"input_keep_prob": 1.0,
+				"output_keep_prob": 1.0
+			}
 		}
 	},
 

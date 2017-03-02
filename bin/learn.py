@@ -17,9 +17,7 @@ def main(config):
     support.loggalize()
     np.random.seed(config.seed)
     target = Target.create(config.target)
-    config.update({
-        'dimension_count': target.dimension_count,
-    })
+    config.model.dimension_count = target.dimension_count
     learner = Learner(config)
     manager = Manager(config)
     learner.run(target, manager, config)
