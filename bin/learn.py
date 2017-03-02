@@ -16,7 +16,7 @@ import support
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    if config['input_path'] is not None:
+    if 'input_path' in config and config.input_path is not None:
         target = TaskUsage(config)
     else:
         target = SineWave(config)
@@ -38,6 +38,6 @@ if __name__ == '__main__':
         config.input_path = arguments.input
     if arguments.output is not None:
         config.output_path = arguments.output
-    if config.output_path is None:
+    if 'output_path' not in config or config.output_path is None:
         config.output_path = os.path.join('output', support.format_timestamp())
     main(config)
