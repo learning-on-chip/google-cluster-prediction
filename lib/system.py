@@ -8,7 +8,7 @@ import support
 import tensorflow as tf
 
 
-class Learner:
+class System:
     def __init__(self, config):
         self.graph = tf.Graph()
         with self.graph.as_default():
