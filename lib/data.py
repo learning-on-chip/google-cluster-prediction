@@ -4,6 +4,18 @@ import support
 
 
 class Data:
+    class Part:
+        def __init__(self, samples):
+            self.sample_count = len(samples)
+            self.samples = samples
+            self.index = np.arange(self.sample_count)
+
+        def get(self, sample):
+            return self._get(self.index[sample])
+
+        def shuffle(self):
+            self.index = np.random.permutation(self.sample_count)
+
     def find(config):
         if config.get('input_path') is not None:
             return Real(config)
@@ -14,26 +26,21 @@ class Data:
         self.dimension_count = 1
         self.train = train
         self.test = test
-        self.order = np.arange(train.sample_count, dtype=np.int)
+        self.index = np.arange(train.sample_count, dtype=np.int)
 
     def on_epoch(self, state):
-        def _reorder(index):
-            self.order = self.order[index]
-            self.train.samples = self.train.samples[index]
         random_state = np.random.get_state()
         np.random.seed(state.epoch)
-        _reorder(np.argsort(self.order))
-        _reorder(np.random.permutation(self.train.sample_count))
+        self.train.shuffle()
         np.random.set_state(random_state)
 
 
 class Fake(Data):
-    class Part:
+    class Part(Data.Part):
         def __init__(self, samples):
-            self.sample_count = len(samples)
-            self.samples = samples
+            super(Fake.Data, self).__init__(samples)
 
-        def get(self, sample):
+        def _get(self, sample):
             return Fake._compute(self.samples[sample, :])
 
     def __init__(self, config):
@@ -57,13 +64,12 @@ class Fake(Data):
 
 
 class Real(Data):
-    class Part:
+    class Part(Data.Part):
         def __init__(self, samples, standard):
-            self.sample_count = len(samples)
-            self.samples = samples
+            super(Real.Data, self).__init__(samples)
             self.standard = standard
 
-        def get(self, sample):
+        def _get(self, sample):
             data = database.select_task_usage(*self.samples[sample])
             return (data - self.standard[0]) / self.standard[1]
 
