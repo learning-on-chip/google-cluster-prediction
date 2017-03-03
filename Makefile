@@ -4,6 +4,9 @@ all:
 analyze: input/distribution.csv
 	./bin/analyze.py $<
 
+explore: input/distribution.csv
+	./bin/explorer.py --config config/explorer.json --input $<
+
 learn: input/distribution.csv
 	./bin/learn.py --config config/learner.json --input $<
 
