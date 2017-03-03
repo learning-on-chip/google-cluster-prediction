@@ -11,12 +11,13 @@ class Manager:
         self.backup_schedule = Schedule(config.backup_schedule)
         self.test_schedule = Schedule(config.test_schedule)
         self.show_schedule = Schedule(config.show_schedule)
-        self.show_address = tuple(config.show_address)
+        self.show_address = config.get('show_address')
         self.terminator = Terminator(config)
         self.listeners = {}
         self.lock = threading.Lock()
-        worker = threading.Thread(target=self._show_server, daemon=True)
-        worker.start()
+        if self.show_address is not None:
+            worker = threading.Thread(target=self._show_server, daemon=True)
+            worker.start()
 
     def on_show(self, sample, y_hat, offset):
         count0 = sample.shape[0]
@@ -67,7 +68,7 @@ class Manager:
     def _show_server(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.bind(self.show_address)
+        server.bind(tuple(self.show_address))
         server.listen(1)
         support.log(self, 'Show address: {}', self.show_address)
         while True:
