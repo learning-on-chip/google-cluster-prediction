@@ -5,7 +5,7 @@ analyze: input/distribution.csv
 	./bin/analyze.py $<
 
 learn: input/distribution.csv
-	./bin/learn.py --config config/default.json --input $<
+	./bin/learn.py --config config/framework.json --input $<
 
 test:
 	${MAKE} -C tests

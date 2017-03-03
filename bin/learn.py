@@ -6,7 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 from config import Config
 from data import Data
-from system import System
+from framework import Framework
 import argparse
 import json
 import numpy as np
@@ -15,7 +15,7 @@ import support
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    System(config).run(Data.find(config.data))
+    Framework(config).run(Data.find(config.data))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
