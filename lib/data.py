@@ -38,7 +38,7 @@ class Data:
 class Fake(Data):
     class Part(Data.Part):
         def __init__(self, samples):
-            super(Fake.Data, self).__init__(samples)
+            super(Fake.Part, self).__init__(samples)
 
         def _get(self, sample):
             return Fake._compute(self.samples[sample, :])
@@ -66,7 +66,7 @@ class Fake(Data):
 class Real(Data):
     class Part(Data.Part):
         def __init__(self, samples, standard):
-            super(Real.Data, self).__init__(samples)
+            super(Real.Part, self).__init__(samples)
             self.standard = standard
 
         def _get(self, sample):
