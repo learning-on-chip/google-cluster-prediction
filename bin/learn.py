@@ -28,6 +28,6 @@ if __name__ == '__main__':
         config.data.input_path = arguments.input
     if arguments.output is not None:
         config.output_path = arguments.output
-    if 'output_path' not in config or config.output_path is None:
+    if config.get('output_path') is None:
         config.output_path = os.path.join('output', support.format_timestamp())
     main(config)
