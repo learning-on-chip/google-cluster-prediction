@@ -10,10 +10,20 @@ class Data:
         else:
             return Fake(config)
 
+    def __init__(self, train, test):
+        self.dimension_count = 1
+        self.train = train
+        self.test = test
+        self.order = np.arange(train.sample_count, dtype=np.int)
+
     def on_epoch(self, state):
+        def _reorder(index):
+            self.order = self.order[index]
+            self.train.samples = self.train.samples[index]
         random_state = np.random.get_state()
         np.random.seed(state.epoch)
-        np.random.shuffle(self.train.samples)
+        _reorder(np.argsort(self.order))
+        _reorder(np.random.permutation(self.train.sample_count))
         np.random.set_state(random_state)
 
 
@@ -27,12 +37,12 @@ class Fake(Data):
             return Fake._compute(self.samples[sample, :])
 
     def __init__(self, config):
-        self.dimension_count = 1
         sample_count = 10000
         train_sample_count = int(config.train_fraction * sample_count)
         test_sample_count = sample_count - train_sample_count
-        self.train = Fake.Part(Fake._generate(train_sample_count))
-        self.test = Fake.Part(Fake._generate(test_sample_count))
+        super(Fake, self).__init__(
+            Fake.Part(Fake._generate(train_sample_count)),
+            Fake.Part(Fake._generate(test_sample_count)))
 
     def _compute(sample):
         a, b, n = sample[0], sample[1], int(sample[2])
@@ -58,7 +68,6 @@ class Real(Data):
             return (data - self.standard[0]) / self.standard[1]
 
     def __init__(self, config):
-        self.dimension_count = 1
         support.log(self, 'Input path: {}', config.input_path)
         found_count = 0
         samples = []
@@ -90,8 +99,9 @@ class Real(Data):
         standard = Real._standardize(train_samples, standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     standard[0], standard[1], standard_count)
-        self.train = Real.Part(train_samples, standard)
-        self.test = Real.Part(test_samples, standard)
+        super(Real, self).__init__(
+            Real.Part(train_samples, standard),
+            Real.Part(test_samples, standard))
 
     def _standardize(samples, count):
         data = np.array([], dtype=np.float32)
