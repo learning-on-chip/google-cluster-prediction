@@ -26,7 +26,6 @@ class Data:
         self.dimension_count = 1
         self.train = train
         self.test = test
-        self.index = np.arange(train.sample_count, dtype=np.int)
 
     def on_epoch(self, state):
         random_state = np.random.get_state()
