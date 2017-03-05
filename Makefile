@@ -11,7 +11,7 @@ learn: input/distribution.csv
 	./bin/learn.py --config config/learner.json --input $<
 
 test:
-	${MAKE} -C tests
+	nosetests --nologcapture prediction
 
 watch:
 	./bin/watch.py 0.0.0.0:4242

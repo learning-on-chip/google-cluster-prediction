@@ -1,15 +1,9 @@
-#!/usr/bin/env python3
-
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
-
-from hyperband import Hyperband
+from .hyperband import Hyperband
 import numpy as np
 import unittest
 
 
-class TestCase(unittest.TestCase):
+class HyperbandTestCase(unittest.TestCase):
     def test_run(self):
         observed_rs = []
         observed_cs = []
@@ -54,7 +48,3 @@ class TestCase(unittest.TestCase):
         self.assertEqual(expected_rs, [int(r) for r in observed_rs])
         for expected_cs, observed_cs in zip(expected_cs, observed_cs):
             self.assertTrue((expected_cs == observed_cs).all())
-
-
-if __name__ == '__main__':
-    unittest.main()
