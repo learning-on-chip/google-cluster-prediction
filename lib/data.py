@@ -17,7 +17,7 @@ class Data:
             self.index = np.random.permutation(self.sample_count)
 
     def find(config):
-        if config.get('input_path') is not None:
+        if config.get('path') is not None:
             return Real(config)
         else:
             return Fake(config)
@@ -73,10 +73,10 @@ class Real(Data):
             return (data - self.standard[0]) / self.standard[1]
 
     def __init__(self, config):
-        support.log(self, 'Input path: {}', config.input_path)
+        support.log(self, 'Input path: {}', config.path)
         found_count = 0
         samples = []
-        with open(config.input_path, 'r') as file:
+        with open(config.path, 'r') as file:
             for record in file:
                 found_count += 1
                 record = record.split(',')

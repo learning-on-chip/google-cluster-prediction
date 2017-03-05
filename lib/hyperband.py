@@ -10,7 +10,7 @@ class Hyperband:
         self.count = int(np.log(resource) / np.log(eta)) + 1
         self.budget = self.count * resource
 
-    def run(self, get, run):
+    def run(self, get, test):
         for i in reversed(range(self.count)):
             r = self.resource * self.eta**(-i)
             n = int(np.ceil(
@@ -19,4 +19,4 @@ class Hyperband:
             for j in range(i + 1):
                 r_j = r * self.eta**j
                 n_j = n * self.eta**(-j)
-                c = c[np.argsort(run(r_j, c))[0:int(n_j / self.eta)]]
+                c = c[np.argsort(test(r_j, c))[0:int(n_j / self.eta)]]

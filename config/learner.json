@@ -49,5 +49,7 @@
 		"test_schedule": [999, 1],
 		"show_schedule": [999, 1],
 		"show_address": ["0.0.0.0", 4242]
+	},
+	"output": {
 	}
 }

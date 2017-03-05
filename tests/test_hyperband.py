@@ -15,13 +15,13 @@ class TestCase(unittest.TestCase):
         observed_cs = []
         def _get(n):
             return np.random.randint(10, 100, (n,))
-        def _run(r, c):
+        def _test(r, c):
             observed_rs.append(r)
             observed_cs.append(c)
             return r * c
         np.random.seed(0)
         hyperband = Hyperband()
-        hyperband.run(_get, _run)
+        hyperband.run(_get, _test)
         expected_rs = [1, 3, 9, 27, 81,
                        3, 9, 27, 81,
                        9, 27, 81,

@@ -25,9 +25,9 @@ if __name__ == '__main__':
     arguments = parser.parse_args()
     config = Config(json.loads(open(arguments.config).read()))
     if arguments.input is not None:
-        config.data.input_path = arguments.input
+        config.data.path = arguments.input
     if arguments.output is not None:
-        config.output_path = arguments.output
-    if config.get('output_path') is None:
-        config.output_path = os.path.join('output', support.format_timestamp())
+        config.output.path = arguments.output
+    if config.output.get('path') is None:
+        config.output.path = os.path.join('output', support.format_timestamp())
     main(config)

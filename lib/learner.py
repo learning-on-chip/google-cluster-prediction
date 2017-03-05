@@ -20,13 +20,13 @@ class Learner:
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
-                config.output_path, self.graph)
+                config.output.path, self.graph)
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
         self.backup = Backup(
-            self.graph, os.path.join(config.output_path, 'backup'))
+            self.graph, os.path.join(config.output.path, 'backup'))
         self.manager = Manager(config.manager)
-        support.log(self, 'Output path: {}', config.output_path)
+        support.log(self, 'Output path: {}', config.output.path)
 
     def run(self, data):
         support.log(self, 'Parameters: {}', self.model.parameter_count)
