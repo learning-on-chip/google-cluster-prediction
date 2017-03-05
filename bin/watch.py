@@ -2,13 +2,13 @@
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from config import Config
+from prediction import Config
+from prediction import support
 import matplotlib.pyplot as pp
 import numpy as np
 import socket
-import support
 
 def main(config):
     support.loggalize()

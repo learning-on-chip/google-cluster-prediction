@@ -1,6 +1,6 @@
-import database
+from . import database
+from . import support
 import numpy as np
-import support
 
 
 class Input:

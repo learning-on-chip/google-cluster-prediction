@@ -2,11 +2,11 @@
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import database
+from prediction import database
+from prediction import support
 import glob
-import support
 
 def main(input_path, index_path, report_each=10000):
     support.loggalize()

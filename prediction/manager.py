@@ -1,7 +1,7 @@
+from . import support
 import numpy as np
 import queue
 import socket
-import support
 import sys
 import threading
 

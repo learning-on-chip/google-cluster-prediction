@@ -2,15 +2,15 @@
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from config import Config
-from input import Input
-from learner import Learner
+from prediction import Config
+from prediction import Input
+from prediction import Learner
+from prediction import support
 import argparse
 import json
 import numpy as np
-import support
 
 def main(config):
     support.loggalize()

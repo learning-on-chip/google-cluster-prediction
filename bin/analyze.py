@@ -2,11 +2,11 @@
 
 import os
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from prediction import support
 import glob
 import matplotlib.pyplot as pp
-import support
 
 def main(index_path, min_length=0, max_length=50, report_each=1000000):
     support.loggalize()

@@ -1,10 +1,10 @@
-from manager import Manager
-from model import Model
-from trainer import Trainer
+from . import support
+from .manager import Manager
+from .model import Model
+from .trainer import Trainer
 import glob
 import numpy as np
 import os
-import support
 import tensorflow as tf
 
 

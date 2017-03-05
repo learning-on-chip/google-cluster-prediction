@@ -1,5 +1,5 @@
-from hyperband import Hyperband
-from input import Input
+from .hyperband import Hyperband
+from .input import Input
 import numpy as np
 
 
