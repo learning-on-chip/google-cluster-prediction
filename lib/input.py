@@ -3,7 +3,7 @@ import numpy as np
 import support
 
 
-class Data:
+class Input:
     class Part:
         def __init__(self, samples):
             self.sample_count = len(samples)
@@ -18,9 +18,9 @@ class Data:
 
     def find(config):
         if config.get('path') is not None:
-            return Real(config)
+            return RealInput(config)
         else:
-            return Fake(config)
+            return FakeInput(config)
 
     def __init__(self, train, test):
         self.dimension_count = 1
@@ -34,21 +34,21 @@ class Data:
         np.random.set_state(random_state)
 
 
-class Fake(Data):
-    class Part(Data.Part):
+class FakeInput(Input):
+    class Part(Input.Part):
         def __init__(self, samples):
-            super(Fake.Part, self).__init__(samples)
+            super(FakeInput.Part, self).__init__(samples)
 
         def _get(self, sample):
-            return Fake._compute(self.samples[sample, :])
+            return FakeInput._compute(self.samples[sample, :])
 
     def __init__(self, config):
         sample_count = 10000
         train_sample_count = int(config.train_fraction * sample_count)
         test_sample_count = sample_count - train_sample_count
-        super(Fake, self).__init__(
-            Fake.Part(Fake._generate(train_sample_count)),
-            Fake.Part(Fake._generate(test_sample_count)))
+        super(FakeInput, self).__init__(
+            FakeInput.Part(FakeInput._generate(train_sample_count)),
+            FakeInput.Part(FakeInput._generate(test_sample_count)))
 
     def _compute(sample):
         a, b, n = sample[0], sample[1], int(sample[2])
@@ -62,10 +62,10 @@ class Fake(Data):
         return samples
 
 
-class Real(Data):
-    class Part(Data.Part):
+class RealInput(Input):
+    class Part(Input.Part):
         def __init__(self, samples, standard):
-            super(Real.Part, self).__init__(samples)
+            super(RealInput.Part, self).__init__(samples)
             self.standard = standard
 
         def _get(self, sample):
@@ -101,12 +101,12 @@ class Real(Data):
         train_samples = samples[:train_sample_count]
         test_samples = samples[train_sample_count:]
         standard_count = min(config.standard_count, train_sample_count)
-        standard = Real._standardize(train_samples, standard_count)
+        standard = RealInput._standardize(train_samples, standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     standard[0], standard[1], standard_count)
-        super(Real, self).__init__(
-            Real.Part(train_samples, standard),
-            Real.Part(test_samples, standard))
+        super(RealInput, self).__init__(
+            RealInput.Part(train_samples, standard),
+            RealInput.Part(test_samples, standard))
 
     def _standardize(samples, count):
         data = np.array([], dtype=np.float32)

@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
 from config import Config
-from data import Data
+from input import Input
 from learner import Learner
 import argparse
 import json
@@ -15,7 +15,7 @@ import support
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    Learner(config).run(Data.find(config.data))
+    Learner(config).run(Input.find(config.input))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     arguments = parser.parse_args()
     config = Config(json.loads(open(arguments.config).read()))
     if arguments.input is not None:
-        config.data.path = arguments.input
+        config.input.path = arguments.input
     if arguments.output is not None:
         config.output.path = arguments.output
     if config.output.get('path') is None:

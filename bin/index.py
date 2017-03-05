@@ -8,10 +8,10 @@ import database
 import glob
 import support
 
-def main(data_path, index_path, report_each=10000):
+def main(input_path, index_path, report_each=10000):
     support.loggalize()
-    support.log('Data: {}', data_path)
-    paths = glob.glob('{}/**/*.sqlite3'.format(data_path))
+    support.log('Input path: {}', input_path)
+    paths = glob.glob('{}/**/*.sqlite3'.format(input_path))
     database_count = len(paths)
     support.log('Databases: {}', database_count)
     done_count, trace_count = 0, 0

@@ -1,11 +1,11 @@
-from data import Data
 from hyperband import Hyperband
+from input import Input
 import numpy as np
 
 
 class Explorer(Hyperband):
     def __init__(self, config):
-        self.data = Data.find(config.data)
+        self.input = Input.find(config.input)
 
     def run(self):
         hyperband = Hyperband()

@@ -25,11 +25,11 @@ if __name__ == '__main__':
     config = Config(json.loads(open(arguments.config).read()))
     if isinstance(config.learner, str):
         config.learner = Config(json.loads(open(config.learner).read()))
-    for key in ['data', 'output']:
+    for key in ['input', 'output']:
         if config.get(key) is None:
             config[key] = config.learner.get(key)
     if arguments.input is not None:
-        config.data.path = arguments.input
+        config.input.path = arguments.input
     if arguments.output is not None:
         config.output.path = arguments.output
     if config.output.get('path') is None:
