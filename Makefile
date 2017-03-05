@@ -11,7 +11,7 @@ learn: input/distribution.csv
 	./bin/learn --config config/learner.json --input $<
 
 test:
-	@pytest prediction
+	pytest prediction
 
 watch:
 	./bin/watch 0.0.0.0:4242
