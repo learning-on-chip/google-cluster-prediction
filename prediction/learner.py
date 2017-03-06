@@ -131,12 +131,19 @@ class Backup:
         with graph.as_default():
             self.backend = tf.train.Saver()
         self.path = os.path.join(config.path, 'backup')
+        self.auto_restore = config.get('auto_restore')
 
     def restore(self, session):
-        if len(glob.glob('{}*'.format(self.path))) > 0:
-            answer = input('Restore backup "{}"? '.format(self.path))
-            if not answer.lower().startswith('n'):
-                self.backend.restore(session, self.path)
+        if len(glob.glob('{}*'.format(self.path))) == 0:
+            return
+        restore = self.auto_restore
+        if restore is None:
+            restore = input('Restore backup "{}"? '.format(self.path))
+            restore = not restore.lower().startswith('n')
+        if not restore:
+            return
+        support.log(self, 'Restore backup: {}', self.path)
+        self.backend.restore(session, self.path)
 
     def save(self, session):
         return self.backend.save(session, self.path)
