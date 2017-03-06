@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 RESERVED_KEYS = vars(dict).keys()
 
 
@@ -7,7 +9,14 @@ class Config(dict):
         self.update(options)
 
     def copy(self):
-        return self.__copy__()
+        copy = Config()
+        for key in self:
+            value = self[key]
+            if isinstance(value, Config):
+                copy[key] = value.copy()
+            else:
+                copy[key] = deepcopy(value)
+        return copy
 
     def update(self, options):
         copy = {}
@@ -19,14 +28,11 @@ class Config(dict):
                 copy[key] = value
         return super(Config, self).update(copy)
 
-    def __copy__(self):
-        return self.__class__(self)
-
     def __getattr__(self, key):
-        if key not in RESERVED_KEYS:
-            return self[key]
-        else:
+        if key in RESERVED_KEYS:
             return getattr(self, key)
+        else:
+            return self[key]
 
     def __setattr__(self, key, value):
         assert(key not in RESERVED_KEYS)
