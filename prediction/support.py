@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import logging
 import numpy as np
 
@@ -17,6 +18,8 @@ def log(*arguments, limit=8):
     first = arguments.pop(0)
     if isinstance(first, str):
         template, source = first, 'Main'
+    elif inspect.isclass(first):
+        template, source = arguments.pop(0), first.__name__
     else:
         template, source = arguments.pop(0), first.__class__.__name__
     if len(source) > limit:

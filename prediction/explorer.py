@@ -2,8 +2,10 @@ from . import support
 from .hyperband import Hyperband
 from .input import Input
 from .learner import Learner
+import glob
 import numpy as np
 import os
+import re
 import threading
 
 
@@ -27,13 +29,13 @@ class Explorer:
         support.log(self, 'Evaluate: {} cases', len(cases))
         workers = []
         for case in cases:
-            key = _serialize(case)
+            key = _tokenize_case(case)
             worker = self.workers.get(key)
             if worker is None:
                 config = self.learner_config.copy()
                 config.output.path = os.path.join(self.output_path, key)
                 del config.manager['show_address']
-                worker = Worker(Learner(config))
+                worker = Worker(config)
                 self.workers[key] = worker
             worker.submit(resource)
             workers.append(worker)
@@ -45,34 +47,55 @@ class Sampler:
         self.parameters = config
 
     def get(self):
-        parameters = {}
+        case = {}
         for name in self.parameters:
-            parameters[name] = np.random.choice(self.parameters[name])
-        return parameters
+            case[name] = np.random.choice(self.parameters[name])
+        return case
 
 
 class Worker:
-    def __init__(self, learner):
-        self.learner = learner
-        self.results = {}
+    def __init__(self, config):
+        self.learner = Learner(config)
+        self.output_path = config.output.path
+        self.results = Worker._load(self.output_path)
         self.lock = threading.Lock()
 
     def collect(self, resource):
+        key = _tokenize_resource(resource)
         with self.lock:
-            return self.results[resource]
+            return self.results[key]
 
     def submit(self, resource):
+        key = _tokenize_resource(resource)
         with self.lock:
-            if resource in self.results:
+            if key in self.results:
                 return
-            self.results[resource] = 0
+            result = 0
+            Worker._save(self.output_path, key, result)
+            self.results[key] = result
+
+    def _load(path):
+        results = {}
+        for path in glob.glob(os.path.join(path, 'result-*.txt')):
+            key = re.search('.*result-(.*).txt', path).group(1)
+            results[key] = float(open(path).read())
+            support.log(Worker, 'Result: {}', path)
+        return results
+
+    def _save(path, key, result):
+        path = os.path.join(path, 'result-{}.txt'.format(key))
+        with open(path, 'w') as file:
+            file.write('{:.15e}'.format(result))
 
 
-def _serialize(parameters):
-    names = sorted(parameters.keys())
+def _tokenize_case(case):
+    names = sorted(case.keys())
     chunks = []
     for name in names:
         alias = ''.join([chunk[0] for chunk in name.split('_')])
-        value = str(parameters[name])
+        value = str(case[name])
         chunks.append('{}={}'.format(alias, value))
     return ','.join(chunks)
+
+def _tokenize_resource(resource):
+    return str(int(resource))
