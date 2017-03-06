@@ -1,4 +1,6 @@
 {
 	"seed": 0,
-	"learner": "config/learner.json"
+	"learner": "config/learner.json",
+	"sampler": {
+	}
 }

@@ -12,7 +12,7 @@ class HyperbandTestCase(unittest.TestCase):
         def _test(r, c):
             observed_rs.append(r)
             observed_cs.append(c)
-            return r * c
+            return [r * c for c in c]
         np.random.seed(0)
         hyperband = Hyperband()
         hyperband.run(_get, _test)
@@ -46,5 +46,6 @@ class HyperbandTestCase(unittest.TestCase):
                        [12, 20],
                        [61, 90, 42, 64, 10]]
         self.assertEqual(expected_rs, [int(r) for r in observed_rs])
-        for expected_cs, observed_cs in zip(expected_cs, observed_cs):
-            self.assertTrue((expected_cs == observed_cs).all())
+        for expected, observed in zip(expected_cs, observed_cs):
+            for expected, observed in zip(expected, observed):
+                self.assertEqual(expected, observed)

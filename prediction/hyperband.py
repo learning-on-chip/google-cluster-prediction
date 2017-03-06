@@ -19,4 +19,5 @@ class Hyperband:
             for j in range(i + 1):
                 r_j = r * self.eta**j
                 n_j = n * self.eta**(-j)
-                c = c[np.argsort(test(r_j, c))[0:int(n_j / self.eta)]]
+                ranking = np.argsort(test(r_j, c))
+                c = [c[k] for k in ranking[0:int(n_j / self.eta)]]
