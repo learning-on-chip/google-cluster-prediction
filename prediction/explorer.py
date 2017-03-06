@@ -36,9 +36,7 @@ class Explorer:
 
 class Sampler:
     def __init__(self, config):
-        self.parameters = {
-            'learning_rate': [1e-5, 1e-4, 1e-3, 1e-2],
-        }
+        self.parameters = config
 
     def get(self):
         parameters = {}
