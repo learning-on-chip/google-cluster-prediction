@@ -4,6 +4,7 @@ from .input import Input
 from .learner import Learner
 import numpy as np
 import os
+import threading
 
 
 class Explorer:
@@ -12,7 +13,7 @@ class Explorer:
         self.sampler = Sampler(config.sampler)
         self.learner_config = config.learner
         self.output_path = config.output.path
-        self.cache = {}
+        self.workers = {}
 
     def run(self):
         hyperband = Hyperband()
@@ -24,14 +25,19 @@ class Explorer:
 
     def _test(self, resource, cases):
         support.log(self, 'Evaluate: {} cases', len(cases))
+        workers = []
         for case in cases:
             key = _serialize(case)
-            if key not in self.cache:
+            worker = self.workers.get(key)
+            if worker is None:
                 config = self.learner_config.copy()
                 config.output.path = os.path.join(self.output_path, key)
                 del config.manager['show_address']
-                self.cache[key] = Learner(config)
-        return np.arange(len(cases))
+                worker = Worker(Learner(config))
+                self.workers[key] = worker
+            worker.submit(resource)
+            workers.append(worker)
+        return [worker.collect(resource) for worker in workers]
 
 
 class Sampler:
@@ -43,6 +49,23 @@ class Sampler:
         for name in self.parameters:
             parameters[name] = np.random.choice(self.parameters[name])
         return parameters
+
+
+class Worker:
+    def __init__(self, learner):
+        self.learner = learner
+        self.results = {}
+        self.lock = threading.Lock()
+
+    def collect(self, resource):
+        with self.lock:
+            return self.results[resource]
+
+    def submit(self, resource):
+        with self.lock:
+            if resource in self.results:
+                return
+            self.results[resource] = 0
 
 
 def _serialize(parameters):
