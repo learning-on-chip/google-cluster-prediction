@@ -23,8 +23,7 @@ class Learner:
                 config.output.path, self.graph)
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
-        self.backup = Backup(
-            self.graph, os.path.join(config.output.path, 'backup'))
+        self.backup = Backup(self.graph, config.output)
         self.manager = Manager(config.manager)
         support.log(self, 'Output path: {}', config.output.path)
 
@@ -128,10 +127,10 @@ class Learner:
 
 
 class Backup:
-    def __init__(self, graph, path):
+    def __init__(self, graph, config):
         with graph.as_default():
             self.backend = tf.train.Saver()
-        self.path = path
+        self.path = os.path.join(config.path, 'backup')
 
     def restore(self, session):
         if len(glob.glob('{}*'.format(self.path))) > 0:
