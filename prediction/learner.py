@@ -23,7 +23,7 @@ class Learner:
                 config.output.path, self.graph)
             self.initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
-        self.backup = Backup(self.graph, config.output)
+        self.checkpoint = Checkpoint(self.graph, config.output)
         self.manager = Manager(config.manager)
         support.log(self, 'Output path: {}', config.output.path)
 
@@ -33,7 +33,7 @@ class Learner:
         support.log(self, 'Test samples: {}', input.test.sample_count)
         session = tf.Session(graph=self.graph)
         session.run(self.initialize)
-        self.backup.restore(session)
+        self.checkpoint.restore(session)
         state = self.trainer.get_state(session)
         support.log(self, 'Initial state: time {}, epoch {}, sample {}',
                     state.time, state.epoch, state.sample)
@@ -60,7 +60,7 @@ class Learner:
 
     def _run_backup(self, session, state):
         self.trainer.set_state(session, state)
-        support.log(self, 'New backup: {}', self.backup.save(session))
+        support.log(self, 'New checkpoint: {}', self.checkpoint.save(session))
 
     def _run_sample(self, session, input, sample, callback):
         length = sample.shape[0]
@@ -126,11 +126,11 @@ class Learner:
         return np.zeros(self.model.start.get_shape(), np.float32)
 
 
-class Backup:
+class Checkpoint:
     def __init__(self, graph, config):
         with graph.as_default():
-            self.backend = tf.train.Saver()
-        self.path = os.path.join(config.path, 'backup')
+            self.saver = tf.train.Saver()
+        self.path = os.path.join(config.path, 'model')
         self.auto_restore = config.get('auto_restore')
 
     def restore(self, session):
@@ -138,12 +138,12 @@ class Backup:
             return
         restore = self.auto_restore
         if restore is None:
-            restore = input('Restore backup "{}"? '.format(self.path))
+            restore = input('Restore checkpoint "{}"? '.format(self.path))
             restore = not restore.lower().startswith('n')
         if not restore:
             return
-        support.log(self, 'Restore backup: {}', self.path)
-        self.backend.restore(session, self.path)
+        support.log(self, 'Restore checkpoint: {}', self.path)
+        self.saver.restore(session, self.path)
 
     def save(self, session):
-        return self.backend.save(session, self.path)
+        return self.saver.save(session, self.path)
