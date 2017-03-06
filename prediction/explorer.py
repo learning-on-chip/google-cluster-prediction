@@ -15,7 +15,8 @@ class Explorer:
         self.sampler = Sampler(config.sampler)
         self.learner_config = config.learner
         self.output_path = config.output.path
-        self.workers = {}
+        self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
+        self.pool = {}
 
     def run(self):
         hyperband = Hyperband()
@@ -27,37 +28,27 @@ class Explorer:
 
     def _test(self, resource, cases):
         support.log(self, 'Evaluate: {} cases', len(cases))
-        workers = []
+        agents = []
         for case in cases:
             key = _tokenize_case(case)
-            worker = self.workers.get(key)
-            if worker is None:
+            agent = self.pool.get(key)
+            if agent is None:
                 config = self.learner_config.copy()
                 config.output.path = os.path.join(self.output_path, key)
                 del config.manager['show_address']
-                worker = Worker(config)
-                self.workers[key] = worker
-            worker.submit(resource)
-            workers.append(worker)
-        return [worker.collect(resource) for worker in workers]
+                agent = Agent(self.semaphore, config)
+                self.pool[key] = agent
+            agent.submit(resource)
+            agents.append(agent)
+        return [agent.collect(resource) for agent in agents]
 
 
-class Sampler:
-    def __init__(self, config):
-        self.parameters = config
-
-    def get(self):
-        case = {}
-        for name in self.parameters:
-            case[name] = np.random.choice(self.parameters[name])
-        return case
-
-
-class Worker:
-    def __init__(self, config):
+class Agent:
+    def __init__(self, semaphore, config):
         self.learner = Learner(config)
         self.output_path = config.output.path
-        self.results = Worker._load(self.output_path)
+        self.results = Agent._load(self.output_path)
+        self.semaphore = semaphore
         self.lock = threading.Lock()
         self.done = threading.Lock()
 
@@ -82,7 +73,7 @@ class Worker:
         for path in glob.glob(os.path.join(path, 'result-*.txt')):
             key = re.search('.*result-(.*).txt', path).group(1)
             results[key] = float(open(path).read())
-            support.log(Worker, 'Result: {}', path)
+            support.log(Agent, 'Result: {}', path)
         return results
 
     def _save(path, key, result):
@@ -91,12 +82,24 @@ class Worker:
             file.write('{:.15e}'.format(result))
 
     def _run(self, resource):
-        key = _tokenize_resource(resource)
-        result = 0
-        Worker._save(self.output_path, key, result)
-        with self.lock:
-            self.results[key] = result
-        self.done.release()
+        with self.semaphore:
+            key = _tokenize_resource(resource)
+            result = 0
+            Agent._save(self.output_path, key, result)
+            with self.lock:
+                self.results[key] = result
+            self.done.release()
+
+
+class Sampler:
+    def __init__(self, config):
+        self.parameters = config
+
+    def get(self):
+        case = {}
+        for name in self.parameters:
+            case[name] = np.random.choice(self.parameters[name])
+        return case
 
 
 def _tokenize_case(case):
