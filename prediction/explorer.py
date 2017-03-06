@@ -59,10 +59,11 @@ class Worker:
         self.output_path = config.output.path
         self.results = Worker._load(self.output_path)
         self.lock = threading.Lock()
+        self.done = threading.Lock()
 
     def collect(self, resource):
         key = _tokenize_resource(resource)
-        with self.lock:
+        with self.done:
             return self.results[key]
 
     def submit(self, resource):
@@ -70,9 +71,11 @@ class Worker:
         with self.lock:
             if key in self.results:
                 return
-            result = 0
-            Worker._save(self.output_path, key, result)
-            self.results[key] = result
+            self.results[key] = None
+        self.done.acquire()
+        worker = threading.Thread(target=self._run, args=(resource,),
+                                  daemon=True)
+        worker.start()
 
     def _load(path):
         results = {}
@@ -86,6 +89,14 @@ class Worker:
         path = os.path.join(path, 'result-{}.txt'.format(key))
         with open(path, 'w') as file:
             file.write('{:.15e}'.format(result))
+
+    def _run(self, resource):
+        key = _tokenize_resource(resource)
+        result = 0
+        Worker._save(self.output_path, key, result)
+        with self.lock:
+            self.results[key] = result
+        self.done.release()
 
 
 def _tokenize_case(case):
