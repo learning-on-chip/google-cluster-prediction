@@ -1,6 +1,5 @@
 from . import support
 from .hyperband import Hyperband
-from .input import Input
 from .learner import Learner
 import glob
 import numpy as np
@@ -11,10 +10,8 @@ import threading
 
 class Explorer:
     def __init__(self, config):
-        self.input = Input.find(config.input)
         self.sampler = Sampler(config.sampler)
         self.learner_config = config.learner
-        self.output_path = config.output.path
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
         self.pool = {}
 
@@ -34,7 +31,7 @@ class Explorer:
             agent = self.pool.get(key)
             if agent is None:
                 config = self.learner_config.copy()
-                config.output.path = os.path.join(self.output_path, key)
+                config.output.path = os.path.join(config.output.path, key)
                 del config.manager['show_address']
                 agent = Agent(self.semaphore, config)
                 self.pool[key] = agent
@@ -46,9 +43,9 @@ class Explorer:
 class Agent:
     def __init__(self, semaphore, config):
         self.learner = Learner(config)
-        self.output_path = config.output.path
-        self.results = Agent._load(self.output_path)
+        self.results = Agent._load(config.output.path)
         self.semaphore = semaphore
+        self.output_path = config.output.path
         self.lock = threading.Lock()
         self.done = threading.Lock()
 

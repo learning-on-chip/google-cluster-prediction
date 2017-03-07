@@ -5,7 +5,6 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from prediction import Config
-from prediction import Input
 from prediction import Learner
 from prediction import support
 import argparse
@@ -15,7 +14,7 @@ import numpy as np
 def main(config):
     support.loggalize()
     np.random.seed(config.seed)
-    Learner(config).run(Input.find(config.input))
+    Learner(config).run()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
