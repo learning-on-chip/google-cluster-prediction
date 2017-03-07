@@ -1,6 +1,8 @@
 from . import database
 from . import support
+import json
 import numpy as np
+import threading
 
 
 class Input:
@@ -16,11 +18,11 @@ class Input:
         def shuffle(self):
             self.index = np.random.permutation(self.sample_count)
 
-    def find(config):
+    def instantiate(config):
         if config.get('path') is not None:
-            return RealInput(config)
+            return RealInput.instantiate(config)
         else:
-            return FakeInput(config)
+            return FakeInput.instantiate(config)
 
     def __init__(self, train, test):
         self.dimension_count = 1
@@ -41,6 +43,9 @@ class FakeInput(Input):
 
         def _get(self, sample):
             return FakeInput._compute(self.samples[sample, :])
+
+    def instantiate(config):
+        return FakeInput(config)
 
     def __init__(self, config):
         sample_count = 10000
@@ -68,9 +73,22 @@ class RealInput(Input):
             super(RealInput.Part, self).__init__(samples)
             self.standard = standard
 
+        def copy(self):
+            return RealInput.Part(self.samples, self.standard)
+
         def _get(self, sample):
             data = database.select_task_usage(*self.samples[sample])
             return (data - self.standard[0]) / self.standard[1]
+
+    _instances = {}
+    _lock = threading.Lock()
+
+    def instantiate(config):
+        with RealInput._lock:
+            key = json.dumps(config, sort_keys=True)
+            if key not in RealInput._instances:
+                RealInput._instances[key] = RealInput(config)
+            return RealInput._instances[key].copy()
 
     def __init__(self, config):
         support.log(self, 'Input path: {}', config.path)
@@ -107,6 +125,11 @@ class RealInput(Input):
         super(RealInput, self).__init__(
             RealInput.Part(train_samples, standard),
             RealInput.Part(test_samples, standard))
+
+    def copy(self):
+        copy = RealInput.__new__(RealInput)
+        super(RealInput, copy).__init__(self.train.copy(), self.test.copy())
+        return copy
 
     def _standardize(samples, count):
         data = np.array([], dtype=np.float32)

@@ -11,7 +11,7 @@ import tensorflow as tf
 
 class Learner:
     def __init__(self, config):
-        self.input = Input.find(config.input)
+        self.input = Input.instantiate(config.input)
         self.graph = tf.Graph()
         with self.graph.as_default():
             with tf.variable_scope('model'):
