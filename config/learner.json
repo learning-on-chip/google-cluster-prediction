@@ -34,7 +34,6 @@
 		}
 	},
 	"trainer": {
-		"test_length": 10,
 		"gradient_clip": 1.0,
 		"optimizer": {
 			"name": "Adam",
@@ -44,12 +43,12 @@
 		}
 	},
 	"manager": {
-		"max_epoch_count": 100,
 		"backup_schedule": [9999, 1],
 		"test_schedule": [999, 1],
 		"show_schedule": [999, 1],
 		"show_address": ["0.0.0.0", 4242]
 	},
 	"output": {
+		"test_length": 10
 	}
 }

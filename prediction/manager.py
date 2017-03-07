@@ -2,7 +2,6 @@ from . import support
 import numpy as np
 import queue
 import socket
-import sys
 import threading
 
 
@@ -12,7 +11,6 @@ class Manager:
         self.test_schedule = Schedule(config.test_schedule)
         self.show_schedule = Schedule(config.show_schedule)
         self.show_address = config.get('show_address')
-        self.terminator = Terminator(config)
         self.listeners = {}
         self.lock = threading.Lock()
         if self.show_address is not None:
@@ -33,9 +31,6 @@ class Manager:
 
     def should_backup(self, state):
         return self.backup_schedule.should(state.time)
-
-    def should_continue(self, state):
-        return self.terminator.should_continue(state)
 
     def should_show(self, state):
         return len(self.listeners) > 0 and \
@@ -90,15 +85,3 @@ class Schedule:
         time = time % self.schedule[-1] + 1
         phase = np.nonzero(self.schedule >= time)[0][0]
         return phase % 2 == 1
-
-
-class Terminator:
-    def __init__(self, config):
-        def _get(key, default):
-            return config.get(key) or default
-        self.max_sample_count = _get('max_sample_count', sys.maxsize)
-        self.max_epoch_count = _get('max_epoch_count', sys.maxsize)
-
-    def should_continue(self, state):
-        return state.time < self.max_sample_count and \
-               state.epoch < self.max_epoch_count
