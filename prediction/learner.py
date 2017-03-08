@@ -17,8 +17,8 @@ class Learner:
         with graph.as_default():
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
-            with tf.variable_scope('state'):
-                self.state = State()
+                with tf.variable_scope('state'):
+                    self.state = State(self.input.train.sample_count)
             with tf.variable_scope('trainer'):
                 self.trainer = Trainer(self.model, config.trainer)
             tf.summary.scalar('train_loss', self.trainer.loss)
@@ -29,11 +29,11 @@ class Learner:
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             self.checkpoint = Checkpoint(self.output)
-        self.manager = Manager(config.manager)
         support.log(self, 'Parameters: {}', self.model.parameter_count)
         support.log(self, 'Train samples: {}', self.input.train.sample_count)
         support.log(self, 'Test samples: {}', self.input.test.sample_count)
         support.log(self, 'Output path: {}', self.output.path)
+        self.manager = Manager(config.manager)
         self.session = tf.Session(graph=graph)
         self.session.run(initialize)
         self.checkpoint.load(self.session)
@@ -42,27 +42,70 @@ class Learner:
         support.log(self, 'Initial state: time {}, epoch {}, sample {}',
                     self.state.time, self.state.epoch, self.state.sample)
 
-    def run(self):
-        should_backup = self.manager.should_backup(self.state)
-        if self.manager.should_train(self.state):
-            self._run_train()
-        if self.manager.should_test(self.state):
-            self._run_test()
-        if self.manager.should_show(self.state):
-            self._run_show()
+    def increment_time(self):
         self.state.increment_time()
-        if self.state.sample == self.input.train.sample_count:
-            self.state.increment_epoch()
+        if self.state.is_new_epoch():
             self.input.on_epoch(self.state)
             support.log(self, 'Current state: time {}, epoch {}, sample {}',
                         self.state.time, self.state.epoch, self.state.sample)
-        if should_backup:
-            self._run_backup()
 
-    def _run_backup(self):
+    def run(self):
+        should_backup = self.manager.should_backup(self.state)
+        if self.manager.should_train(self.state):
+            self.run_train()
+        if self.manager.should_test(self.state):
+            self.run_test()
+        if self.manager.should_show(self.state):
+            self.run_show(self.manager.on_show)
+        self.increment_time()
+        if should_backup:
+            self.run_backup()
+
+    def run_backup(self):
         self.state.save(self.session)
         path = self.checkpoint.save(self.session)
         support.log(self, 'New checkpoint: {}', path)
+
+    def run_show(self, callback):
+        self._run_sample(self.input.train.get(self.state.sample), callback)
+
+    def run_test(self):
+        sums = np.zeros([self.output.test_length])
+        counts = np.zeros([self.output.test_length], dtype=np.int)
+        def _callback(sample, y_hat, offset):
+            length = min(sample.shape[0] - offset, y_hat.shape[0])
+            delta = y_hat[:length, :] - sample[offset:(offset + length), :]
+            sums[:length] += np.sum(delta**2, axis=0)
+            counts[:length] += 1
+        for sample in range(self.input.test.sample_count):
+            self._run_sample(self.input.test.get(sample), _callback)
+        loss = sums / counts
+        for i in range(self.output.test_length):
+            value = tf.Summary.Value(
+                tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
+            self.summary_writer.add_summary(
+                tf.Summary(value=[value]), self.state.time)
+        return loss
+
+    def run_train(self):
+        sample = self.input.train.get(self.state.sample)
+        feed = {
+            self.model.start: self._zero_start(),
+            self.model.x: np.reshape(
+                sample, [1, -1, self.input.dimension_count]),
+            self.model.y: np.reshape(
+                support.shift(sample, -1, padding=0),
+                [1, -1, self.input.dimension_count]),
+        }
+        fetch = {
+            'step': self.trainer.step,
+            'loss': self.trainer.loss,
+            'train_summary': self.train_summary,
+        }
+        result = self.session.run(fetch, feed)
+        self.summary_writer.add_summary(
+            result['train_summary'], self.state.time)
+        return result['loss']
 
     def _run_sample(self, sample, callback):
         length = sample.shape[0]
@@ -81,51 +124,8 @@ class Learner:
                 y_hat[j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
                 feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            if not callback(y_hat, i + 1):
+            if not callback(sample, y_hat, i + 1):
                 break
-
-    def _run_show(self):
-        sample = self.input.train.get(self.state.sample)
-        def _callback(y_hat, offset):
-            return self.manager.on_show(sample, y_hat, offset)
-        self._run_sample(sample, _callback)
-
-    def _run_test(self):
-        sums = np.zeros([self.output.test_length])
-        counts = np.zeros([self.output.test_length], dtype=np.int)
-        for sample in range(self.input.test.sample_count):
-            sample = self.input.test.get(sample)
-            def _callback(y_hat, offset):
-                length = min(sample.shape[0] - offset, y_hat.shape[0])
-                delta = y_hat[:length, :] - sample[offset:(offset + length), :]
-                sums[:length] += np.sum(delta**2, axis=0)
-                counts[:length] += 1
-            self._run_sample(sample, _callback)
-        loss = sums / counts
-        for i in range(self.output.test_length):
-            value = tf.Summary.Value(
-                tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
-            self.summary_writer.add_summary(
-                tf.Summary(value=[value]), self.state.time)
-
-    def _run_train(self):
-        sample = self.input.train.get(self.state.sample)
-        feed = {
-            self.model.start: self._zero_start(),
-            self.model.x: np.reshape(
-                sample, [1, -1, self.input.dimension_count]),
-            self.model.y: np.reshape(
-                support.shift(sample, -1, padding=0),
-                [1, -1, self.input.dimension_count]),
-        }
-        fetch = {
-            'step': self.trainer.step,
-            'loss': self.trainer.loss,
-            'train_summary': self.train_summary,
-        }
-        result = self.session.run(fetch, feed)
-        self.summary_writer.add_summary(
-            result['train_summary'], self.state.time)
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
@@ -154,20 +154,23 @@ class Checkpoint:
 
 
 class State:
-    def __init__(self):
+    def __init__(self, sample_count):
         self.current = tf.Variable(
             [0, 0, 0], name='current', dtype=tf.int64, trainable=False)
         self.new = tf.placeholder(tf.int64, shape=3, name='new')
         self.assign_new = self.current.assign(self.new)
         self.time, self.epoch, self.sample = None, None, None
-
-    def increment_epoch(self):
-        self.epoch += 1
-        self.sample = 0
+        self.sample_count = sample_count
 
     def increment_time(self):
         self.time += 1
         self.sample += 1
+        if self.sample == self.sample_count:
+            self.epoch += 1
+            self.sample = 0
+
+    def is_new_epoch(self):
+        return self.sample == 0
 
     def load(self, session):
         state = session.run(self.current)

@@ -13,7 +13,7 @@ class Explorer:
         self.sampler = Sampler(config.sampler)
         self.learner_config = config.learner
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
-        self.pool = {}
+        self.agents = {}
 
     def run(self):
         hyperband = Hyperband()
@@ -28,13 +28,13 @@ class Explorer:
         agents = []
         for case in cases:
             key = _tokenize_case(case)
-            agent = self.pool.get(key)
+            agent = self.agents.get(key)
             if agent is None:
                 config = self.learner_config.copy()
                 config.output.path = os.path.join(config.output.path, key)
                 del config.manager['show_address']
                 agent = Agent(self.semaphore, config)
-                self.pool[key] = agent
+                self.agents[key] = agent
             agent.submit(resource)
             agents.append(agent)
         return [agent.collect(resource) for agent in agents]
@@ -42,9 +42,9 @@ class Explorer:
 
 class Agent:
     def __init__(self, semaphore, config):
+        self.semaphore = semaphore
         self.learner = Learner(config)
         self.results = Agent._load(config.output.path)
-        self.semaphore = semaphore
         self.output_path = config.output.path
         self.lock = threading.Lock()
         self.done = threading.Lock()
