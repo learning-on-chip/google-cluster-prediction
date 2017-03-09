@@ -99,9 +99,8 @@ class Agent:
             loss = self.learner.run_test()
             decay = np.reshape(np.exp(-np.arange(len(loss))), loss.shape)
             score = np.mean((loss * decay)**2)
-            support.log(
-                self, 'Learn: stop at iteration {}, score {}',
-                iteration_count, score)
+            support.log(self, 'Learn: stop at iteration {}, score {:.15e}',
+                        iteration_count, score)
             Agent._save(self.output_path, iteration_count, score)
             with self.lock:
                 self.scores[iteration_count] = score
