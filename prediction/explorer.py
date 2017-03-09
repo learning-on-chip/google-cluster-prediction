@@ -1,5 +1,5 @@
 from . import support
-from .hyperband import Hyperband
+from . import tuner
 from .learner import Learner
 import glob
 import numpy as np
@@ -12,12 +12,14 @@ class Explorer:
     def __init__(self, config):
         self.sampler = Sampler(config.sampler)
         self.learner_config = config.learner
+        self.tuner_config = config.tuner
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
         self.agents = {}
 
     def run(self):
-        hyperband = Hyperband()
-        hyperband.run(self._get, self._test)
+        tuner_ = getattr(tuner, self.tuner_config.name)
+        tuner_ = tuner_(**self.tuner_config.options)
+        tuner_.run(self._get, self._test)
 
     def _get(self, count):
         support.log(self, 'Generate: {} cases', count)

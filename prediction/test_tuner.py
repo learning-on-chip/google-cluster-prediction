@@ -1,4 +1,4 @@
-from .hyperband import Hyperband
+from .tuner import Hyperband
 import numpy as np
 import unittest
 
@@ -14,8 +14,8 @@ class HyperbandTestCase(unittest.TestCase):
             observed_cs.append(c)
             return [r * c for c in c]
         np.random.seed(0)
-        hyperband = Hyperband()
-        hyperband.run(_get, _test)
+        tuner = Hyperband()
+        tuner.run(_get, _test)
         expected_rs = [1, 3, 9, 27, 81,
                        3, 9, 27, 81,
                        9, 27, 81,

@@ -1,6 +1,13 @@
 {
 	"seed": 0,
 	"learner": "config/learner.json",
+	"tuner": {
+		"name": "Hyperband",
+		"options": {
+			"resource": 81,
+			"eta": 3
+		}
+	},
 	"sampler": {
             "learning_rate": [1e-5, 1e-4, 1e-3, 1e-2]
 	},
