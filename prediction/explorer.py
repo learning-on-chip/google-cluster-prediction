@@ -24,6 +24,7 @@ class Explorer:
     def _configure(self, case):
         key = _tokenize_case(case)
         config = self.config.copy()
+        config.output.auto_restore = True
         config.output.path = os.path.join(config.output.path, key)
         del config.manager['show_address']
         for name in case:
