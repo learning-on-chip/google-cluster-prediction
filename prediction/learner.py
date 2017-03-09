@@ -64,8 +64,7 @@ class Learner:
 
     def run_backup(self):
         self.state.save(self.session)
-        path = self.checkpoint.save(self.session)
-        support.log(self, 'New checkpoint: {}', path)
+        self.checkpoint.save(self.session)
 
     def run_show(self, callback):
         self._run_sample(self.input.train.get(self.state.sample), callback)
@@ -147,11 +146,12 @@ class Checkpoint:
             should = not answer.lower().startswith('n')
         if not should:
             return
-        support.log(self, 'Restore checkpoint: {}', self.path)
         self.saver.restore(session, self.path)
+        support.log(self, 'Restore: {}', self.path)
 
     def save(self, session):
-        return self.saver.save(session, self.path)
+        path = self.saver.save(session, self.path)
+        support.log(self, 'Save: {}', path)
 
 
 class State:
