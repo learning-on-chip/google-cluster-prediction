@@ -39,15 +39,16 @@ class Learner:
         self.checkpoint.load(self.session)
         self.state.load(self.session)
         self.input.on_epoch(self.state)
-        support.log(self, 'Initial state: time {}, epoch {}, sample {}',
-                    self.state.time, self.state.epoch, self.state.sample)
+        support.log(self, 'Initial state: iteration {}, epoch {}, sample {}',
+                    self.state.iteration, self.state.epoch, self.state.sample)
 
     def increment_time(self):
         self.state.increment_time()
         if self.state.is_new_epoch():
             self.input.on_epoch(self.state)
-            support.log(self, 'Current state: time {}, epoch {}, sample {}',
-                        self.state.time, self.state.epoch, self.state.sample)
+            support.log(
+                self, 'Current state: iteration {}, epoch {}, sample {}',
+                self.state.iteration, self.state.epoch, self.state.sample)
 
     def run(self):
         should_backup = self.manager.should_backup(self.state)
@@ -84,7 +85,7 @@ class Learner:
             value = tf.Summary.Value(
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
             self.summary_writer.add_summary(
-                tf.Summary(value=[value]), self.state.time)
+                tf.Summary(value=[value]), self.state.iteration)
         return loss
 
     def run_train(self):
@@ -104,7 +105,7 @@ class Learner:
         }
         result = self.session.run(fetch, feed)
         self.summary_writer.add_summary(
-            result['train_summary'], self.state.time)
+            result['train_summary'], self.state.iteration)
         return result['loss']
 
     def _run_sample(self, sample, callback):
@@ -159,11 +160,11 @@ class State:
             [0, 0, 0], name='current', dtype=tf.int64, trainable=False)
         self.new = tf.placeholder(tf.int64, shape=3, name='new')
         self.assign_new = self.current.assign(self.new)
-        self.time, self.epoch, self.sample = None, None, None
+        self.iteration, self.epoch, self.sample = None, None, None
         self.sample_count = sample_count
 
     def increment_time(self):
-        self.time += 1
+        self.iteration += 1
         self.sample += 1
         if self.sample == self.sample_count:
             self.epoch += 1
@@ -174,10 +175,10 @@ class State:
 
     def load(self, session):
         state = session.run(self.current)
-        self.time, self.epoch, self.sample = state
+        self.iteration, self.epoch, self.sample = state
 
     def save(self, session):
         feed = {
-            self.new: [self.time, self.epoch, self.sample],
+            self.new: [self.iteration, self.epoch, self.sample],
         }
         session.run(self.assign_new, feed)

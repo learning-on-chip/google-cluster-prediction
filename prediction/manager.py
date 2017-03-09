@@ -30,14 +30,14 @@ class Manager:
             return len(self.listeners) > 0
 
     def should_backup(self, state):
-        return self.backup_schedule.should(state.time)
+        return self.backup_schedule.should(state.iteration)
 
     def should_show(self, state):
         return len(self.listeners) > 0 and \
-               self.show_schedule.should(state.time)
+               self.show_schedule.should(state.iteration)
 
     def should_test(self, state):
-        return self.test_schedule.should(state.time)
+        return self.test_schedule.should(state.iteration)
 
     def should_train(self, _):
         return True
@@ -81,7 +81,7 @@ class Schedule:
     def __init__(self, schedule):
         self.schedule = np.cumsum(schedule)
 
-    def should(self, time):
-        time = time % self.schedule[-1] + 1
-        phase = np.nonzero(self.schedule >= time)[0][0]
+    def should(self, iteration):
+        iteration = iteration % self.schedule[-1] + 1
+        phase = np.nonzero(self.schedule >= iteration)[0][0]
         return phase % 2 == 1
