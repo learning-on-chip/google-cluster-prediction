@@ -1,5 +1,4 @@
 from .input import Input
-from .trainer import State
 import numpy as np
 import unittest
 
@@ -17,11 +16,16 @@ class DummyInput(Input):
                                          DummyInput.Part(test_sample_count))
 
 
+class DummyState:
+    def __init__(self, epoch):
+        self.epoch = epoch
+
+
 class InputTestCase(unittest.TestCase):
     def test_on_epoch(self):
         input = DummyInput(7, 3)
         for epoch in [0, 1, 2, 3]:
-            input.on_epoch(State(None, epoch, None))
+            input.on_epoch(DummyState(epoch))
             np.random.seed(epoch)
             expected_samples = np.arange(7)[np.random.permutation(7)]
             observed_samples = [input.train.get(i) for i in range(7)]
