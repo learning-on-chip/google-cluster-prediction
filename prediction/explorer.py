@@ -84,7 +84,12 @@ class Agent:
     def _run(self, iteration_count):
         with self.semaphore:
             with self.lock:
-                last_iteration_count = max(self.scores.keys())
+                last_iteration_count = 0
+                for key in self.scores:
+                    if self.scores[key] is None:
+                        continue
+                    if key > last_iteration_count:
+                        last_iteration_count = key
             assert(last_iteration_count < iteration_count)
             support.log(
                 self, 'Learn: start at iteration {}, stop at iteration {}',
