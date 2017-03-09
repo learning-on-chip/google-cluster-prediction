@@ -13,19 +13,26 @@ def format_timestamp():
 def format_percentage(count, total):
     return '{} ({:.2f}%)'.format(count, 100 * count / total)
 
-def log(*arguments, limit=8):
+def log(*arguments, name_limit=8, number_limit=4):
     arguments = list(arguments)
     first = arguments.pop(0)
     if isinstance(first, str):
-        template, source = first, 'Main'
+        message = first
+        name = 'Main'
+        number = 0
     elif inspect.isclass(first):
-        template, source = arguments.pop(0), first.__name__
+        message = arguments.pop(0)
+        name = first.__name__
+        number = 0
     else:
-        template, source = arguments.pop(0), first.__class__.__name__
-    if len(source) > limit:
-        source = source[:(limit - 1)] + '…'
-    logging.info('[%-' + str(limit) + 's] %s', source.upper(),
-                 template.format(*arguments))
+        message = arguments.pop(0)
+        name = first.__class__.__name__
+        number = id(first)
+    name = ('{:' + str(name_limit) + '}').format(name)
+    name = name[:name_limit].upper()
+    number = ('{:0' + str(number_limit) + '}').format(number)
+    number = number[-number_limit:]
+    logging.info('[%s|%s] %s', name, number, message.format(*arguments))
 
 def loggalize(level=logging.INFO):
     logging.basicConfig(format='%(asctime)s %(message)s',
