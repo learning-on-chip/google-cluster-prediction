@@ -5,7 +5,7 @@ analyze: input/distribution.csv
 	./bin/analyze $<
 
 explore: input/distribution.csv
-	./bin/explorer --config config/explorer.json --input $<
+	./bin/explore --config config/explorer.json --input $<
 
 learn: input/distribution.csv
 	./bin/learn --config config/learner.json --input $<
