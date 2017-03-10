@@ -21,4 +21,4 @@ class HyperbandTestCase(unittest.TestCase):
         expected_cs = [81, 27, 9, 3, 1, 27, 9, 3, 1, 9, 3, 1, 6, 2, 5]
         self.assertEqual(expected_ns, observed_ns)
         self.assertEqual(expected_rs, observed_rs)
-        self.assertEqual(expected_rs, observed_rs)
+        self.assertEqual(expected_cs, observed_cs)
