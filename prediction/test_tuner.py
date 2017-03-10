@@ -16,7 +16,7 @@ class HyperbandTestCase(unittest.TestCase):
             return [r * c for c in c]
         tuner = Hyperband()
         tuner.run(_get, _test)
-        expected_n = [81, 34, 15, 8, 5]
+        expected_n = [81, 27, 9, 6, 5]
         expected_r = [1, 3, 9, 27, 81, 3, 9, 27, 81, 9, 27, 81, 27, 81, 81]
         expected_c = [81, 27, 9, 3, 1, 27, 9, 3, 1, 9, 3, 1, 6, 2, 5]
         self.assertEqual(expected_n, observed_n)
