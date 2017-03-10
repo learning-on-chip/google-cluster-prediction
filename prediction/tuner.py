@@ -8,13 +8,11 @@ class Hyperband:
         self.resource = resource
         self.eta = eta
         self.count = int(np.log(resource) / np.log(eta)) + 1
-        self.budget = self.count * resource
 
     def run(self, get, test):
         for i in reversed(range(self.count)):
             r = self.resource * self.eta**(-i)
-            n = int(np.ceil(
-                self.budget / self.resource / (i + 1) * self.eta**i))
+            n = int(np.ceil(self.count // (i + 1) * self.eta**i))
             c = get(n)
             for j in range(i + 1):
                 r_j = r * self.eta**j
