@@ -9,8 +9,8 @@
 		}
 	},
 	"sampler": {
-		"layer_count": [1],
-		"unit_count": [200],
+		"layer_count": [1, 2, 3],
+		"unit_count": [100, 200, 400],
 		"learning_rate": [1e-5, 1e-4, 1e-3, 1e-2]
 	},
 	"concurrent_count": 2,
