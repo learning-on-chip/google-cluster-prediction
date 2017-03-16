@@ -9,7 +9,8 @@ import threading
 
 
 class Explorer:
-    def __init__(self, config):
+    def __init__(self, input, config):
+        self.input = input
         self.config = config.learner
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
@@ -44,7 +45,9 @@ class Explorer:
             key = _tokenize(case)
             agent = self.agents.get(key)
             if agent is None:
-                agent = Agent(self.semaphore, self._configure(case))
+                config = self._configure(case)
+                learner = Learner(self.input.copy(), config)
+                agent = Agent(learner, self.semaphore, config)
                 self.agents[key] = agent
             agent.submit(iteration_count)
             agents.append(agent)
@@ -52,9 +55,9 @@ class Explorer:
 
 
 class Agent:
-    def __init__(self, semaphore, config):
+    def __init__(self, learner, semaphore, config):
+        self.learner = learner
         self.semaphore = semaphore
-        self.learner = Learner(config)
         self.scores = Agent._load(config.output.path)
         self.output_path = config.output.path
         self.lock = threading.Lock()

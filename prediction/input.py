@@ -1,11 +1,9 @@
 from . import database
 from . import support
-import json
 import numpy as np
-import threading
 
 
-class Input:
+class BaseInput:
     class Part:
         def __init__(self, samples):
             self.sample_count = len(samples)
@@ -17,12 +15,6 @@ class Input:
 
         def shuffle(self):
             self.index = np.random.permutation(self.sample_count)
-
-    def instantiate(config):
-        if config.get('path') is not None:
-            return RealInput.instantiate(config)
-        else:
-            return FakeInput.instantiate(config)
 
     def __init__(self, train, test):
         self.dimension_count = 1
@@ -36,16 +28,16 @@ class Input:
         np.random.set_state(random_state)
 
 
-class FakeInput(Input):
-    class Part(Input.Part):
+class FakeInput(BaseInput):
+    class Part(BaseInput.Part):
         def __init__(self, samples):
             super(FakeInput.Part, self).__init__(samples)
 
+        def copy(self):
+            return FakeInput.Part(self.samples)
+
         def _get(self, sample):
             return FakeInput._compute(self.samples[sample, :])
-
-    def instantiate(config):
-        return FakeInput(config)
 
     def __init__(self, config):
         sample_count = 10000
@@ -54,6 +46,11 @@ class FakeInput(Input):
         super(FakeInput, self).__init__(
             FakeInput.Part(FakeInput._generate(train_sample_count)),
             FakeInput.Part(FakeInput._generate(test_sample_count)))
+
+    def copy(self):
+        copy = FakeInput.__new__(FakeInput)
+        super(FakeInput, copy).__init__(self.train.copy(), self.test.copy())
+        return copy
 
     def _compute(sample):
         a, b, n = sample[0], sample[1], int(sample[2])
@@ -67,8 +64,8 @@ class FakeInput(Input):
         return samples
 
 
-class RealInput(Input):
-    class Part(Input.Part):
+class RealInput(BaseInput):
+    class Part(BaseInput.Part):
         def __init__(self, samples, standard):
             super(RealInput.Part, self).__init__(samples)
             self.standard = standard
@@ -79,16 +76,6 @@ class RealInput(Input):
         def _get(self, sample):
             data = database.select_task_usage(*self.samples[sample])
             return (data - self.standard[0]) / self.standard[1]
-
-    _instances = {}
-    _lock = threading.Lock()
-
-    def instantiate(config):
-        with RealInput._lock:
-            key = json.dumps(config, sort_keys=True)
-            if key not in RealInput._instances:
-                RealInput._instances[key] = RealInput(config)
-            return RealInput._instances[key].copy()
 
     def __init__(self, config):
         support.log(self, 'Input path: {}', config.path)
@@ -140,3 +127,10 @@ class RealInput(Input):
             return (np.mean(data), np.std(data))
         else:
             return (0.0, 1.0)
+
+
+def Input(config):
+    if config.get('path') is not None:
+        return RealInput(config)
+    else:
+        return FakeInput(config)

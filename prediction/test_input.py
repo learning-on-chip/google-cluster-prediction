@@ -1,10 +1,10 @@
-from .input import Input
+from .input import BaseInput
 import numpy as np
 import unittest
 
 
-class DummyInput(Input):
-    class Part(Input.Part):
+class DummyInput(BaseInput):
+    class Part(BaseInput.Part):
         def __init__(self, sample_count):
             super(DummyInput.Part, self).__init__(np.arange(sample_count))
 

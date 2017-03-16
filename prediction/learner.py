@@ -1,5 +1,4 @@
 from . import support
-from .input import Input
 from .manager import Manager
 from .model import Model
 from .trainer import Trainer
@@ -10,8 +9,8 @@ import tensorflow as tf
 
 
 class Learner:
-    def __init__(self, config):
-        self.input = Input.instantiate(config.input)
+    def __init__(self, input, config):
+        self.input = input
         self.output = config.output
         graph = tf.Graph()
         with graph.as_default():
