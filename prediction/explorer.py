@@ -110,7 +110,7 @@ class Agent:
             self.learner.run_backup()
             with self.lock:
                 self.scores[iteration_count] = score
-            support.log(self, 'Learn: stop at iteration {}, score {:.15e}',
+            support.log(self, 'Learn: stop at iteration {}, score {:e}',
                         iteration_count, score)
             self.done.release()
 
