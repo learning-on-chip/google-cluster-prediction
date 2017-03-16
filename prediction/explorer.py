@@ -22,16 +22,13 @@ class Explorer:
         self.tuner.run(self._get, self._test)
 
     def _configure(self, case):
-        key = _tokenize_case(case)
+        key = _tokenize(case)
         config = self.config.copy()
         config.output.auto_restore = True
         config.output.path = os.path.join(config.output.path, key)
         del config.manager['show_address']
         for name in case:
-            if name == 'learning_rate':
-                config.trainer.optimizer.options.learning_rate = case[name]
-            else:
-                assert(False)
+            _adjust(config, name, case[name])
         return config
 
     def _get(self, count):
@@ -44,7 +41,7 @@ class Explorer:
                     len(cases), iteration_count)
         agents = []
         for case in cases:
-            key = _tokenize_case(case)
+            key = _tokenize(case)
             agent = self.agents.get(key)
             if agent is None:
                 agent = Agent(self.semaphore, self._configure(case))
@@ -129,7 +126,17 @@ class Sampler:
         return case
 
 
-def _tokenize_case(case):
+def _adjust(config, name, value):
+    if name == 'layer_count':
+        config.model.layer_count = value
+    elif name == 'unit_count':
+        config.model.unit_count = value
+    elif name == 'learning_rate':
+        config.trainer.optimizer.options.learning_rate = value
+    else:
+        assert(False)
+
+def _tokenize(case):
     names = sorted(case.keys())
     chunks = []
     for name in names:
