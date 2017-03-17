@@ -40,6 +40,9 @@
 			"options": {
 				"learning_rate": 1e-4
 			}
+		},
+		"tester": {
+			"length": 10
 		}
 	},
 	"manager": {
@@ -47,6 +50,5 @@
 		"test_schedule": [999, 1]
 	},
 	"output": {
-		"test_length": 10
 	}
 }

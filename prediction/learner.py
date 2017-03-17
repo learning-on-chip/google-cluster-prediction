@@ -64,9 +64,8 @@ class Learner:
         self.checkpoint.save(self.session)
 
     def run_test(self):
-        loss = self.teacher.test(
-            self.input.test, self.output.test_length, self._run_sample)
-        for i in range(self.output.test_length):
+        loss = self.teacher.test(self.input.test, self._run_test)
+        for i in range(len(loss)):
             value = tf.Summary.Value(
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
             self.summary_writer.add_summary(
@@ -93,19 +92,18 @@ class Learner:
             result['train_summary'], self.state.iteration)
         return result['loss']
 
-    def _run_sample(self, sample, callback):
-        length = sample.shape[0]
+    def _run_test(self, sample, length, callback):
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([self.output.test_length, self.input.dimension_count])
-        for i in range(length):
+        y_hat = np.empty([length, self.input.dimension_count])
+        for i in range(sample.shape[0]):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
             }
-            for j in range(self.output.test_length):
+            for j in range(length):
                 result = self.session.run(fetch, feed)
                 y_hat[j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
