@@ -69,16 +69,8 @@ class Learner:
         self._run_sample(self.input.train.get(self.state.sample), callback)
 
     def run_test(self):
-        sums = np.zeros([self.output.test_length])
-        counts = np.zeros([self.output.test_length], dtype=np.int)
-        def _callback(sample, y_hat, offset):
-            length = min(sample.shape[0] - offset, y_hat.shape[0])
-            delta = y_hat[:length, :] - sample[offset:(offset + length), :]
-            sums[:length] += np.sum(delta**2, axis=0)
-            counts[:length] += 1
-        for sample in range(self.input.test.sample_count):
-            self._run_sample(self.input.test.get(sample), _callback)
-        loss = sums / counts
+        loss = self.trainer.test(
+            self.input.test, self.output.test_length, self._run_sample)
         for i in range(self.output.test_length):
             value = tf.Summary.Value(
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
