@@ -3,7 +3,7 @@ import tensorflow as tf
 
 
 class Teacher:
-    def run_test(input, length, evaluate):
+    def run_test(input, length, test):
         sums = np.zeros([length])
         counts = np.zeros([length], dtype=np.int)
         def _callback(sample, y_hat, offset):
@@ -12,7 +12,7 @@ class Teacher:
             sums[:length] += np.sum(delta**2, axis=0)
             counts[:length] += 1
         for sample in range(input.sample_count):
-            evaluate(input.get(sample), _callback)
+            test(input.get(sample), _callback)
         return sums / counts
 
     def __init__(self, model, config):
