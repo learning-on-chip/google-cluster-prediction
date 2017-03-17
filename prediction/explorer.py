@@ -27,7 +27,6 @@ class Explorer:
         config = self.config.copy()
         config.output.auto_restore = True
         config.output.path = os.path.join(config.output.path, key)
-        del config.manager['show_address']
         for name in case:
             _adjust(config, name, case[name])
         return config

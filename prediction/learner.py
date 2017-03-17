@@ -55,8 +55,6 @@ class Learner:
             self.run_train()
         if self.manager.should_test(self.state):
             self.run_test()
-        if self.manager.should_show(self.state):
-            self.run_show(self.manager.on_show)
         self.increment_time()
         if should_backup:
             self.run_backup()
@@ -64,9 +62,6 @@ class Learner:
     def run_backup(self):
         self.state.save(self.session)
         self.checkpoint.save(self.session)
-
-    def run_show(self, callback):
-        self._run_sample(self.input.train.get(self.state.sample), callback)
 
     def run_test(self):
         loss = self.teacher.test(
