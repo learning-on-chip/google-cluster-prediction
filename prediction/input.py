@@ -60,7 +60,7 @@ class FakeInput(BaseInput):
         samples = np.random.rand(count, 3)
         samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
         samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = np.round(5 + 45 * samples[:, 2])
+        samples[:, 2] = np.round(5 + 15 * samples[:, 2])
         return samples
 
 
