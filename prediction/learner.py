@@ -92,24 +92,25 @@ class Learner:
             result['train_summary'], self.state.iteration)
         return result['loss']
 
-    def _run_test(self, sample, length, callback):
+    def _run_test(self, sample, test_length):
+        sample_length = sample.shape[0]
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty([length, self.input.dimension_count])
-        for i in range(sample.shape[0]):
+        y_hat = np.empty(
+            [sample_length, test_length, self.input.dimension_count])
+        for i in range(sample_length):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
             }
-            for j in range(length):
+            for j in range(test_length):
                 result = self.session.run(fetch, feed)
-                y_hat[j, :] = result['y_hat'][0, -1, :]
+                y_hat[i, j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
-                feed[self.model.x] = np.reshape(y_hat[j, :], [1, 1, -1])
-            if not callback(sample, y_hat, i + 1):
-                break
+                feed[self.model.x] = np.reshape(y_hat[i, j, :], [1, 1, -1])
+        return y_hat
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)

@@ -14,17 +14,20 @@ class Teacher:
         self.step = optimizer.apply_gradients(zip(gradient, model.parameters))
         self.tester = config.tester
 
-    def test(self, input, test):
-        return Teacher._test(input, self.tester.length, test)
+    def test(self, input, predict):
+        return Teacher._test(input, self.tester.length, predict)
 
-    def _test(input, length, test):
-        sums = np.zeros([length])
-        counts = np.zeros([length], dtype=np.int)
-        def _callback(sample, y_hat, offset):
-            tail = min(sample.shape[0] - offset, y_hat.shape[0])
-            delta = y_hat[:tail, :] - sample[offset:(offset + tail), :]
-            sums[:tail] += np.sum(delta**2, axis=0)
-            counts[:tail] += 1
+    def _test(input, test_length, predict):
+        sums = np.zeros([test_length])
+        counts = np.zeros([test_length], dtype=np.int)
         for sample in range(input.sample_count):
-            test(input.get(sample), length, _callback)
+            sample = input.get(sample)
+            sample_length = sample.shape[0]
+            y_hat = predict(sample, test_length)
+            for i in range(sample_length):
+                future_length = min(sample_length - (i + 1), test_length)
+                delta = y_hat[i, :future_length, :] - \
+                        sample[(i + 1):(i + 1 + future_length), :]
+                sums[:future_length] += np.sum(delta**2, axis=0)
+                counts[:future_length] += 1
         return sums / counts
