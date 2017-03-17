@@ -135,7 +135,7 @@ def _adjust(config, name, value):
     elif name == 'unit_count':
         config.model.unit_count = value
     elif name == 'learning_rate':
-        config.trainer.optimizer.options.learning_rate = value
+        config.teacher.optimizer.options.learning_rate = value
     else:
         assert(False)
 

@@ -1,7 +1,7 @@
 from . import support
 from .manager import Manager
 from .model import Model
-from .trainer import Trainer
+from .teacher import Teacher
 import glob
 import numpy as np
 import os
@@ -18,9 +18,9 @@ class Learner:
                 self.model = Model(config.model)
                 with tf.variable_scope('state'):
                     self.state = State(self.input.train.sample_count)
-            with tf.variable_scope('trainer'):
-                self.trainer = Trainer(self.model, config.trainer)
-            tf.summary.scalar('train_loss', self.trainer.loss)
+            with tf.variable_scope('teacher'):
+                self.teacher = Teacher(self.model, config.teacher)
+            tf.summary.scalar('train_loss', self.teacher.loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summary_writer = tf.summary.FileWriter(
@@ -69,7 +69,7 @@ class Learner:
         self._run_sample(self.input.train.get(self.state.sample), callback)
 
     def run_test(self):
-        loss = self.trainer.test(
+        loss = self.teacher.test(
             self.input.test, self.output.test_length, self._run_sample)
         for i in range(self.output.test_length):
             value = tf.Summary.Value(
@@ -89,8 +89,8 @@ class Learner:
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
-            'step': self.trainer.step,
-            'loss': self.trainer.loss,
+            'step': self.teacher.step,
+            'loss': self.teacher.loss,
             'train_summary': self.train_summary,
         }
         result = self.session.run(fetch, feed)
