@@ -47,7 +47,7 @@
 	},
 	"manager": {
 		"backup_schedule": [9999, 1],
-		"test_schedule": [999, 1]
+		"test_schedule": [9999, 1]
 	},
 	"output": {
 	}
