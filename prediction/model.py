@@ -1,3 +1,4 @@
+from . import support
 from tensorflow.contrib import rnn as crnn
 from tensorflow.python.ops import rnn
 import numpy as np
@@ -21,6 +22,7 @@ class Model:
         with tf.variable_scope('y_hat'):
             self.y_hat = tf.matmul(h, w) + b
         self.parameters = tf.trainable_variables()
+        support.log(self, 'Parameters: {}', self.parameter_count)
 
     @property
     def parameter_count(self):

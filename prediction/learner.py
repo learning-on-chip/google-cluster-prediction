@@ -28,16 +28,13 @@ class Learner:
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             self.checkpoint = Checkpoint(self.output)
-        support.log(self, 'Parameters: {}', self.model.parameter_count)
-        support.log(self, 'Train samples: {}', self.input.train.sample_count)
-        support.log(self, 'Test samples: {}', self.input.test.sample_count)
-        support.log(self, 'Output path: {}', self.output.path)
         self.manager = Manager(config.manager)
         self.session = tf.Session(graph=graph)
         self.session.run(initialize)
         self.checkpoint.load(self.session)
         self.state.load(self.session)
         self.input.on_epoch(self.state)
+        support.log(self, 'Output path: {}', self.output.path)
         support.log(self, 'Initial state: iteration {}, epoch {}, sample {}',
                     self.state.iteration, self.state.epoch, self.state.sample)
 

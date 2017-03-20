@@ -20,6 +20,8 @@ class BaseInput:
         self.dimension_count = 1
         self.train = train
         self.test = test
+        support.log(self, 'Train samples: {}', self.train.sample_count)
+        support.log(self, 'Test samples: {}', self.test.sample_count)
 
     def on_epoch(self, state):
         random_state = np.random.get_state()
