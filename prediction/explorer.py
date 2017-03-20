@@ -12,6 +12,7 @@ class Explorer:
     def __init__(self, input, config):
         self.input = input
         self.config = config.learner
+        self.first = True
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
         self.resource_scale = config.max_iteration_count / self.tuner.resource
@@ -25,6 +26,7 @@ class Explorer:
     def _configure(self, case):
         key = _tokenize(case)
         config = self.config.copy()
+        config.output.baseline = self.first
         config.output.auto_restore = True
         config.output.path = os.path.join(config.output.path, key)
         for name in case:
@@ -48,6 +50,7 @@ class Explorer:
                 learner = Learner(self.input.copy(), config)
                 agent = Agent(learner, self.semaphore, config)
                 self.agents[key] = agent
+                self.first = False
             agent.submit(iteration_count)
             agents.append(agent)
         return [agent.collect(iteration_count) for agent in agents]
