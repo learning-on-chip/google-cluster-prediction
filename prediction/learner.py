@@ -1,4 +1,5 @@
 from . import support
+from .baseline import Baseline
 from .manager import Manager
 from .model import Model
 from .teacher import Teacher
@@ -37,6 +38,9 @@ class Learner:
         support.log(self, 'Output path: {}', self.output.path)
         support.log(self, 'Initial state: iteration {}, epoch {}, sample {}',
                     self.state.iteration, self.state.epoch, self.state.sample)
+        if self.output.baseline:
+            baseline = Baseline(self.input, self.teacher, self.summary_writer)
+            baseline.run()
 
     def increment_time(self):
         self.state.increment_time()

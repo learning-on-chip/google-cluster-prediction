@@ -50,5 +50,6 @@
 		"test_schedule": [9999, 1]
 	},
 	"output": {
+		"baseline": true
 	}
 }

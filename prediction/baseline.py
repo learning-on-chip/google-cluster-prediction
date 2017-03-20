@@ -3,10 +3,10 @@ import tensorflow as tf
 
 
 class Baseline:
-    def __init__(self, learner):
-        self.input = learner.input
-        self.teacher = learner.teacher
-        self.summary_writer = learner.summary_writer
+    def __init__(self, input, teacher, summary_writer):
+        self.input = input
+        self.teacher = teacher
+        self.summary_writer = summary_writer
 
     def run(self):
         loss = self.teacher.test(self.input.test, self._run)
