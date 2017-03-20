@@ -14,6 +14,7 @@ class Baseline:
             value = tf.Summary.Value(tag='baseline_loss', simple_value=loss[i])
             self.summary_writer.add_summary(
                 tf.Summary(value=[value]), i + 1)
+        self.summary_writer.flush()
         return loss
 
     def _run(self, sample, test_length):

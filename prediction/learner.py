@@ -71,6 +71,7 @@ class Learner:
                 tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
             self.summary_writer.add_summary(
                 tf.Summary(value=[value]), self.state.iteration)
+        self.summary_writer.flush()
         return loss
 
     def run_train(self):
