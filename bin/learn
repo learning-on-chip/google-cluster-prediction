@@ -4,6 +4,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from prediction import Baseline
 from prediction import Config
 from prediction import Input
 from prediction import Learner
@@ -17,6 +18,8 @@ def main(config):
     np.random.seed(config.seed)
     input = Input(config.input)
     learner = Learner(input, config)
+    baseline = Baseline(learner)
+    baseline.run()
     while True:
         learner.run()
 

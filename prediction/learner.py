@@ -90,14 +90,13 @@ class Learner:
         return result['loss']
 
     def _run_test(self, sample, test_length):
-        sample_length = sample.shape[0]
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
         y_hat = np.empty(
-            [sample_length, test_length, self.input.dimension_count])
-        for i in range(sample_length):
+            [sample.shape[0], test_length, self.input.dimension_count])
+        for i in range(sample.shape[0]):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),

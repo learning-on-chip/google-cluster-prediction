@@ -4,6 +4,7 @@ import tensorflow as tf
 
 class Teacher:
     def __init__(self, model, config):
+        self.tester = config.tester
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(
                 tf.squared_difference(model.y, model.y_hat))
@@ -12,7 +13,6 @@ class Teacher:
         name = '{}Optimizer'.format(config.optimizer.name)
         optimizer = getattr(tf.train, name)(**config.optimizer.options)
         self.step = optimizer.apply_gradients(zip(gradient, model.parameters))
-        self.tester = config.tester
 
     def test(self, input, predict):
         return Teacher._test(input, self.tester.length, predict)
