@@ -1,6 +1,7 @@
 from . import support
 from . import tuner
 from .learner import Learner
+from .random import Random
 import glob
 import numpy as np
 import os
@@ -127,7 +128,7 @@ class Sampler:
     def get(self):
         case = {}
         for name in self.parameters:
-            case[name] = np.random.choice(self.parameters[name])
+            case[name] = Random.get().choice(self.parameters[name])
         return case
 
 

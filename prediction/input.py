@@ -1,5 +1,6 @@
 from . import database
 from . import support
+from .random import Random
 import numpy as np
 
 
@@ -14,7 +15,7 @@ class BaseInput:
             return self._get(self.index[sample])
 
         def shuffle(self):
-            self.index = np.random.permutation(self.sample_count)
+            self.index = Random.get().permutation(self.sample_count)
 
     def __init__(self, train, test):
         self.dimension_count = 1
@@ -24,10 +25,10 @@ class BaseInput:
         support.log(self, 'Test samples: {}', self.test.sample_count)
 
     def on_epoch(self, state):
-        random_state = np.random.get_state()
-        np.random.seed(state.epoch)
+        random_state = Random.get().get_state()
+        Random.get().seed(state.epoch)
         self.train.shuffle()
-        np.random.set_state(random_state)
+        Random.get().set_state(random_state)
 
 
 class FakeInput(BaseInput):
@@ -59,7 +60,7 @@ class FakeInput(BaseInput):
         return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
 
     def _generate(count):
-        samples = np.random.rand(count, 3)
+        samples = Random.get().rand(count, 3)
         samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
         samples[:, 1] = 5 * samples[:, 1]
         samples[:, 2] = np.round(5 + 15 * samples[:, 2])
@@ -93,7 +94,7 @@ class RealInput(BaseInput):
                 if length > config.max_sample_length:
                     continue
                 samples.append((record[0], int(record[1]), int(record[2])))
-        np.random.shuffle(samples)
+        Random.get().shuffle(samples)
         selected_count = len(samples)
         if selected_count > config.max_sample_count:
             samples = samples[:config.max_sample_count]
@@ -122,7 +123,7 @@ class RealInput(BaseInput):
 
     def _standardize(samples, count):
         data = np.array([], dtype=np.float32)
-        for sample in np.random.permutation(len(samples))[:count]:
+        for sample in Random.get().permutation(len(samples))[:count]:
             data = np.append(
                 data, database.select_task_usage(*samples[sample]))
         if len(data) > 0:

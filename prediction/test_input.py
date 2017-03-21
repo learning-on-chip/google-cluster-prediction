@@ -1,4 +1,5 @@
 from .input import BaseInput
+from .random import Random
 import numpy as np
 import unittest
 
@@ -26,7 +27,7 @@ class InputTestCase(unittest.TestCase):
         input = DummyInput(7, 3)
         for epoch in [0, 1, 2, 3]:
             input.on_epoch(DummyState(epoch))
-            np.random.seed(epoch)
-            expected_samples = np.arange(7)[np.random.permutation(7)]
+            Random.get().seed(epoch)
+            expected_samples = np.arange(7)[Random.get().permutation(7)]
             observed_samples = [input.train.get(i) for i in range(7)]
             self.assertTrue((expected_samples == observed_samples).all())
