@@ -5,14 +5,15 @@ import tensorflow as tf
 class Teacher:
     def __init__(self, model, config):
         self.tester = config.tester
-        with tf.variable_scope('loss'):
-            self.loss = tf.reduce_mean(
+        with tf.variable_scope('train_loss'):
+            self.train_loss = tf.reduce_mean(
                 tf.squared_difference(model.y, model.y_hat))
-        gradient = tf.gradients(self.loss, model.parameters)
+        gradient = tf.gradients(self.train_loss, model.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
         name = '{}Optimizer'.format(config.optimizer.name)
         optimizer = getattr(tf.train, name)(**config.optimizer.options)
-        self.step = optimizer.apply_gradients(zip(gradient, model.parameters))
+        self.train_step = optimizer.apply_gradients(
+            zip(gradient, model.parameters))
 
     def test(self, input, predict):
         return Teacher._test(input, self.tester.length, predict)
@@ -30,4 +31,6 @@ class Teacher:
                         sample[(i + 1):(i + 1 + future_length), :]
                 sums[:future_length] += np.sum(delta**2, axis=0)
                 counts[:future_length] += 1
-        return sums / counts
+        return {
+            'mean_squared': sums / counts,
+        }

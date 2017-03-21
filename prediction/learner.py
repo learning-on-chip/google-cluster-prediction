@@ -21,11 +21,10 @@ class Learner:
                     self.state = State(self.input.train.sample_count)
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
-            tf.summary.scalar('train_loss', self.teacher.loss)
+            tf.summary.scalar('train_loss', self.teacher.train_loss)
             tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
-            self.summary_writer = tf.summary.FileWriter(
-                self.output.path, graph)
+            self.summarer = tf.summary.FileWriter(self.output.path, graph)
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             self.checkpoint = Checkpoint(self.output)
@@ -39,7 +38,7 @@ class Learner:
         support.log(self, 'Initial state: iteration {}, epoch {}, sample {}',
                     self.state.iteration, self.state.epoch, self.state.sample)
         if self.output.baseline:
-            baseline = Baseline(self.input, self.teacher, self.summary_writer)
+            baseline = Baseline(self.input, self.teacher, self.summarer)
             baseline.run()
 
     def increment_time(self):
@@ -66,12 +65,13 @@ class Learner:
 
     def run_test(self):
         loss = self.teacher.test(self.input.test, self._run_test)
-        for i in range(len(loss)):
-            value = tf.Summary.Value(
-                tag=('test_loss_' + str(i + 1)), simple_value=loss[i])
-            self.summary_writer.add_summary(
-                tf.Summary(value=[value]), self.state.iteration)
-        self.summary_writer.flush()
+        for name in loss:
+            for i in range(len(loss[name])):
+                tag = 'test_{}_loss_{}'.format(name, i + 1)
+                value = tf.Summary.Value(tag=tag, simple_value=loss[name][i])
+                self.summarer.add_summary(
+                    tf.Summary(value=[value]), self.state.iteration)
+        self.summarer.flush()
         return loss
 
     def run_train(self):
@@ -85,13 +85,12 @@ class Learner:
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
-            'step': self.teacher.step,
-            'loss': self.teacher.loss,
-            'train_summary': self.train_summary,
+            'step': self.teacher.train_step,
+            'loss': self.teacher.train_loss,
+            'summary': self.train_summary,
         }
         result = self.session.run(fetch, feed)
-        self.summary_writer.add_summary(
-            result['train_summary'], self.state.iteration)
+        self.summarer.add_summary(result['summary'], self.state.iteration)
         return result['loss']
 
     def _run_test(self, sample, test_length):

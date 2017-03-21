@@ -3,18 +3,19 @@ import tensorflow as tf
 
 
 class Baseline:
-    def __init__(self, input, teacher, summary_writer):
+    def __init__(self, input, teacher, summarer):
         self.input = input
         self.teacher = teacher
-        self.summary_writer = summary_writer
+        self.summarer = summarer
 
     def run(self):
         loss = self.teacher.test(self.input.test, self._run)
-        for i in range(len(loss)):
-            value = tf.Summary.Value(tag='baseline_loss', simple_value=loss[i])
-            self.summary_writer.add_summary(
-                tf.Summary(value=[value]), i + 1)
-        self.summary_writer.flush()
+        for name in loss:
+            tag = 'baseline_{}_loss'.format(name)
+            for i in range(len(loss[name])):
+                value = tf.Summary.Value(tag=tag, simple_value=loss[name][i])
+                self.summarer.add_summary(tf.Summary(value=[value]), i + 1)
+        self.summarer.flush()
         return loss
 
     def _run(self, sample, test_length):
