@@ -22,7 +22,6 @@ class Learner:
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
             tf.summary.scalar('train_loss', self.teacher.train_loss)
-            tf.summary.scalar('unroll_count', self.model.unroll_count)
             self.train_summary = tf.summary.merge_all()
             self.summarer = tf.summary.FileWriter(self.output.path, graph)
             initialize = tf.variables_initializer(
