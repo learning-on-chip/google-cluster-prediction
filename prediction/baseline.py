@@ -11,7 +11,7 @@ class Baseline:
     def run(self):
         loss = self.teacher.test(self.input.test, self._run)
         for name in loss:
-            tag = 'baseline_{}_loss'.format(name)
+            tag = 'baseline_{}'.format(name)
             for i in range(len(loss[name])):
                 value = tf.Summary.Value(tag=tag, simple_value=loss[name][i])
                 self.summarer.add_summary(tf.Summary(value=[value]), i + 1)

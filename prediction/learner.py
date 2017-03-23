@@ -66,7 +66,7 @@ class Learner:
         loss = self.teacher.test(self.input.test, self._run_test)
         for name in loss:
             for i in range(len(loss[name])):
-                tag = 'test_{}_loss_{}'.format(name, i + 1)
+                tag = 'test_{}_{}'.format(name, i + 1)
                 value = tf.Summary.Value(tag=tag, simple_value=loss[name][i])
                 self.summarer.add_summary(
                     tf.Summary(value=[value]), self.state.iteration)

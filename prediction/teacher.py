@@ -19,18 +19,23 @@ class Teacher:
         return Teacher._test(input, self.tester.length, predict)
 
     def _test(input, test_length, predict):
-        sums = np.zeros([test_length])
-        counts = np.zeros([test_length], dtype=np.int)
+        min, max = np.inf, -np.inf
+        squared = np.zeros([test_length])
+        numbers = np.zeros([test_length], dtype=np.int)
         for sample in range(input.sample_count):
             sample = input.get(sample)
             sample_length = sample.shape[0]
+            min = np.minimum(min, sample.min(axis=0))
+            max = np.maximum(max, sample.max(axis=0))
             y_hat = predict(sample, test_length)
             for i in range(sample_length):
-                future_length = min(sample_length - (i + 1), test_length)
-                delta = y_hat[i, :future_length, :] - \
-                        sample[(i + 1):(i + 1 + future_length), :]
-                sums[:future_length] += np.sum(delta**2, axis=0)
-                counts[:future_length] += 1
+                future_length = np.min([sample_length - (i + 1), test_length])
+                deviation = y_hat[i, :future_length, :] - \
+                            sample[(i + 1):(i + 1 + future_length), :]
+                squared[:future_length] += np.sum(deviation**2, axis=0)
+                numbers[:future_length] += 1
+        rmse = np.sqrt(squared / numbers)
         return {
-            'mean_squared': sums / counts,
+            'RMSE': rmse,
+            'NRMSE': rmse / (max - min),
         }
