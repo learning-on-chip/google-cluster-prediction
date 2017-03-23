@@ -63,15 +63,15 @@ class Learner:
         self.checkpoint.save(self.session)
 
     def run_test(self):
-        loss = self.teacher.test(self.input.test, self._run_test)
-        for name in loss:
-            for i in range(len(loss[name])):
+        errors = self.teacher.test(self.input.test, self._run_test)
+        for name in errors:
+            for i in range(len(errors[name])):
                 tag = 'test_{}_{}'.format(name, i + 1)
-                value = tf.Summary.Value(tag=tag, simple_value=loss[name][i])
+                value = tf.Summary.Value(tag=tag, simple_value=errors[name][i])
                 self.summarer.add_summary(
                     tf.Summary(value=[value]), self.state.iteration)
         self.summarer.flush()
-        return loss
+        return errors
 
     def run_train(self):
         sample = self.input.train.get(self.state.sample)

@@ -109,9 +109,9 @@ class Agent:
                 last_iteration_count, iteration_count)
             for _ in range(last_iteration_count, iteration_count):
                 self.learner.run()
-            loss = self.learner.run_test()
-            decay = np.reshape(np.exp(-np.arange(len(loss))), loss.shape)
-            score = np.mean((loss * decay)**2)
+            error = self.learner.run_test()['MNRMSE']
+            decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
+            score = np.mean((error * decay)**2)
             Agent._save(self.output_path, iteration_count, score)
             self.learner.run_backup()
             with self.lock:

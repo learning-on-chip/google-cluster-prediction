@@ -9,14 +9,14 @@ class Baseline:
         self.summarer = summarer
 
     def run(self):
-        loss = self.teacher.test(self.input.test, self._run)
-        for name in loss:
+        errors = self.teacher.test(self.input.test, self._run)
+        for name in errors:
             tag = 'baseline_{}'.format(name)
-            for i in range(len(loss[name])):
-                value = tf.Summary.Value(tag=tag, simple_value=loss[name][i])
+            for i in range(len(errors[name])):
+                value = tf.Summary.Value(tag=tag, simple_value=errors[name][i])
                 self.summarer.add_summary(tf.Summary(value=[value]), i + 1)
         self.summarer.flush()
-        return loss
+        return errors
 
     def _run(self, sample, test_length):
         y_hat = np.empty(
