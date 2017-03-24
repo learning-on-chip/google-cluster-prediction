@@ -123,6 +123,11 @@ class Agent:
 class Sampler:
     def __init__(self, config):
         self.parameters = config
+        support.log(self, 'Cases: {}', self.case_count)
+
+    @property
+    def case_count(self):
+        return np.prod([len(self.parameters[n]) for n in self.parameters])
 
     def get(self):
         case = {}
