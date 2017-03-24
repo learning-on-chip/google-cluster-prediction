@@ -127,12 +127,17 @@ class Sampler:
     def get(self):
         case = {}
         for name in sorted(self.parameters.keys()):
-            case[name] = Random.get().choice(self.parameters[name])
+            chosen = Random.get().randint(len(self.parameters[name]))
+            case[name] = self.parameters[name][chosen]
         return case
 
 
 def _adjust(config, name, value):
-    if name == 'layer_count':
+    if name == 'dropout_rate':
+        assert(len(value) == 2)
+        config.model.dropout.options.input_keep_prob = 1 - value[0]
+        config.model.dropout.options.output_keep_prob = 1 - value[1]
+    elif name == 'layer_count':
         config.model.layer_count = value
     elif name == 'unit_count':
         config.model.unit_count = value
@@ -146,6 +151,6 @@ def _tokenize(case):
     chunks = []
     for name in names:
         alias = ''.join([chunk[0] for chunk in name.split('_')])
-        value = str(case[name])
+        value = str(case[name]).replace(' ', '')
         chunks.append('{}={}'.format(alias, value))
     return ','.join(chunks)
