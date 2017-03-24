@@ -127,7 +127,7 @@ class Sampler:
 
     def get(self):
         case = {}
-        for name in self.parameters:
+        for name in sorted(self.parameters.keys()):
             case[name] = Random.get().choice(self.parameters[name])
         return case
 
