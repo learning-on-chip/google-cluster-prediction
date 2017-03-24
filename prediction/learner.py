@@ -48,15 +48,16 @@ class Learner:
                 self, 'Current state: iteration {}, epoch {}, sample {}',
                 self.state.iteration, self.state.epoch, self.state.sample)
 
-    def run(self):
-        should_backup = self.manager.should_backup(self.state)
-        if self.manager.should_train(self.state):
+    def run(self, sample_count=1):
+        for _ in range(sample_count):
             self.run_train()
-        if self.manager.should_test(self.state):
-            self.run_test()
-        self.increment_time()
-        if should_backup:
-            self.run_backup()
+            if self.manager.should_test(self.state):
+                self.run_test()
+            if self.manager.should_backup(self.state):
+                self.increment_time()
+                self.run_backup()
+            else:
+                self.increment_time()
 
     def run_backup(self):
         self.state.save(self.session)

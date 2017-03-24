@@ -13,9 +13,6 @@ class Manager:
     def should_test(self, state):
         return self.test_schedule.should(state.iteration)
 
-    def should_train(self, _):
-        return True
-
 
 class Schedule:
     def __init__(self, schedule):

@@ -17,8 +17,7 @@ def main(config):
     Random.initialize(config.seed)
     input = Input(config.input)
     learner = Learner(input, config)
-    while True:
-        learner.run()
+    learner.run(sys.maxsize)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
