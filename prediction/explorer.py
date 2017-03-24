@@ -110,7 +110,7 @@ class Agent:
             self.learner.run_train(iteration_count - last_iteration_count)
             error = self.learner.run_test()['MNRMSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
-            score = np.mean((error * decay)**2)
+            score = np.sum(error * decay)
             Agent._save(self.output_path, iteration_count, score)
             self.learner.run_backup()
             with self.lock:
