@@ -107,7 +107,7 @@ class Agent:
             support.log(
                 self, 'Learn: start at iteration {}, stop at iteration {}',
                 last_iteration_count, iteration_count)
-            self.learner.run(iteration_count - last_iteration_count)
+            self.learner.run_train(iteration_count - last_iteration_count)
             error = self.learner.run_test()['MNRMSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
             score = np.mean((error * decay)**2)

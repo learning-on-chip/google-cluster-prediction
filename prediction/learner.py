@@ -1,6 +1,5 @@
 from . import support
 from .baseline import Baseline
-from .manager import Manager
 from .model import Model
 from .teacher import Teacher
 import glob
@@ -27,7 +26,6 @@ class Learner:
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
             self.checkpoint = Checkpoint(self.output)
-        self.manager = Manager(config.manager)
         self.session = tf.Session(graph=graph)
         self.session.run(initialize)
         self.checkpoint.load(self.session)
@@ -39,25 +37,6 @@ class Learner:
         if self.output.baseline:
             baseline = Baseline(self.input, self.teacher, self.summarer)
             baseline.run()
-
-    def increment_time(self):
-        self.state.increment_time()
-        if self.state.is_new_epoch():
-            self.input.on_epoch(self.state)
-            support.log(
-                self, 'Current state: iteration {}, epoch {}, sample {}',
-                self.state.iteration, self.state.epoch, self.state.sample)
-
-    def run(self, sample_count=1):
-        for _ in range(sample_count):
-            self.run_train()
-            if self.manager.should_test(self.state):
-                self.run_test()
-            if self.manager.should_backup(self.state):
-                self.increment_time()
-                self.run_backup()
-            else:
-                self.increment_time()
 
     def run_backup(self):
         self.state.save(self.session)
@@ -74,24 +53,18 @@ class Learner:
         self.summarer.flush()
         return errors
 
-    def run_train(self):
-        sample = self.input.train.get(self.state.sample)
-        feed = {
-            self.model.start: self._zero_start(),
-            self.model.x: np.reshape(
-                sample, [1, -1, self.input.dimension_count]),
-            self.model.y: np.reshape(
-                support.shift(sample, -1, padding=0),
-                [1, -1, self.input.dimension_count]),
-        }
-        fetch = {
-            'step': self.teacher.train_step,
-            'loss': self.teacher.train_loss,
-            'summary': self.train_summary,
-        }
-        result = self.session.run(fetch, feed)
-        self.summarer.add_summary(result['summary'], self.state.iteration)
-        return result['loss']
+    def run_train(self, sample_count=1):
+        for _ in range(sample_count):
+            self._run_train()
+            self._increment_time()
+
+    def _increment_time(self):
+        self.state.increment_time()
+        if self.state.is_new_epoch():
+            self.input.on_epoch(self.state)
+            support.log(
+                self, 'Current state: iteration {}, epoch {}, sample {}',
+                self.state.iteration, self.state.epoch, self.state.sample)
 
     def _run_test(self, sample, test_length):
         fetch = {
@@ -111,6 +84,25 @@ class Learner:
                 feed[self.model.start] = result['finish']
                 feed[self.model.x] = np.reshape(y_hat[i, j, :], [1, 1, -1])
         return y_hat
+
+    def _run_train(self):
+        sample = self.input.train.get(self.state.sample)
+        feed = {
+            self.model.start: self._zero_start(),
+            self.model.x: np.reshape(
+                sample, [1, -1, self.input.dimension_count]),
+            self.model.y: np.reshape(
+                support.shift(sample, -1, padding=0),
+                [1, -1, self.input.dimension_count]),
+        }
+        fetch = {
+            'step': self.teacher.train_step,
+            'loss': self.teacher.train_loss,
+            'summary': self.train_summary,
+        }
+        result = self.session.run(fetch, feed)
+        self.summarer.add_summary(result['summary'], self.state.iteration)
+        return result['loss']
 
     def _zero_start(self):
         return np.zeros(self.model.start.get_shape(), np.float32)
