@@ -9,10 +9,11 @@
 		}
 	},
 	"sampler": {
-		"dropout_rate": [[0.0, 0.0]],
+		"dropout_rate": [[0.0, 0.0], [0.0, 0.3]],
 		"layer_count": [1, 2, 3],
+		"learning_rate": [1e-4],
 		"unit_count": [100, 200, 400],
-		"learning_rate": [1e-5, 1e-4, 1e-3, 1e-2]
+		"use_peepholes": [true, false]
 	},
 	"concurrent_count": 2,
 	"max_iteration_count": 50000
