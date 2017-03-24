@@ -5,7 +5,6 @@ class Manager:
     def __init__(self, config):
         self.backup_schedule = Schedule(config.backup_schedule)
         self.test_schedule = Schedule(config.test_schedule)
-        self.listeners = {}
 
     def should_backup(self, state):
         return self.backup_schedule.should(state.iteration)
