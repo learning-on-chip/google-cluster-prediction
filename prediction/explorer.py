@@ -83,8 +83,7 @@ class Agent:
     def _load(path):
         scores = {}
         for path in glob.glob(os.path.join(path, 'score-*.txt')):
-            step_count = re.search('.*score-(.*).txt', path).group(1)
-            step_count = int(step_count)
+            step_count = int(re.search('.*score-(.*).txt', path).group(1))
             scores[step_count] = float(open(path).read())
             support.log(Agent, 'Score: {}', path)
         return scores

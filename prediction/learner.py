@@ -5,6 +5,7 @@ from .teacher import Teacher
 import glob
 import numpy as np
 import os
+import re
 import tensorflow as tf
 
 
@@ -40,7 +41,7 @@ class Learner:
 
     def run_backup(self):
         self.state.save(self.session)
-        self.checkpoint.save(self.session)
+        self.checkpoint.save(self.session, self.state)
 
     def run_test(self):
         errors = self.teacher.test(self.input.test, self._run_test)
@@ -109,25 +110,35 @@ class Learner:
 
 class Checkpoint:
     def __init__(self, output):
-        self.saver = tf.train.Saver()
-        self.path = os.path.join(output.path, 'model')
+        self.saver = tf.train.Saver(max_to_keep=100)
         self.auto = output.get('auto_restore')
+        self.path = output.path
 
-    def load(self, session):
-        if len(glob.glob('{}*'.format(self.path))) == 0:
+    def load(self, session, state=None):
+        paths = Checkpoint._load(self.path)
+        if len(paths) == 0:
             return
+        path = paths[np.max(list(paths.keys()))]
         should = self.auto
         if should is None:
-            answer = input('Restore checkpoint "{}"? '.format(self.path))
+            answer = input('Restore "{}"? '.format(path))
             should = not answer.lower().startswith('n')
         if not should:
             return
-        self.saver.restore(session, self.path)
-        support.log(self, 'Restore: {}', self.path)
+        self.saver.restore(session, path)
+        support.log(self, 'Restore: {}', path)
 
-    def save(self, session):
-        path = self.saver.save(session, self.path)
+    def save(self, session, state):
+        path = os.path.join(self.path, 'model-{}'.format(state.step))
+        path = self.saver.save(session, path)
         support.log(self, 'Save: {}', path)
+
+    def _load(path):
+        paths = {}
+        for path in glob.glob(os.path.join(path, 'model-*.meta')):
+            step_count = int(re.search('.*model-(.*).meta', path).group(1))
+            paths[step_count] = re.sub('.meta$', '', path)
+        return paths
 
 
 class State:
