@@ -9,7 +9,7 @@ class Baseline:
         self.summarer = summarer
 
     def run(self):
-        errors = self.teacher.test(self.input.test, self._run)
+        errors = self.teacher.assess(self.input.validation, self._run)
         for name in errors:
             tag = 'baseline_{}'.format(name)
             for i in range(len(errors[name])):
@@ -18,10 +18,10 @@ class Baseline:
         self.summarer.flush()
         return errors
 
-    def _run(self, sample, test_length):
+    def _run(self, sample, future_length):
         y_hat = np.empty(
-            [sample.shape[0], test_length, self.input.dimension_count])
+            [sample.shape[0], future_length, self.input.dimension_count])
         for i in range(sample.shape[0]):
-            for j in range(test_length):
+            for j in range(future_length):
                 y_hat[i, j, :] = sample[i, :]
         return y_hat

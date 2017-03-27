@@ -4,7 +4,7 @@
 		"max_sample_count": 10000,
 		"min_sample_length": 5,
 		"max_sample_length": 50,
-		"train_fraction": 0.7,
+		"training_fraction": 0.7,
 		"standard_count": 1000
 	},
 	"model": {
@@ -41,13 +41,11 @@
 				"learning_rate": 1e-4
 			}
 		},
-		"tester": {
-			"length": 4
-		}
+		"future_length": 4
 	},
 	"manager": {
 		"backup_period": 10000,
-		"test_period": 10000
+		"validation_period": 10000
 	},
 	"output": {
 		"baseline": true

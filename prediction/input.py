@@ -17,17 +17,19 @@ class BaseInput:
         def shuffle(self):
             self.index = Random.get().permutation(self.sample_count)
 
-    def __init__(self, train, test):
+    def __init__(self, training, validation):
         self.dimension_count = 1
-        self.train = train
-        self.test = test
-        support.log(self, 'Train samples: {}', self.train.sample_count)
-        support.log(self, 'Test samples: {}', self.test.sample_count)
+        self.training = training
+        self.validation = validation
+        support.log(
+            self, 'Training samples: {}', self.training.sample_count)
+        support.log(
+            self, 'Validation samples: {}', self.validation.sample_count)
 
     def on_epoch(self, state):
         random_state = Random.get().get_state()
         Random.get().seed(state.epoch)
-        self.train.shuffle()
+        self.training.shuffle()
         Random.get().set_state(random_state)
 
 
@@ -44,15 +46,16 @@ class FakeInput(BaseInput):
 
     def __init__(self, config):
         sample_count = config.max_sample_count
-        train_sample_count = int(config.train_fraction * sample_count)
-        test_sample_count = sample_count - train_sample_count
+        training_sample_count = int(config.training_fraction * sample_count)
+        validation_sample_count = sample_count - training_sample_count
         super(FakeInput, self).__init__(
-            FakeInput.Part(FakeInput._generate(train_sample_count)),
-            FakeInput.Part(FakeInput._generate(test_sample_count)))
+            FakeInput.Part(FakeInput._generate(training_sample_count)),
+            FakeInput.Part(FakeInput._generate(validation_sample_count)))
 
     def copy(self):
         copy = FakeInput.__new__(FakeInput)
-        super(FakeInput, copy).__init__(self.train.copy(), self.test.copy())
+        super(FakeInput, copy).__init__(self.training.copy(),
+                                        self.validation.copy())
         return copy
 
     def _compute(sample):
@@ -104,21 +107,22 @@ class RealInput(BaseInput):
                     support.format_percentage(selected_count, found_count))
         support.log(self, 'Preserved samples: {}',
                     support.format_percentage(preserved_count, found_count))
-        train_sample_count = int(config.train_fraction * len(samples))
-        test_sample_count = len(samples) - train_sample_count
-        train_samples = samples[:train_sample_count]
-        test_samples = samples[train_sample_count:]
-        standard_count = min(config.standard_count, train_sample_count)
-        standard = RealInput._standardize(train_samples, standard_count)
+        training_sample_count = int(config.training_fraction * len(samples))
+        validation_sample_count = len(samples) - training_sample_count
+        training_samples = samples[:training_sample_count]
+        validation_samples = samples[training_sample_count:]
+        standard_count = min(config.standard_count, training_sample_count)
+        standard = RealInput._standardize(training_samples, standard_count)
         support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
                     standard[0], standard[1], standard_count)
         super(RealInput, self).__init__(
-            RealInput.Part(train_samples, standard),
-            RealInput.Part(test_samples, standard))
+            RealInput.Part(training_samples, standard),
+            RealInput.Part(validation_samples, standard))
 
     def copy(self):
         copy = RealInput.__new__(RealInput)
-        super(RealInput, copy).__init__(self.train.copy(), self.test.copy())
+        super(RealInput, copy).__init__(self.training.copy(),
+                                        self.validation.copy())
         return copy
 
     def _standardize(samples, count):

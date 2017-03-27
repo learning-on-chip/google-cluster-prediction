@@ -22,7 +22,7 @@ class Explorer:
         self.agents = {}
 
     def run(self):
-        self.tuner.run(self._get, self._test)
+        self.tuner.run(self._generate, self._assess)
 
     def _configure(self, case):
         key = _tokenize(case)
@@ -34,13 +34,9 @@ class Explorer:
             _adjust(config, name, case[name])
         return config
 
-    def _get(self, count):
-        support.log(self, 'Generate: {} cases', count)
-        return [self.sampler.get() for _ in range(count)]
-
-    def _test(self, resource, cases):
+    def _assess(self, resource, cases):
         step_count = int(self.resource_scale * resource)
-        support.log(self, 'Evaluate: {} cases, up to {} steps',
+        support.log(self, 'Assess: {} cases, up to {} steps',
                     len(cases), step_count)
         agents = []
         for case in cases:
@@ -55,6 +51,10 @@ class Explorer:
             agent.submit(step_count)
             agents.append(agent)
         return [agent.collect(step_count) for agent in agents]
+
+    def _generate(self, count):
+        support.log(self, 'Generate: {} cases', count)
+        return [self.sampler.get() for _ in range(count)]
 
 
 class Agent:
@@ -106,7 +106,7 @@ class Agent:
             support.log(self, 'Learn: start at step {}, stop at step {}',
                         last_step_count, step_count)
             self.learner.run_train(step_count - last_step_count)
-            error = self.learner.run_test()['MNRMSE']
+            error = self.learner.run_validation()['MNRMSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
             score = np.sum(error * decay)
             Agent._save(self.output_path, step_count, score)

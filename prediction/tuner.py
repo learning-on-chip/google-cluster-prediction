@@ -9,13 +9,13 @@ class Hyperband:
         self.eta = eta
         self.count = int(np.log(resource) / np.log(eta)) + 1
 
-    def run(self, get, test):
+    def run(self, generate, assess):
         for i in reversed(range(self.count)):
             r = self.resource * self.eta**(-i)
             n = int(np.ceil(self.count // (i + 1) * self.eta**i))
-            c = get(n)
+            c = generate(n)
             for j in range(i + 1):
                 r_j = r * self.eta**j
                 n_j = n * self.eta**(-j)
-                ranking = np.argsort(test(r_j, c), kind='mergesort')
+                ranking = np.argsort(assess(r_j, c), kind='mergesort')
                 c = [c[k] for k in ranking[0:int(n_j / self.eta)]]

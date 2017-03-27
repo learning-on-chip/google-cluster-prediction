@@ -12,9 +12,10 @@ class DummyInput(BaseInput):
         def _get(self, sample):
             return self.samples[sample]
 
-    def __init__(self, train_sample_count, test_sample_count):
-        super(DummyInput, self).__init__(DummyInput.Part(train_sample_count),
-                                         DummyInput.Part(test_sample_count))
+    def __init__(self, train_sample_count, validation_sample_count):
+        super(DummyInput, self).__init__(
+            DummyInput.Part(train_sample_count),
+            DummyInput.Part(validation_sample_count))
 
 
 class DummyState:
@@ -29,5 +30,5 @@ class InputTestCase(unittest.TestCase):
             input.on_epoch(DummyState(epoch))
             Random.get().seed(epoch)
             expected_samples = np.arange(7)[Random.get().permutation(7)]
-            observed_samples = [input.train.get(i) for i in range(7)]
+            observed_samples = [input.training.get(i) for i in range(7)]
             self.assertTrue((expected_samples == observed_samples).all())

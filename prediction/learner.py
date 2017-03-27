@@ -16,11 +16,11 @@ class Learner:
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
                 with tf.variable_scope('state'):
-                    self.state = State(self.input.train.sample_count)
+                    self.state = State(self.input.training.sample_count)
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
-            tf.summary.scalar('train_loss', self.teacher.train_loss)
-            self.train_summary = tf.summary.merge_all()
+            tf.summary.scalar('training_loss', self.teacher.training_loss)
+            self.training_summary = tf.summary.merge_all()
             self.summarer = tf.summary.FileWriter(self.output.path, graph)
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
@@ -41,21 +41,22 @@ class Learner:
         self.state.save(self.session)
         self.checkpoint.save(self.session, self.state)
 
-    def run_test(self):
-        errors = self.teacher.test(self.input.test, self._run_test)
+    def run_train(self, sample_count=1):
+        for _ in range(sample_count):
+            self._run_train()
+            self._increment_time()
+
+    def run_validation(self):
+        errors = self.teacher.assess(self.input.validation,
+                                     self._run_assessment)
         for name in errors:
             for i in range(len(errors[name])):
-                tag = 'test_{}_{}'.format(name, i + 1)
+                tag = 'validation_{}_{}'.format(name, i + 1)
                 value = tf.Summary.Value(tag=tag, simple_value=errors[name][i])
                 self.summarer.add_summary(
                     tf.Summary(value=[value]), self.state.step)
         self.summarer.flush()
         return errors
-
-    def run_train(self, sample_count=1):
-        for _ in range(sample_count):
-            self._run_train()
-            self._increment_time()
 
     def _increment_time(self):
         self.state.increment_time()
@@ -64,19 +65,19 @@ class Learner:
             support.log(self, 'Current state: step {}, epoch {}, sample {}',
                         self.state.step, self.state.epoch, self.state.sample)
 
-    def _run_test(self, sample, test_length):
+    def _run_assessment(self, sample, future_length):
         fetch = {
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
         y_hat = np.empty(
-            [sample.shape[0], test_length, self.input.dimension_count])
+            [sample.shape[0], future_length, self.input.dimension_count])
         for i in range(sample.shape[0]):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
             }
-            for j in range(test_length):
+            for j in range(future_length):
                 result = self.session.run(fetch, feed)
                 y_hat[i, j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
@@ -84,7 +85,7 @@ class Learner:
         return y_hat
 
     def _run_train(self):
-        sample = self.input.train.get(self.state.sample)
+        sample = self.input.training.get(self.state.sample)
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(
@@ -94,9 +95,9 @@ class Learner:
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
-            'step': self.teacher.train_step,
-            'loss': self.teacher.train_loss,
-            'summary': self.train_summary,
+            'step': self.teacher.training_step,
+            'loss': self.teacher.training_loss,
+            'summary': self.training_summary,
         }
         result = self.session.run(fetch, feed)
         self.summarer.add_summary(result['summary'], self.state.step)

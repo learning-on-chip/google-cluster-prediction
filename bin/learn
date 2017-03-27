@@ -23,8 +23,8 @@ def main(config):
         learner.run_train()
         if manager.should_backup(learner.state):
             learner.run_backup()
-        if manager.should_test(learner.state):
-            learner.run_test()
+        if manager.should_validate(learner.state):
+            learner.run_validation()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
