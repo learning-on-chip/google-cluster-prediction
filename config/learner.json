@@ -46,8 +46,8 @@
 		}
 	},
 	"manager": {
-		"backup_schedule": [1000, 1],
-		"test_schedule": [10000, 1]
+		"backup_period": 10000,
+		"test_period": 10000
 	},
 	"output": {
 		"baseline": true

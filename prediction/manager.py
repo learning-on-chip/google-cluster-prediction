@@ -1,23 +1,13 @@
-import numpy as np
-
-
 class Manager:
     def __init__(self, config):
-        self.backup_schedule = Schedule(config.backup_schedule)
-        self.test_schedule = Schedule(config.test_schedule)
+        self.backup_period = config.backup_period
+        self.test_period = config.test_period
 
     def should_backup(self, state):
-        return self.backup_schedule.should(state.step)
+        return self._should(self.backup_period, state.step)
 
     def should_test(self, state):
-        return self.test_schedule.should(state.step)
+        return self._should(self.backup_period, state.step)
 
-
-class Schedule:
-    def __init__(self, schedule):
-        self.schedule = np.cumsum(schedule)
-
-    def should(self, step):
-        step = step % self.schedule[-1] + 1
-        phase = np.nonzero(self.schedule >= step)[0][0]
-        return phase % 2 == 1
+    def _should(self, period, step):
+        return step > 0 and step % period == 0
