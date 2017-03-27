@@ -43,7 +43,7 @@ class FakeInput(BaseInput):
             return FakeInput._compute(self.samples[sample, :])
 
     def __init__(self, config):
-        sample_count = 10000
+        sample_count = config.max_sample_count
         train_sample_count = int(config.train_fraction * sample_count)
         test_sample_count = sample_count - train_sample_count
         super(FakeInput, self).__init__(
