@@ -16,7 +16,7 @@ class Explorer:
         self.first = True
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
-        self.resource_scale = config.max_iteration_count / self.tuner.resource
+        self.resource_scale = config.max_step_count / self.tuner.resource
         self.sampler = Sampler(config.sampler)
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
         self.agents = {}
@@ -39,9 +39,9 @@ class Explorer:
         return [self.sampler.get() for _ in range(count)]
 
     def _test(self, resource, cases):
-        iteration_count = int(self.resource_scale * resource)
-        support.log(self, 'Evaluate: {} cases, up to {} iterations',
-                    len(cases), iteration_count)
+        step_count = int(self.resource_scale * resource)
+        support.log(self, 'Evaluate: {} cases, up to {} steps',
+                    len(cases), step_count)
         agents = []
         for case in cases:
             key = _tokenize(case)
@@ -52,9 +52,9 @@ class Explorer:
                 agent = Agent(learner, self.semaphore, config)
                 self.agents[key] = agent
                 self.first = False
-            agent.submit(iteration_count)
+            agent.submit(step_count)
             agents.append(agent)
-        return [agent.collect(iteration_count) for agent in agents]
+        return [agent.collect(step_count) for agent in agents]
 
 
 class Agent:
@@ -66,57 +66,56 @@ class Agent:
         self.lock = threading.Lock()
         self.done = threading.Lock()
 
-    def collect(self, iteration_count):
+    def collect(self, step_count):
         with self.done:
-            return self.scores[iteration_count]
+            return self.scores[step_count]
 
-    def submit(self, iteration_count):
+    def submit(self, step_count):
         with self.lock:
-            if iteration_count in self.scores:
+            if step_count in self.scores:
                 return
-            self.scores[iteration_count] = None
+            self.scores[step_count] = None
         self.done.acquire()
-        worker = threading.Thread(target=self._run, args=(iteration_count,),
+        worker = threading.Thread(target=self._run, args=(step_count,),
                                   daemon=True)
         worker.start()
 
     def _load(path):
         scores = {}
         for path in glob.glob(os.path.join(path, 'score-*.txt')):
-            iteration_count = re.search('.*score-(.*).txt', path).group(1)
-            iteration_count = int(iteration_count)
-            scores[iteration_count] = float(open(path).read())
+            step_count = re.search('.*score-(.*).txt', path).group(1)
+            step_count = int(step_count)
+            scores[step_count] = float(open(path).read())
             support.log(Agent, 'Score: {}', path)
         return scores
 
-    def _save(path, iteration_count, score):
-        path = os.path.join(path, 'score-{}.txt'.format(iteration_count))
+    def _save(path, step_count, score):
+        path = os.path.join(path, 'score-{}.txt'.format(step_count))
         with open(path, 'w') as file:
             file.write('{:.15e}'.format(score))
 
-    def _run(self, iteration_count):
+    def _run(self, step_count):
         with self.semaphore:
             with self.lock:
-                last_iteration_count = 0
+                last_step_count = 0
                 for key in self.scores:
                     if self.scores[key] is None:
                         continue
-                    if key > last_iteration_count:
-                        last_iteration_count = key
-            assert(last_iteration_count < iteration_count)
-            support.log(
-                self, 'Learn: start at iteration {}, stop at iteration {}',
-                last_iteration_count, iteration_count)
-            self.learner.run_train(iteration_count - last_iteration_count)
+                    if key > last_step_count:
+                        last_step_count = key
+            assert(last_step_count < step_count)
+            support.log(self, 'Learn: start at step {}, stop at step {}',
+                        last_step_count, step_count)
+            self.learner.run_train(step_count - last_step_count)
             error = self.learner.run_test()['MNRMSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
             score = np.sum(error * decay)
-            Agent._save(self.output_path, iteration_count, score)
+            Agent._save(self.output_path, step_count, score)
             self.learner.run_backup()
             with self.lock:
-                self.scores[iteration_count] = score
-            support.log(self, 'Learn: stop at iteration {}, score {}',
-                        iteration_count, score)
+                self.scores[step_count] = score
+            support.log(self, 'Learn: stop at step {}, score {}',
+                        step_count, score)
             self.done.release()
 
 

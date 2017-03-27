@@ -32,8 +32,8 @@ class Learner:
         self.state.load(self.session)
         self.input.on_epoch(self.state)
         support.log(self, 'Output path: {}', self.output.path)
-        support.log(self, 'Initial state: iteration {}, epoch {}, sample {}',
-                    self.state.iteration, self.state.epoch, self.state.sample)
+        support.log(self, 'Initial state: step {}, epoch {}, sample {}',
+                    self.state.step, self.state.epoch, self.state.sample)
         if self.output.baseline:
             baseline = Baseline(self.input, self.teacher, self.summarer)
             baseline.run()
@@ -49,7 +49,7 @@ class Learner:
                 tag = 'test_{}_{}'.format(name, i + 1)
                 value = tf.Summary.Value(tag=tag, simple_value=errors[name][i])
                 self.summarer.add_summary(
-                    tf.Summary(value=[value]), self.state.iteration)
+                    tf.Summary(value=[value]), self.state.step)
         self.summarer.flush()
         return errors
 
@@ -62,9 +62,8 @@ class Learner:
         self.state.increment_time()
         if self.state.is_new_epoch():
             self.input.on_epoch(self.state)
-            support.log(
-                self, 'Current state: iteration {}, epoch {}, sample {}',
-                self.state.iteration, self.state.epoch, self.state.sample)
+            support.log(self, 'Current state: step {}, epoch {}, sample {}',
+                        self.state.step, self.state.epoch, self.state.sample)
 
     def _run_test(self, sample, test_length):
         fetch = {
@@ -101,7 +100,7 @@ class Learner:
             'summary': self.train_summary,
         }
         result = self.session.run(fetch, feed)
-        self.summarer.add_summary(result['summary'], self.state.iteration)
+        self.summarer.add_summary(result['summary'], self.state.step)
         return result['loss']
 
     def _zero_start(self):
@@ -137,11 +136,11 @@ class State:
             [0, 0, 0], name='current', dtype=tf.int64, trainable=False)
         self.new = tf.placeholder(tf.int64, shape=3, name='new')
         self.assign_new = self.current.assign(self.new)
-        self.iteration, self.epoch, self.sample = None, None, None
+        self.step, self.epoch, self.sample = None, None, None
         self.sample_count = sample_count
 
     def increment_time(self):
-        self.iteration += 1
+        self.step += 1
         self.sample += 1
         if self.sample == self.sample_count:
             self.epoch += 1
@@ -152,10 +151,10 @@ class State:
 
     def load(self, session):
         state = session.run(self.current)
-        self.iteration, self.epoch, self.sample = state
+        self.step, self.epoch, self.sample = state
 
     def save(self, session):
         feed = {
-            self.new: [self.iteration, self.epoch, self.sample],
+            self.new: [self.step, self.epoch, self.sample],
         }
         session.run(self.assign_new, feed)

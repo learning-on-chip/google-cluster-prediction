@@ -16,5 +16,5 @@
 		"use_peepholes": [true, false]
 	},
 	"concurrent_count": 2,
-	"max_iteration_count": 50000
+	"max_step_count": 50000
 }

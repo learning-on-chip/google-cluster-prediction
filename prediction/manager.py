@@ -7,17 +7,17 @@ class Manager:
         self.test_schedule = Schedule(config.test_schedule)
 
     def should_backup(self, state):
-        return self.backup_schedule.should(state.iteration)
+        return self.backup_schedule.should(state.step)
 
     def should_test(self, state):
-        return self.test_schedule.should(state.iteration)
+        return self.test_schedule.should(state.step)
 
 
 class Schedule:
     def __init__(self, schedule):
         self.schedule = np.cumsum(schedule)
 
-    def should(self, iteration):
-        iteration = iteration % self.schedule[-1] + 1
-        phase = np.nonzero(self.schedule >= iteration)[0][0]
+    def should(self, step):
+        step = step % self.schedule[-1] + 1
+        phase = np.nonzero(self.schedule >= step)[0][0]
         return phase % 2 == 1
