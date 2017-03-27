@@ -130,10 +130,8 @@ class Sampler:
     def get(self):
         case = {}
         for name in sorted(self.parameters.keys()):
-            count = len(self.parameters[name])
-            if count > 1:
-                chosen = Random.get().randint(count)
-                case[name] = self.parameters[name][chosen]
+            chosen = Random.get().randint(len(self.parameters[name]))
+            case[name] = self.parameters[name][chosen]
         return case
 
 

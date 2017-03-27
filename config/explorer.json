@@ -11,7 +11,6 @@
 	"sampler": {
 		"dropout_rate": [[0.0, 0.0], [0.0, 0.3]],
 		"layer_count": [1, 2, 3],
-		"learning_rate": [1e-4],
 		"unit_count": [100, 200, 400],
 		"use_peepholes": [true, false]
 	},
