@@ -21,6 +21,7 @@ class Teacher:
     def _assess(input, future_length, predict):
         rmse_sum = np.zeros([future_length])
         nrmse_sum = np.zeros([future_length])
+        nrmse_sample_count = 0
         squared = np.zeros([future_length])
         count = np.zeros([future_length], dtype=np.int)
         for sample in range(input.sample_count):
@@ -37,8 +38,11 @@ class Teacher:
                 count[:length] += 1
             rmse = np.sqrt(squared / count)
             rmse_sum += rmse
-            nrmse_sum += rmse / (np.amax(sample) - np.amin(sample))
+            norm = np.amax(sample) - np.amin(sample)
+            if norm > 0:
+                nrmse_sample_count += 1
+                nrmse_sum += rmse / norm
         return {
             'MRMSE': rmse_sum / input.sample_count,
-            'MNRMSE': nrmse_sum / input.sample_count,
+            'MNRMSE': nrmse_sum / nrmse_sample_count,
         }
