@@ -111,10 +111,10 @@ class RealInput(BaseInput):
             support.format_percentage(preserved_count, available_count))
         training_samples = samples[:training_count]
         samples = samples[training_count:]
-        validation_samples = samples[:validation_samples]
-        samples = samples[validation_samples:]
-        test_samples = samples[:test_samples]
-        samples = samples[test_samples:]
+        validation_samples = samples[:validation_count]
+        samples = samples[validation_count:]
+        test_samples = samples[:test_count]
+        samples = samples[test_count:]
         assert(len(samples) == 0)
         standard_count = min(config.standard_count, training_count)
         standard = RealInput._standardize(training_samples, standard_count)
