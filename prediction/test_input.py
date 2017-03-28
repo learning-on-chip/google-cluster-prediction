@@ -12,10 +12,10 @@ class DummyInput(BaseInput):
         def _get(self, sample):
             return self.samples[sample]
 
-    def __init__(self, train_sample_count, validation_sample_count):
-        super(DummyInput, self).__init__(
-            DummyInput.Part(train_sample_count),
-            DummyInput.Part(validation_sample_count))
+    def __init__(self, training_count, validation_count, test_count):
+        super(DummyInput, self).__init__(DummyInput.Part(training_count),
+                                         DummyInput.Part(validation_count),
+                                         DummyInput.Part(test_count))
 
 
 class DummyState:
@@ -25,7 +25,7 @@ class DummyState:
 
 class InputTestCase(unittest.TestCase):
     def test_on_epoch(self):
-        input = DummyInput(7, 3)
+        input = DummyInput(7, 0, 0)
         for epoch in [0, 1, 2, 3]:
             input.on_epoch(DummyState(epoch))
             Random.get().seed(epoch)
