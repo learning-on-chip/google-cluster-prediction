@@ -12,6 +12,8 @@ class Checkpoint:
         self.path = output.path
 
     def load(self, session, state=None):
+        if self.auto is False:
+            return
         paths = Checkpoint._load(self.path)
         if len(paths) == 0:
             return
@@ -36,7 +38,7 @@ class Checkpoint:
         elif self.auto is True:
             i = -1
         else:
-            return
+            i = step_counts.index(self.auto)
         path = paths[step_counts[i]]
         self.saver.restore(session, path)
         support.log(self, 'Restore: {}', path)

@@ -22,16 +22,18 @@ class Explorer:
         self.agents = {}
 
     def run(self):
-        config, resource, score = self.tuner.run(self._generate, self._assess)
+        case, resource, score = self.tuner.run(self._generate, self._assess)
         step_count = int(self.resource_scale * resource)
-        support.log(self, 'Best: {} (step {}, score {})',
-                    config, step_count, score)
+        support.log(self, 'Best: case {}, step {}, score {}',
+                    case, step_count, score)
+        config = self._configure(case, 'test', auto_restore=step_count)
+        learner = Learner(self.input.copy(), config)
+        learner.run_test()
 
-    def _configure(self, case):
-        key = _tokenize(case)
+    def _configure(self, case, key, auto_restore=True):
         config = self.config.copy()
         config.output.baseline = self.first
-        config.output.auto_restore = True
+        config.output.auto_restore = auto_restore
         config.output.path = os.path.join(config.output.path, key)
         for name in case:
             _adjust(config, name, case[name])
@@ -46,7 +48,7 @@ class Explorer:
             key = _tokenize(case)
             agent = self.agents.get(key)
             if agent is None:
-                config = self._configure(case)
+                config = self._configure(case, key)
                 learner = Learner(self.input.copy(), config)
                 agent = Agent(learner, self.semaphore, config)
                 self.agents[key] = agent
