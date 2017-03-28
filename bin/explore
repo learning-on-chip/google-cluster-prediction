@@ -9,6 +9,7 @@ from prediction import Comparator
 from prediction import Config
 from prediction import Explorer
 from prediction import Input
+from prediction import Learner
 from prediction import Random
 from prediction import support
 import argparse
@@ -26,8 +27,7 @@ def main(config):
     config.learner.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()
-    config = explorer.configure(case, 'test', restore=step_count)
-    config.output.path = os.path.join(path, 'learner')
+    config = explorer.configure(case, restore=step_count)
     learner = Learner(input, config)
     compatator.run(learner, 'test')
 

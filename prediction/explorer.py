@@ -20,10 +20,11 @@ class Explorer:
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
         self.agents = {}
 
-    def configure(self, case, name, restore=True):
+    def configure(self, case, restore=True):
+        key = _tokenize(case)
         config = self.config.copy()
         config.output.restore = restore
-        config.output.path = os.path.join(config.output.path, name)
+        config.output.path = os.path.join(config.output.path, key)
         for key in case:
             _adjust(config, key, case[key])
         return config
@@ -44,7 +45,7 @@ class Explorer:
             key = _tokenize(case)
             agent = self.agents.get(key)
             if agent is None:
-                config = self.configure(case, key)
+                config = self.configure(case)
                 learner = Learner(self.input.copy(), config)
                 agent = Agent(learner, self.semaphore, config)
                 self.agents[key] = agent
