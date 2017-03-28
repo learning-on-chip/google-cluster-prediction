@@ -13,7 +13,6 @@ class Explorer:
     def __init__(self, input, config):
         self.input = input
         self.config = config.learner
-        self.first = True
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
         self.resource_scale = config.max_step_count / self.tuner.resource
@@ -21,23 +20,20 @@ class Explorer:
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
         self.agents = {}
 
+    def configure(self, case, name, restore=True):
+        config = self.config.copy()
+        config.output.restore = restore
+        config.output.path = os.path.join(config.output.path, name)
+        for key in case:
+            _adjust(config, key, case[key])
+        return config
+
     def run(self):
         case, resource, score = self.tuner.run(self._generate, self._assess)
         step_count = int(self.resource_scale * resource)
         support.log(self, 'Best: case {}, step {}, score {}',
                     case, step_count, score)
-        config = self._configure(case, 'test', auto_restore=step_count)
-        learner = Learner(self.input.copy(), config)
-        learner.run_test()
-
-    def _configure(self, case, key, auto_restore=True):
-        config = self.config.copy()
-        config.output.baseline = self.first
-        config.output.auto_restore = auto_restore
-        config.output.path = os.path.join(config.output.path, key)
-        for name in case:
-            _adjust(config, name, case[name])
-        return config
+        return (case, step_count)
 
     def _assess(self, resource, cases):
         step_count = int(self.resource_scale * resource)
@@ -48,11 +44,10 @@ class Explorer:
             key = _tokenize(case)
             agent = self.agents.get(key)
             if agent is None:
-                config = self._configure(case, key)
+                config = self.configure(case, key)
                 learner = Learner(self.input.copy(), config)
                 agent = Agent(learner, self.semaphore, config)
                 self.agents[key] = agent
-                self.first = False
             agent.submit(step_count)
             agents.append(agent)
         return [agent.collect(step_count) for agent in agents]
@@ -134,32 +129,31 @@ class Sampler:
 
     def get(self):
         case = {}
-        for name in sorted(self.parameters.keys()):
-            chosen = Random.get().randint(len(self.parameters[name]))
-            case[name] = self.parameters[name][chosen]
+        for key in sorted(self.parameters.keys()):
+            chosen = Random.get().randint(len(self.parameters[key]))
+            case[key] = self.parameters[key][chosen]
         return case
 
 
-def _adjust(config, name, value):
-    if name == 'dropout_rate':
+def _adjust(config, key, value):
+    if key == 'dropout_rate':
         config.model.dropout.options.input_keep_prob = 1 - value[0]
         config.model.dropout.options.output_keep_prob = 1 - value[1]
-    elif name == 'layer_count':
+    elif key == 'layer_count':
         config.model.layer_count = value
-    elif name == 'learning_rate':
+    elif key == 'learning_rate':
         config.teacher.optimizer.options.learning_rate = value
-    elif name == 'unit_count':
+    elif key == 'unit_count':
         config.model.unit_count = value
-    elif name == 'use_peepholes':
+    elif key == 'use_peepholes':
         config.model.cell.options.use_peepholes = value
     else:
         assert(False)
 
 def _tokenize(case):
-    names = sorted(case.keys())
     chunks = []
-    for name in names:
-        alias = ''.join([chunk[0] for chunk in name.split('_')])
-        value = str(case[name]).replace(' ', '')
+    for key in sorted(case.keys()):
+        alias = ''.join([chunk[0] for chunk in key.split('_')])
+        value = str(case[key]).replace(' ', '')
         chunks.append('{}={}'.format(alias, value))
     return ','.join(chunks)

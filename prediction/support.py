@@ -2,6 +2,10 @@ import datetime
 import inspect
 import logging
 import numpy as np
+import os
+
+def default_output():
+    return os.path.join('output', format_timestamp())
 
 def figure(width=14, height=6):
     import matplotlib.pyplot as pp

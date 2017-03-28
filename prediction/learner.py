@@ -1,5 +1,4 @@
 from . import support
-from .baseline import Baseline
 from .checkpoint import Checkpoint
 from .model import Model
 from .teacher import Teacher
@@ -33,9 +32,6 @@ class Learner:
         support.log(self, 'Output path: {}', self.output.path)
         support.log(self, 'Initial state: step {}, epoch {}, sample {}',
                     self.state.step, self.state.epoch, self.state.sample)
-        if self.output.baseline:
-            baseline = Baseline(self.input, self.teacher, self.summarer)
-            baseline.run()
 
     def run_backup(self):
         self.state.save(self.session)

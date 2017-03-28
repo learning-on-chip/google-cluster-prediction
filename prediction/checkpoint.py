@@ -6,19 +6,19 @@ import tensorflow as tf
 
 
 class Checkpoint:
-    def __init__(self, output):
+    def __init__(self, config):
         self.saver = tf.train.Saver(max_to_keep=100)
-        self.auto = output.get('auto_restore')
-        self.path = output.path
+        self.restore = config.get('restore')
+        self.path = config.path
 
     def load(self, session, state=None):
-        if self.auto is False:
+        if self.restore is False:
             return
         paths = Checkpoint._load(self.path)
         if len(paths) == 0:
             return
         step_counts = sorted(list(paths.keys()))
-        if self.auto is None:
+        if self.restore is None:
             print('Choose one of the following options:')
             print('    0. Start anew')
             for i, step_count in enumerate(step_counts):
@@ -35,10 +35,10 @@ class Checkpoint:
                 else:
                     i -= 1
                     break
-        elif self.auto is True:
+        elif self.restore is True:
             i = -1
         else:
-            i = step_counts.index(self.auto)
+            i = step_counts.index(self.restore)
         path = paths[step_counts[i]]
         self.saver.restore(session, path)
         support.log(self, 'Restore: {}', path)

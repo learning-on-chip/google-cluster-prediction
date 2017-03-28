@@ -49,6 +49,5 @@
 		"validation_period": 10000
 	},
 	"output": {
-		"baseline": true
 	}
 }

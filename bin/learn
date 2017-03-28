@@ -4,6 +4,8 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from prediction import Baseline
+from prediction import Comparator
 from prediction import Config
 from prediction import Input
 from prediction import Learner
@@ -16,7 +18,13 @@ import json
 def main(config):
     support.loggalize()
     Random.initialize(config.seed)
+    compatator = Comparator()
     input = Input(config.input)
+    path = config.output.get('path', support.default_output())
+    config.output.path = os.path.join(path, 'baseline')
+    baseline = Baseline(input, config)
+    compatator.run(baseline)
+    config.output.path = os.path.join(path, 'learner')
     learner = Learner(input, config)
     manager = Manager(config.manager)
     while True:
@@ -37,6 +45,4 @@ if __name__ == '__main__':
         config.input.path = arguments.input
     if arguments.output is not None:
         config.output.path = arguments.output
-    if config.output.get('path') is None:
-        config.output.path = os.path.join('output', support.format_timestamp())
     main(config)
