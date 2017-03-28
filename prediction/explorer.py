@@ -22,7 +22,10 @@ class Explorer:
         self.agents = {}
 
     def run(self):
-        self.tuner.run(self._generate, self._assess)
+        config, resource, score = self.tuner.run(self._generate, self._assess)
+        step_count = int(self.resource_scale * resource)
+        support.log(self, 'Best: {} (step {}, score {})',
+                    config, step_count, score)
 
     def _configure(self, case):
         key = _tokenize(case)
