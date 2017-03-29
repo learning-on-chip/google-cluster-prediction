@@ -74,11 +74,11 @@ class Learner:
             support.log(self, 'Current state: step {}, epoch {}, sample {}',
                         self.state.step, self.state.epoch, self.state.sample)
 
-    def _run_assessment(self, input, label):
+    def _run_assessment(self, input, tag_prefix):
         errors = self.teacher.assess(input, self._assess)
         for name in errors:
             for i in range(len(errors[name])):
-                tag = '{}_{}_{}'.format(label, name, i + 1)
+                tag = '{}_{}_{}'.format(tag_prefix, name, i + 1)
                 value = tf.Summary.Value(tag=tag, simple_value=errors[name][i])
                 self.summarer.add_summary(
                     tf.Summary(value=[value]), self.state.step)

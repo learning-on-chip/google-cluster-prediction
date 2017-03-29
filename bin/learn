@@ -23,7 +23,7 @@ def main(config):
     path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'baseline')
     baseline = Baseline(input, config)
-    compatator.run(baseline)
+    compatator.run(baseline, 'validation')
     config.output.path = os.path.join(path, 'learner')
     learner = Learner(input, config)
     manager = Manager(config.manager)
