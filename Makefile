@@ -13,13 +13,10 @@ learn: input/distribution.csv
 test:
 	pytest prediction
 
-watch:
-	./bin/watch 0.0.0.0:4242
-
 input/distribution.csv: input/distribution
 	./bin/index $< $@
 
 input/%:
 	${MAKE} -C input $*
 
-.PHONY: all analyze learn test watch
+.PHONY: all analyze learn test
