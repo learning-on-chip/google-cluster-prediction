@@ -1,5 +1,7 @@
-distribution: data/output/task_usage/.downloaded data/output/task_usage/distribution/.processed
+distribution:
+	${MAKE} -C data distribute TABLE=task_usage
 	ln -sf data/output/task_usage/distribution $@
 
-data/%:
-	${MAKE} -C data $*
+meta.sqlite3:
+	${MAKE} -C data convert TABLE=job_events
+	ln -sf data/output/job_events.sqlite3 $@
