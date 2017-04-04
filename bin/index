@@ -6,9 +6,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from prediction import database
 from prediction import support
+import argparse
 import glob
 
-def main(input_path, index_path, report_each=10000):
+def main(input_path, meta_path, index_path, report_each=10000):
     support.loggalize()
     support.log('Input path: {}', input_path)
     paths = glob.glob('{}/**/*.sqlite3'.format(input_path))
@@ -29,5 +30,9 @@ def main(input_path, index_path, report_each=10000):
                             trace_count)
 
 if __name__ == '__main__':
-    assert(len(sys.argv) == 3)
-    main(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', required=True)
+    parser.add_argument('--meta', required=True)
+    parser.add_argument('--output', required=True)
+    arguments = parser.parse_args()
+    main(arguments.input, arguments.meta, arguments.output)
