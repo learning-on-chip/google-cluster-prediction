@@ -34,7 +34,7 @@ class Teacher:
                 length = np.min([sample_length - (i + 1), future_length])
                 deviation = y_hat[i, :length, :] - \
                             sample[(i + 1):(i + 1 + length), :]
-                squared[:length] += np.sum(deviation**2, axis=0)
+                squared[:length] += np.sum(deviation**2, axis=-1)
                 count[:length] += 1
             rmse = np.sqrt(squared / count)
             rmse_sum += rmse
