@@ -31,9 +31,9 @@ class Teacher:
             squared.fill(0)
             count.fill(0)
             for i in range(sample_length):
-                length = np.min([sample_length - (i + 1), future_length])
-                deviation = y_hat[i, :length, :] - \
-                            sample[(i + 1):(i + 1 + length), :]
+                length = min(sample_length - (i + 1), future_length)
+                deviation = sample[(i + 1):(i + 1 + length), :] - \
+                            y_hat[i, :length, :]
                 squared[:length] += np.sum(deviation**2, axis=-1)
                 count[:length] += 1
             rmse = np.sqrt(squared / count)
