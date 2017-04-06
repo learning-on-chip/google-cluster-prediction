@@ -23,6 +23,7 @@ def main(config):
     path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'baseline')
     baseline = Baseline(input, config)
+    compatator.run(baseline, 'validation')
     compatator.run(baseline, 'test')
     config.output.path = os.path.join(path, 'learner')
     learner = Learner(input, config)
@@ -33,8 +34,8 @@ def main(config):
                 learner.run_train()
                 if manager.should_backup(learner.state):
                     learner.run_backup()
-                if manager.should_test(learner.state):
-                    learner.run_test()
+                if manager.should_validation(learner.state):
+                    learner.run_validation()
         except KeyboardInterrupt:
             print()
         i = support.ask('Abort', 'Continue training',
@@ -44,6 +45,7 @@ def main(config):
         elif i == 1:
             continue
         elif i == 2:
+            compatator.run(learner, 'validation')
             compatator.run(learner, 'test')
             return
 
