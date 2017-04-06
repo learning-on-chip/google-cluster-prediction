@@ -4,8 +4,8 @@
 		"max_sample_count": 10000,
 		"min_sample_length": 5,
 		"max_sample_length": 50,
-		"training_fraction": 0.6,
-		"validation_fraction": 0.2,
+		"training_fraction": 0.7,
+		"validation_fraction": 0.1,
 		"standard_count": 1000
 	},
 	"model": {
@@ -45,8 +45,8 @@
 		"future_length": 4
 	},
 	"manager": {
-		"backup_period": 10000,
-		"validation_period": 10000
+		"backup_period": 7000,
+		"validation_period": 7000
 	},
 	"output": {
 	}
