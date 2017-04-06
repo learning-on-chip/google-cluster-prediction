@@ -8,7 +8,27 @@ def count_job_task_samples(path):
         GROUP BY `job ID`, `task index`
         ORDER BY `job ID`, `task index`
     """
-    return _execute(path, query, dtype=np.int)
+    def _process(cursor):
+        return np.array([row for row in cursor], dtype=np.int)
+    return _execute(path, query, _process)
+
+def map_job_to_user_app(path):
+    query = """
+        SELECT `job ID`, `user`, `logical job name`
+        FROM `job_events`
+        WHERE `event type` = 0
+        ORDER BY `job ID`
+    """
+    def _process(cursor):
+        jobs, users, apps = {}, {}, {}
+        for row in cursor:
+            user = users.get(row[1], len(users))
+            app = apps.get(row[2], len(apps))
+            jobs[row[0]] = (user, app)
+            users[row[1]] = user
+            apps[row[2]] = app
+        return jobs
+    return _execute(path, query, _process)
 
 def select_task_usage(path, job, task):
     query = """
@@ -17,12 +37,14 @@ def select_task_usage(path, job, task):
         WHERE `job ID` = {} AND `task index` = {}
         ORDER BY `start time`
     """
-    return _execute(path, query.format(job, task), dtype=np.float32)
+    def _process(cursor):
+        return np.array([row for row in cursor], dtype=np.float32)
+    return _execute(path, query.format(job, task), _process)
 
-def _execute(path, query, **arguments):
+def _execute(path, query, process):
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
     cursor.execute(query)
-    data = np.array([row for row in cursor], **arguments)
+    data = process(cursor)
     connection.close()
     return data

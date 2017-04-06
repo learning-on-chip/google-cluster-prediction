@@ -1,5 +1,6 @@
 from . import database
 from . import support
+from .index import Index
 from .random import Random
 import numpy as np
 
@@ -85,30 +86,26 @@ class RealInput(BaseInput):
 
     def __init__(self, config):
         support.log(self, 'Input path: {}', config.path)
-        available_count = 0
         samples = []
-        with open(config.path, 'r') as file:
-            for record in file:
-                available_count += 1
-                record = record.split(',')
-                length = int(record[-1])
-                if length < config.min_sample_length:
-                    continue
-                if length > config.max_sample_length:
-                    continue
-                samples.append((record[0], int(record[1]), int(record[2])))
+        def _process(path, job, task, length, **_):
+            if length < config.min_sample_length:
+                return
+            if length > config.max_sample_length:
+                return
+            samples.append((path, job, task))
+        processed_count = Index.decode(config.path, _process)
         Random.get().shuffle(samples)
-        selected_count = len(samples)
+        constrained_count = len(samples)
         preserved_count, training_count, validation_count, test_count = \
-            _partition(selected_count, config)
+            _partition(constrained_count, config)
         samples = samples[:preserved_count]
-        support.log(self, 'Available samples: {}', available_count)
+        support.log(self, 'Processed samples: {}', processed_count)
         support.log(
-            self, 'Selected samples: {}',
-            support.format_percentage(selected_count, available_count))
+            self, 'Constrained samples: {}',
+            support.format_percentage(constrained_count, processed_count))
         support.log(
             self, 'Preserved samples: {}',
-            support.format_percentage(preserved_count, available_count))
+            support.format_percentage(preserved_count, processed_count))
         training_samples = samples[:training_count]
         samples = samples[training_count:]
         validation_samples = samples[:validation_count]
@@ -149,8 +146,8 @@ def Input(config):
         return FakeInput(config)
 
 
-def _partition(available_count, config):
-    preserved_count = min(available_count, config.max_sample_count)
+def _partition(count, config):
+    preserved_count = min(count, config.max_sample_count)
     training_count = int(config.training_fraction * preserved_count)
     assert(training_count > 0)
     validation_count = int(config.validation_fraction * preserved_count)
