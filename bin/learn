@@ -23,16 +23,29 @@ def main(config):
     path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'baseline')
     baseline = Baseline(input, config)
-    compatator.run(baseline, 'validation')
+    compatator.run(baseline, 'test')
     config.output.path = os.path.join(path, 'learner')
     learner = Learner(input, config)
     manager = Manager(config.manager)
     while True:
-        learner.run_train()
-        if manager.should_backup(learner.state):
-            learner.run_backup()
-        if manager.should_validate(learner.state):
-            learner.run_validation()
+        try:
+            while True:
+                learner.run_train()
+                if manager.should_backup(learner.state):
+                    learner.run_backup()
+                if manager.should_validate(learner.state):
+                    learner.run_validation()
+        except KeyboardInterrupt:
+            print()
+        i = support.ask('Abort', 'Continue training',
+                        'Stop training and start testing')
+        if i == 0:
+            return
+        elif i == 1:
+            continue
+        elif i == 2:
+            compatator.run(learner, 'test')
+            return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

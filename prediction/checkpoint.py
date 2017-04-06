@@ -19,22 +19,12 @@ class Checkpoint:
             return
         step_counts = sorted(list(paths.keys()))
         if self.restore is None:
-            print('Choose one of the following options:')
-            print('    0. Start anew')
-            for i, step_count in enumerate(step_counts):
-                print('    {}. Load {}'.format(i + 1, paths[step_count]))
-            while True:
-                try:
-                    i = int(input('Your choice: '))
-                except ValueError:
-                    continue
-                if i < 0 or i > len(step_counts):
-                    continue
-                elif i == 0:
-                    return
-                else:
-                    i -= 1
-                    break
+            options = ['Load ' + paths[key] for key in step_counts]
+            i = support.ask('Start anew', *options)
+            if i == 0:
+                return
+            else:
+                i -= 1
         elif self.restore is True:
             i = -1
         else:

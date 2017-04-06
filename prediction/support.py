@@ -4,6 +4,19 @@ import logging
 import numpy as np
 import os
 
+def ask(*options):
+    print('Choose one of the following options:')
+    for i, option in enumerate(options):
+        print('    {}. {}'.format(i, option))
+    while True:
+        try:
+            i = int(input('Your choice: '))
+        except ValueError:
+            continue
+        if i < 0 or i >= len(options):
+            continue
+        return i
+
 def default_output():
     return os.path.join('output', format_timestamp())
 
