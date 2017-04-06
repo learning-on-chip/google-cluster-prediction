@@ -1,13 +1,12 @@
+import sys
+
+
 class Manager:
     def __init__(self, config):
-        self.backup_period = config.backup_period
-        self.validation_period = config.validation_period
+        self.config = config
 
-    def should_backup(self, state):
-        return self._should(self.backup_period, state.step)
-
-    def should_validate(self, state):
-        return self._should(self.validation_period, state.step)
-
-    def _should(self, period, step):
-        return step > 0 and step % period == 0
+    def __getattr__(self, name):
+        assert(name.startswith('should_'))
+        name = name.replace('should_', '')
+        period = self.config.get(name + '_period', sys.maxsize)
+        return lambda state: state.step > 0 and state.step % period == 0
