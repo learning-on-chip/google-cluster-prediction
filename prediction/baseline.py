@@ -16,9 +16,9 @@ class Baseline:
         return self.teacher.assess(self.input.validation, self._run_assessment)
 
     def _run_assessment(self, sample, future_length):
-        y_hat = np.empty(
-            [sample.shape[0], future_length, self.input.dimension_count])
-        for i in range(sample.shape[0]):
+        sample_length, dimension_count = sample.shape
+        y_hat = np.empty([sample_length, future_length, dimension_count])
+        for i in range(sample_length):
             for j in range(future_length):
                 y_hat[i, j, :] = sample[i, :]
         return y_hat

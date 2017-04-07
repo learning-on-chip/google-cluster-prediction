@@ -53,9 +53,9 @@ class Learner:
             'y_hat': self.model.y_hat,
             'finish': self.model.finish,
         }
-        y_hat = np.empty(
-            [sample.shape[0], future_length, self.input.dimension_count])
-        for i in range(sample.shape[0]):
+        sample_length, dimension_count = sample.shape
+        y_hat = np.empty([sample_length, future_length, dimension_count])
+        for i in range(sample_length):
             feed = {
                 self.model.start: self._zero_start(),
                 self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
@@ -64,7 +64,7 @@ class Learner:
                 result = self.session.run(fetch, feed)
                 y_hat[i, j, :] = result['y_hat'][0, -1, :]
                 feed[self.model.start] = result['finish']
-                feed[self.model.x] = np.reshape(y_hat[i, j, :], [1, 1, -1])
+                feed[self.model.x] = y_hat[i:(i + 1), j:(j + 1), :]
         return y_hat
 
     def _increment_time(self):
