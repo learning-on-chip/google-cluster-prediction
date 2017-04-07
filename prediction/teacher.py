@@ -26,7 +26,6 @@ class Teacher:
         nrmse_sum = np.zeros([future_length])
         flat_count = 0
         sum = np.zeros([future_length])
-        count = np.zeros([future_length], dtype=np.int)
         for sample in range(input.sample_count):
             sample = input.get(sample)
             norm = np.amax(sample) - np.amin(sample)
@@ -36,14 +35,11 @@ class Teacher:
             sample_length, dimension_count = sample.shape
             y_hat = predict(sample, future_length)
             sum.fill(0)
-            count.fill(0)
             for i in range(sample_length):
                 length = min(sample_length - (i + 1), future_length)
-                deviation = sample[(i + 1):(i + 1 + length), :] - \
-                            y_hat[i, :length, :]
-                sum[:length] += np.sum(deviation**2, axis=-1)
-                count[:length] += dimension_count
-            rmse = np.sqrt(sum / count)
+                y_hat[i, :length, :] -= sample[(i + 1):(i + 1 + length), :]
+                sum += np.sum(y_hat[i, :, :]**2, axis=-1)
+            rmse = np.sqrt(sum / sample_length / dimension_count)
             rmse_sum += rmse
             nrmse_sum += rmse / norm
         if flat_count > 0:
