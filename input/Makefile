@@ -1,5 +1,5 @@
 distribution:
-	${MAKE} -C data distribute TABLE=task_usage
+	${MAKE} -C data download distribute TABLE=task_usage
 	ln -sf data/output/task_usage/distribution $@
 
 meta.sqlite3:
