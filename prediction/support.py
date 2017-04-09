@@ -62,3 +62,11 @@ def shift(data, amount, padding=0.0):
     elif amount < 0:
         data[amount:, :] = padding
     return data
+
+def tokenize(dictionary):
+    chunks = []
+    for key in sorted(dictionary.keys()):
+        alias = ''.join([chunk[0] for chunk in key.split('_')])
+        value = str(dictionary[key]).replace(' ', '')
+        chunks.append('{}={}'.format(alias, value))
+    return ','.join(chunks).lower()

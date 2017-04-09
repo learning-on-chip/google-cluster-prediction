@@ -21,7 +21,7 @@ class Explorer:
         self.agents = {}
 
     def configure(self, case, restore=True):
-        key = _tokenize(case)
+        key = support.tokenize(case)
         config = self.config.copy()
         config.output.restore = restore
         config.output.path = os.path.join(config.output.path, key)
@@ -42,7 +42,7 @@ class Explorer:
                     len(cases), step_count)
         agents = []
         for case in cases:
-            key = _tokenize(case)
+            key = support.tokenize(case)
             agent = self.agents.get(key)
             if agent is None:
                 config = self.configure(case)
@@ -150,11 +150,3 @@ def _adjust(config, key, value):
         config.model.cell.options.use_peepholes = value
     else:
         assert(False)
-
-def _tokenize(case):
-    chunks = []
-    for key in sorted(case.keys()):
-        alias = ''.join([chunk[0] for chunk in key.split('_')])
-        value = str(case[key]).replace(' ', '')
-        chunks.append('{}={}'.format(alias, value))
-    return ','.join(chunks)
