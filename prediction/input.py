@@ -14,16 +14,12 @@ class Input:
         def __init__(self, path):
             pattern = os.path.join(path, '**', '*.tfrecords')
             self.paths = sorted(glob.glob(pattern, recursive=True))
-            self.count = 0
-            for _ in self._iterate():
-                self.count += 1
-            self._reset(0)
+            self.restart()
 
         def copy(self):
             copy = Input.Part.__new__(Input.Part)
             copy.paths = self.paths
-            copy.count = copy.count
-            copy._reset(0)
+            copy.restart()
             return copy
 
         def iterate(self):
@@ -33,21 +29,18 @@ class Input:
         def next(self):
             return _parse(next(self.iterator))
 
-        def on_epoch(self, state):
-            self._reset(state.epoch)
+        def restart(self, seed=0):
+            random_state = Random.get().get_state()
+            Random.get().seed(seed)
+            index = Random.get().permutation(len(self.paths))
+            Random.get().set_state(random_state)
+            self.iterator = self._iterate(index)
 
         def _iterate(self, index=None):
             for i in index if not index is None else range(len(self.paths)):
                 for record in tf.python_io.tf_record_iterator(self.paths[i]):
                     yield record
             raise StopIteration()
-
-        def _reset(self, seed):
-            random_state = Random.get().get_state()
-            Random.get().seed(seed)
-            index = Random.get().permutation(len(self.paths))
-            Random.get().set_state(random_state)
-            self.iterator = self._iterate(index)
 
     def __init__(self, config):
         self.dimension_count = 1
@@ -62,9 +55,6 @@ class Input:
         self.training = Input.Part(training_path)
         self.validation = Input.Part(validation_path)
         self.test = Input.Part(test_path)
-        support.log(self, 'Training samples: {}', self.training.count)
-        support.log(self, 'Validation samples: {}', self.validation.count)
-        support.log(self, 'Test samples: {}', self.test.count)
 
     def copy(self):
         copy = Input.__new__(Input)
@@ -73,9 +63,6 @@ class Input:
         copy.validation = self.validation.copy()
         copy.test = self.test.copy()
         return copy
-
-    def on_epoch(self, state):
-        self.training.on_epoch(state)
 
 
 class Fake:

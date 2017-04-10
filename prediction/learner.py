@@ -15,7 +15,7 @@ class Learner:
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
                 with tf.variable_scope('state'):
-                    self.state = State(self.input.training.count)
+                    self.state = State()
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
             tf.summary.scalar('training_loss', self.teacher.training_loss)
@@ -28,7 +28,7 @@ class Learner:
         self.session.run(initialize)
         self.checkpoint.load(self.session)
         self.state.load(self.session)
-        self.input.on_epoch(self.state)
+        self.input.training.restart(self.state.epoch)
         support.log(self, 'Output path: {}', self.output.path)
         support.log(self, 'Initial state: step {}, epoch {}, sample {}',
                     self.state.step, self.state.epoch, self.state.sample)
@@ -42,8 +42,15 @@ class Learner:
 
     def run_train(self, sample_count=1):
         for _ in range(sample_count):
-            self._run_train()
-            self._increment_time()
+            try:
+                self._run_train()
+                self.state.increment_time()
+            except StopIteration:
+                self.state.increment_epoch()
+                self.input.training.restart(self.state.epoch)
+                support.log(
+                    self, 'Current state: step {}, epoch {}, sample {}',
+                    self.state.step, self.state.epoch, self.state.sample)
 
     def run_validation(self):
         return self._run_assessment(self.input.validation, 'validation')
@@ -66,13 +73,6 @@ class Learner:
                 feed[self.model.start] = result['finish']
                 feed[self.model.x] = y_hat[i:(i + 1), j:(j + 1), :]
         return y_hat
-
-    def _increment_time(self):
-        self.state.increment_time()
-        if self.state.is_new_epoch():
-            self.input.on_epoch(self.state)
-            support.log(self, 'Current state: step {}, epoch {}, sample {}',
-                        self.state.step, self.state.epoch, self.state.sample)
 
     def _run_assessment(self, input, tag_prefix):
         errors = self.teacher.assess(input, self._assess)
@@ -109,23 +109,20 @@ class Learner:
 
 
 class State:
-    def __init__(self, sample_count):
+    def __init__(self):
         self.current = tf.Variable(
             [0, 0, 0], name='current', dtype=tf.int64, trainable=False)
         self.new = tf.placeholder(tf.int64, shape=3, name='new')
         self.assign_new = self.current.assign(self.new)
         self.step, self.epoch, self.sample = None, None, None
-        self.sample_count = sample_count
+
+    def increment_epoch(self):
+        self.epoch += 1
+        self.sample = 0
 
     def increment_time(self):
         self.step += 1
         self.sample += 1
-        if self.sample == self.sample_count:
-            self.epoch += 1
-            self.sample = 0
-
-    def is_new_epoch(self):
-        return self.sample == 0
 
     def load(self, session):
         state = session.run(self.current)
