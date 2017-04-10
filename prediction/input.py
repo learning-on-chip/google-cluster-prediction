@@ -66,11 +66,12 @@ class Input:
 
 
 class Fake:
-    def _distribute(path, metas):
-        _distribute(path, metas, lambda i: Fake._fetch(*metas[i]))
+    def _distribute(path, metas, **arguments):
+        return _distribute(path, metas, lambda i: Fake._fetch(*metas[i]),
+                           **arguments)
 
     def _fetch(a, b, n):
-        return np.sin(a * np.linspace(0, n - 1, n) + b).tolist()
+        return np.sin(a * np.linspace(0, n - 1, n) + b)
 
     def _generate(count):
         metas = Random.get().rand(count, 3)
@@ -85,18 +86,17 @@ class Fake:
         training_metas = Fake._generate(training_count)
         validation_metas = Fake._generate(validation_count)
         test_metas = Fake._generate(test_count)
-        if not os.path.exists(training_path):
-            Fake._distribute(training_path, training_metas)
-        if not os.path.exists(validation_path):
-            Fake._distribute(validation_path, validation_metas)
-        if not os.path.exists(test_path):
-            Fake._distribute(test_path, test_metas)
+        standard = Fake._distribute(training_path, training_metas)
+        support.log(Fake, 'Standard mean: {}, deviation: {}', *standard)
+        Fake._distribute(validation_path, validation_metas, standard=standard)
+        Fake._distribute(test_path, test_metas, standard=standard)
 
 
 class Real:
-    def _distribute(path, metas):
-        _distribute(path, [meta[1:] for meta in metas],
-                    lambda i: database.select_task_usage(*metas[i]))
+    def _distribute(path, metas, **arguments):
+        return _distribute(path, [meta[1:] for meta in metas],
+                           lambda i: database.select_task_usage(*metas[i]),
+                           **arguments)
 
     def _index(config):
         metas = []
@@ -132,15 +132,35 @@ class Real:
         support.log(Real, 'Index path: {}', config.path)
         training_metas, validation_metas, test_metas = \
             Real._partition(Real._index(config), config)
-        if not os.path.exists(training_path):
-            Real._distribute(training_path, training_metas)
-        if not os.path.exists(validation_path):
-            Real._distribute(validation_path, validation_metas)
-        if not os.path.exists(test_path):
-            Real._distribute(test_path, test_metas)
+        standard = Real._distribute(training_path, training_metas)
+        support.log(Real, 'Standard mean: {}, deviation: {}', *standard)
+        Real._distribute(validation_path, validation_metas, standard=standard)
+        Real._distribute(test_path, test_metas, standard=standard)
 
 
-def _distribute(path, metas, fetch, separator=',', granularity=2):
+class Standard:
+    def __init__(self):
+        self.s, self.m, self.v, self.k = None, None, None, 0
+
+    def consume(self, data):
+        for value in data:
+            self.k += 1
+            if self.k == 1:
+                self.s = data[0]
+                self.m = data[0]
+                self.v = 0
+            else:
+                m = self.m
+                self.s += value
+                self.m += (value - self.m) / self.k
+                self.v += (value - m) * (value - self.m)
+
+    def finish(self):
+        return (self.s / self.k, np.sqrt(self.v / (self.k - 1)))
+
+
+def _distribute(path, metas, fetch,
+                standard=(0, 1), separator=',', granularity=2):
     os.makedirs(path)
     count = len(metas)
     support.log('Distribute samples: {}, path: {}', count, path)
@@ -148,6 +168,7 @@ def _distribute(path, metas, fetch, separator=',', granularity=2):
     names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
     names = [name[:granularity] for name in names]
     seen = {}
+    new_standard = Standard()
     for i in range(count):
         if names[i] in seen:
             continue
@@ -158,12 +179,15 @@ def _distribute(path, metas, fetch, separator=',', granularity=2):
             if names[i] != names[j]:
                 continue
             data = fetch(j)
+            new_standard.consume(data)
+            data = (data - standard[0]) / standard[1]
             feature = tf.train.Feature(
-                float_list=tf.train.FloatList(value=data))
+                float_list=tf.train.FloatList(value=data.tolist()))
             example = tf.train.Example(
                 features=tf.train.Features(feature={'data': feature}))
             writer.write(example.SerializeToString())
         writer.close()
+    return new_standard.finish()
 
 def _identify(config):
     real = 'path' in config
