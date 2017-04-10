@@ -15,7 +15,7 @@ class Learner:
             with tf.variable_scope('model'):
                 self.model = Model(config.model)
                 with tf.variable_scope('state'):
-                    self.state = State(self.input.training.sample_count)
+                    self.state = State(self.input.training.count)
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
             tf.summary.scalar('training_loss', self.teacher.training_loss)
@@ -86,7 +86,7 @@ class Learner:
         return errors
 
     def _run_train(self):
-        sample = self.input.training.get(self.state.sample)
+        sample = self.input.training.next()
         feed = {
             self.model.start: self._zero_start(),
             self.model.x: np.reshape(

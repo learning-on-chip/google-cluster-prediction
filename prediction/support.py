@@ -46,7 +46,7 @@ def log(*arguments, name_limit=8, number_limit=4):
         name = first.__class__.__name__
         number = id(first)
     name = ('{:' + str(name_limit) + '}').format(name)
-    name = name[:name_limit].upper()
+    name = name[:name_limit]
     number = ('{:0' + str(number_limit) + '}').format(number)
     number = number[-number_limit:]
     logging.info('[%s|%s] %s', name, number, message.format(*arguments))

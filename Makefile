@@ -1,17 +1,17 @@
-analyze: input/distribution.csv
+analyze: input/index.csv
 	./bin/analyze $<
 
-explore: input/distribution.csv
+explore: input/index.csv
 	./bin/explore --input $< --config config/explorer.json
 
-learn: input/distribution.csv
+learn: input/index.csv
 	./bin/learn --input $< --config config/learner.json
 
 test:
 	pytest prediction
 
-input/distribution.csv: input/distribution input/meta.sqlite3
-	./bin/index --input input/distribution --meta input/meta.sqlite3 --output $@
+input/index.csv: input/data input/meta.sqlite3
+	./bin/index --input $< --meta input/meta.sqlite3 --output $@
 
 input/%:
 	${MAKE} -C input $*

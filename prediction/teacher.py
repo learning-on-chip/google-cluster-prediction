@@ -24,10 +24,10 @@ class Teacher:
     def _assess(input, future_length, predict):
         rmse_sum = np.zeros([future_length])
         nrmse_sum = np.zeros([future_length])
-        flat_count = 0
+        total_count, flat_count = 0, 0
         sum = np.zeros([future_length])
-        for sample in range(input.sample_count):
-            sample = input.get(sample)
+        for sample in input.iterate():
+            total_count += 1
             norm = np.amax(sample) - np.amin(sample)
             if norm < Teacher._EPSILON:
                 flat_count += 1
@@ -45,8 +45,8 @@ class Teacher:
         if flat_count > 0:
             support.log(
                 Teacher, 'Flat samples: {}',
-                support.format_percentage(flat_count, input.sample_count))
+                support.format_percentage(flat_count, total_count))
         return {
-            'MRMSE': rmse_sum / (input.sample_count - flat_count),
-            'MNRMSE': nrmse_sum / (input.sample_count - flat_count),
+            'MRMSE': rmse_sum / (total_count - flat_count),
+            'MNRMSE': nrmse_sum / (total_count - flat_count),
         }

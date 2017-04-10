@@ -2,149 +2,200 @@ from . import database
 from . import support
 from .index import Index
 from .random import Random
+import glob
+import hashlib
 import numpy as np
+import os
+import tensorflow as tf
 
 
-class BaseInput:
+class Input:
     class Part:
-        def __init__(self, samples):
-            self.sample_count = len(samples)
-            self.samples = samples
-            self.index = np.arange(self.sample_count)
-
-        def get(self, sample):
-            return self._get(self.index[sample])
-
-        def shuffle(self):
-            self.index = Random.get().permutation(self.sample_count)
-
-    def __init__(self, training, validation, test):
-        self.dimension_count = 1
-        self.training = training
-        self.validation = validation
-        self.test = test
-        support.log(self, 'Training samples: {}', training.sample_count)
-        support.log(self, 'Validation samples: {}', validation.sample_count)
-        support.log(self, 'Test samples: {}', test.sample_count)
-
-    def on_epoch(self, state):
-        random_state = Random.get().get_state()
-        Random.get().seed(state.epoch)
-        self.training.shuffle()
-        Random.get().set_state(random_state)
-
-
-class FakeInput(BaseInput):
-    class Part(BaseInput.Part):
-        def __init__(self, samples):
-            super(FakeInput.Part, self).__init__(samples)
+        def __init__(self, path):
+            pattern = os.path.join(path, '**', '*.tfrecords')
+            self.paths = sorted(glob.glob(pattern, recursive=True))
+            self.count = 0
+            for _ in self._iterate():
+                self.count += 1
+            self._reset(0)
 
         def copy(self):
-            return FakeInput.Part(self.samples)
+            copy = Input.Part.__new__(Input.Part)
+            copy.paths = self.paths
+            copy.count = copy.count
+            copy._reset(0)
+            return copy
 
-        def _get(self, sample):
-            return FakeInput._compute(self.samples[sample, :])
+        def iterate(self):
+            for record in self._iterate():
+                yield _parse(record)
+
+        def next(self):
+            return _parse(next(self.iterator))
+
+        def on_epoch(self, state):
+            self._reset(state.epoch)
+
+        def _iterate(self, index=None):
+            for i in index if not index is None else range(len(self.paths)):
+                for record in tf.python_io.tf_record_iterator(self.paths[i]):
+                    yield record
+            raise StopIteration()
+
+        def _reset(self, seed):
+            random_state = Random.get().get_state()
+            Random.get().seed(seed)
+            index = Random.get().permutation(len(self.paths))
+            Random.get().set_state(random_state)
+            self.iterator = self._iterate(index)
 
     def __init__(self, config):
-        _, training_count, validation_count, test_count = \
-            _partition(config.max_sample_count, config)
-        super(FakeInput, self).__init__(
-            FakeInput.Part(FakeInput._generate(training_count)),
-            FakeInput.Part(FakeInput._generate(validation_count)),
-            FakeInput.Part(FakeInput._generate(test_count)))
+        self.dimension_count = 1
+        klass, training_path, validation_path, test_path = _identify(config)
+        support.log(self, 'Training path: {}', training_path)
+        support.log(self, 'Validation path: {}', validation_path)
+        support.log(self, 'Test path: {}', test_path)
+        if not os.path.exists(training_path) or \
+           not os.path.exists(validation_path) or \
+           not os.path.exists(test_path):
+           klass._prepare(training_path, validation_path, test_path, config)
+        self.training = Input.Part(training_path)
+        self.validation = Input.Part(validation_path)
+        self.test = Input.Part(test_path)
+        support.log(self, 'Training samples: {}', self.training.count)
+        support.log(self, 'Validation samples: {}', self.validation.count)
+        support.log(self, 'Test samples: {}', self.test.count)
 
     def copy(self):
-        copy = FakeInput.__new__(FakeInput)
-        super(FakeInput, copy).__init__(
-            self.training.copy(), self.validation.copy(), self.test.copy())
+        copy = Input.__new__(Input)
+        copy.dimension_count = self.dimension_count
+        copy.training = self.training.copy()
+        copy.validation = self.validation.copy()
+        copy.test = self.test.copy()
         return copy
 
-    def _compute(sample):
-        a, b, n = sample[0], sample[1], int(sample[2])
-        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), (-1, 1))
+    def on_epoch(self, state):
+        self.training.on_epoch(state)
+
+
+class Fake:
+    def _distribute(path, metas):
+        _distribute(path, metas, lambda i: Fake._fetch(*metas[i]))
+
+    def _fetch(a, b, n):
+        return np.sin(a * np.linspace(0, n - 1, n) + b).tolist()
 
     def _generate(count):
-        samples = Random.get().rand(count, 3)
-        samples[:, 0] = 0.5 + 1.5 * samples[:, 0]
-        samples[:, 1] = 5 * samples[:, 1]
-        samples[:, 2] = np.round(5 + 15 * samples[:, 2])
-        return samples
+        metas = Random.get().rand(count, 3)
+        metas[:, 0] = 0.5 + 1.5 * metas[:, 0]
+        metas[:, 1] = 5 * metas[:, 1]
+        metas[:, 2] = np.round(5 + 15 * metas[:, 2])
+        return metas
+
+    def _prepare(training_path, validation_path, test_path, config):
+        _, training_count, validation_count, test_count = \
+            _partition(config.max_sample_count, config)
+        training_metas = Fake._generate(training_count)
+        validation_metas = Fake._generate(validation_count)
+        test_metas = Fake._generate(test_count)
+        if not os.path.exists(training_path):
+            Fake._distribute(training_path, training_metas)
+        if not os.path.exists(validation_path):
+            Fake._distribute(validation_path, validation_metas)
+        if not os.path.exists(test_path):
+            Fake._distribute(test_path, test_metas)
 
 
-class RealInput(BaseInput):
-    class Part(BaseInput.Part):
-        def __init__(self, samples, standard):
-            super(RealInput.Part, self).__init__(samples)
-            self.standard = standard
+class Real:
+    def _distribute(path, metas):
+        _distribute(path, [meta[1:] for meta in metas],
+                    lambda i: database.select_task_usage(*metas[i]))
 
-        def copy(self):
-            return RealInput.Part(self.samples, self.standard)
-
-        def _get(self, sample):
-            data = database.select_task_usage(*self.samples[sample])
-            return (data - self.standard[0]) / self.standard[1]
-
-    def __init__(self, config):
-        support.log(self, 'Input path: {}', config.path)
-        samples = []
-        def _process(path, job, task, length, **_):
+    def _index(config):
+        metas = []
+        def _callback(path, job, task, length, **_):
             if length < config.min_sample_length:
                 return
             if length > config.max_sample_length:
                 return
-            samples.append((path, job, task))
-        processed_count = Index.decode(config.path, _process)
-        Random.get().shuffle(samples)
-        constrained_count = len(samples)
+            metas.append((path, job, task))
+        found_count = Index.decode(config.path, _callback)
+        support.log(Real, 'Found samples: {}', found_count)
+        support.log(Real, 'Selected samples: {}',
+                    support.format_percentage(len(metas), found_count))
+        Random.get().shuffle(metas)
+        return metas
+
+    def _partition(metas, config):
         preserved_count, training_count, validation_count, test_count = \
-            _partition(constrained_count, config)
-        samples = samples[:preserved_count]
-        support.log(self, 'Processed samples: {}', processed_count)
-        support.log(
-            self, 'Constrained samples: {}',
-            support.format_percentage(constrained_count, processed_count))
-        support.log(
-            self, 'Preserved samples: {}',
-            support.format_percentage(preserved_count, processed_count))
-        training_samples = samples[:training_count]
-        samples = samples[training_count:]
-        validation_samples = samples[:validation_count]
-        samples = samples[validation_count:]
-        test_samples = samples[:test_count]
-        samples = samples[test_count:]
-        assert(len(samples) == 0)
-        standard_count = min(config.standard_count, training_count)
-        standard = RealInput._standardize(training_samples, standard_count)
-        support.log(self, 'Mean: {:e}, deviation: {:e} ({} samples)',
-                    standard[0], standard[1], standard_count)
-        super(RealInput, self).__init__(
-            RealInput.Part(training_samples, standard),
-            RealInput.Part(validation_samples, standard),
-            RealInput.Part(test_samples, standard))
+            _partition(len(metas), config)
+        support.log(Real, 'Preserved samples: {}',
+                    support.format_percentage(preserved_count, len(metas)))
+        metas = metas[:preserved_count]
+        training_metas = metas[:training_count]
+        metas = metas[training_count:]
+        validation_metas = metas[:validation_count]
+        metas = metas[validation_count:]
+        test_metas = metas[:test_count]
+        metas = metas[test_count:]
+        assert(len(metas) == 0)
+        return training_metas, validation_metas, test_metas
 
-    def copy(self):
-        copy = RealInput.__new__(RealInput)
-        super(RealInput, copy).__init__(
-            self.training.copy(), self.validation.copy(), self.test.copy())
-        return copy
-
-    def _standardize(samples, count):
-        data = np.array([], dtype=np.float32)
-        for sample in Random.get().permutation(len(samples))[:count]:
-            data = np.append(
-                data, database.select_task_usage(*samples[sample]))
-        if len(data) > 0:
-            return (np.mean(data), np.std(data))
-        else:
-            return (0.0, 1.0)
+    def _prepare(training_path, validation_path, test_path, config):
+        support.log(Real, 'Index path: {}', config.path)
+        training_metas, validation_metas, test_metas = \
+            Real._partition(Real._index(config), config)
+        if not os.path.exists(training_path):
+            Real._distribute(training_path, training_metas)
+        if not os.path.exists(validation_path):
+            Real._distribute(validation_path, validation_metas)
+        if not os.path.exists(test_path):
+            Real._distribute(test_path, test_metas)
 
 
-def Input(config):
-    if config.get('path') is not None:
-        return RealInput(config)
-    else:
-        return FakeInput(config)
+def _distribute(path, metas, fetch, separator=',', granularity=2):
+    os.makedirs(path)
+    count = len(metas)
+    support.log('Distribute samples: {}, path: {}', count, path)
+    names = [separator.join([str(meta) for meta in meta]) for meta in metas]
+    names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
+    names = [name[:granularity] for name in names]
+    seen = {}
+    for i in range(count):
+        if names[i] in seen:
+            continue
+        seen[names[i]] = True
+        writer = tf.python_io.TFRecordWriter(
+            os.path.join(path, names[i] + '.tfrecords'))
+        for j in range(i, count):
+            if names[i] != names[j]:
+                continue
+            data = fetch(j)
+            feature = tf.train.Feature(
+                float_list=tf.train.FloatList(value=data))
+            example = tf.train.Example(
+                features=tf.train.Features(feature={'data': feature}))
+            writer.write(example.SerializeToString())
+        writer.close()
 
+def _identify(config):
+    real = 'path' in config
+    klass = Real if real else Fake
+    path = os.path.dirname(config.path) if real else 'input'
+    key = hashlib.md5(support.tokenize(config).encode('utf-8')).hexdigest()
+    path = os.path.join(path, 'data-' + key)
+    return [
+        klass,
+        os.path.join(path, 'training'),
+        os.path.join(path, 'validation'),
+        os.path.join(path, 'test'),
+    ]
+
+def _parse(record):
+    example = tf.train.Example()
+    example.ParseFromString(record)
+    data = example.features.feature['data'].float_list.value
+    return np.reshape([value for value in data], [-1, 1])
 
 def _partition(count, config):
     preserved_count = min(count, config.max_sample_count)

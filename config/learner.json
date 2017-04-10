@@ -5,8 +5,7 @@
 		"min_sample_length": 5,
 		"max_sample_length": 50,
 		"training_fraction": 0.7,
-		"validation_fraction": 0.1,
-		"standard_count": 1000
+		"validation_fraction": 0.1
 	},
 	"model": {
 		"dimension_count": 1,

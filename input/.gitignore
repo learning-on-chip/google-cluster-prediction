@@ -1,2 +1,4 @@
-distribution*
-meta.sqlite3
+*.csv
+*.sqlite3
+*.tfrecords
+data

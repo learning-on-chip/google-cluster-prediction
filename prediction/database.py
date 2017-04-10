@@ -1,4 +1,3 @@
-import numpy as np
 import sqlite3
 
 def count_job_task_samples(path):
@@ -9,7 +8,7 @@ def count_job_task_samples(path):
         ORDER BY `job ID`, `task index`
     """
     def _process(cursor):
-        return np.array([row for row in cursor], dtype=np.int)
+        return cursor.fetchall()
     return _execute(path, query, _process)
 
 def map_job_to_user_app(path):
@@ -38,7 +37,7 @@ def select_task_usage(path, job, task):
         ORDER BY `start time`
     """
     def _process(cursor):
-        return np.array([row for row in cursor], dtype=np.float32)
+        return [row[0] for row in cursor]
     return _execute(path, query.format(job, task), _process)
 
 def _execute(path, query, process):
