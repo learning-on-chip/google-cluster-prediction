@@ -142,6 +142,9 @@ class Standard:
     def __init__(self):
         self.s, self.m, self.v, self.k = None, None, None, 0
 
+    def compute(self):
+        return (self.s / self.k, np.sqrt(self.v / (self.k - 1)))
+
     def consume(self, data):
         for value in data:
             self.k += 1
@@ -154,9 +157,6 @@ class Standard:
                 self.s += value
                 self.m += (value - self.m) / self.k
                 self.v += (value - m) * (value - self.m)
-
-    def finish(self):
-        return (self.s / self.k, np.sqrt(self.v / (self.k - 1)))
 
 
 def _distribute(path, metas, fetch,
@@ -187,7 +187,7 @@ def _distribute(path, metas, fetch,
                 features=tf.train.Features(feature={'data': feature}))
             writer.write(example.SerializeToString())
         writer.close()
-    return new_standard.finish()
+    return new_standard.compute()
 
 def _identify(config):
     real = 'path' in config

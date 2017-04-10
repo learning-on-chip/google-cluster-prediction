@@ -10,6 +10,6 @@ class StandardTestCase(unittest.TestCase):
         standard = Standard()
         standard.consume(data[:4])
         standard.consume(data[4:])
-        mean, deviation = standard.finish()
+        mean, deviation = standard.compute()
         self.assertTrue(np.abs(expected_mean - mean) < epsilon)
         self.assertTrue(np.abs(expected_deviation - deviation) < epsilon)
