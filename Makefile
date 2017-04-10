@@ -16,4 +16,8 @@ input/index.csv: input/data input/meta.sqlite3
 input/%:
 	${MAKE} -C input $*
 
-.PHONY: all analyze learn test
+clean:
+	rm -rf input/data-*
+	rm -rf output
+
+.PHONY: all analyze clean learn test
