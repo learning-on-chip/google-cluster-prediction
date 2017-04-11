@@ -21,7 +21,7 @@ class Index:
 
     def encode(input_path, meta_path, index_path, report_each=10000):
         support.log(Index, 'Input path: {}', input_path)
-        pattrn = os.path.join(input_path, '**', '*.sqlite3')
+        pattern = os.path.join(input_path, '**', '*.sqlite3')
         paths = sorted(glob.glob(pattern, recursive=True))
         database_count = len(paths)
         support.log(Index, 'Databases: {}', database_count)
@@ -44,7 +44,10 @@ class Index:
                     record[2], # Length
                 ]
                 file.write(','.join([str(item) for item in record]) + '\n')
-            if (i + 1) % report_each == 0 or (i + 1) == database_count:
-                support.log(Index, 'Processed: {} ({:.2f}%), traces: {}',
-                            i + 1, 100 * (i + 1) / database_count, trace_count)
+            done_count = i + 1
+            if done_count % report_each == 0 or done_count == database_count:
+                support.log(
+                    Index, 'Processed: {}, traces: {}',
+                    support.format_percentage(done_count, database_count),
+                    trace_count)
         file.close()

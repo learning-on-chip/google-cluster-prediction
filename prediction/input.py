@@ -107,17 +107,19 @@ class Real:
                 return
             metas.append((path, job, task))
         found_count = Index.decode(config.path, _callback)
+        selected_count = len(metas)
         support.log(Real, 'Found samples: {}', found_count)
         support.log(Real, 'Selected samples: {}',
-                    support.format_percentage(len(metas), found_count))
+                    support.format_percentage(selected_count, found_count))
         Random.get().shuffle(metas)
         return metas
 
     def _partition(metas, config):
+        sample_count = len(metas)
         preserved_count, training_count, validation_count, test_count = \
-            _partition(len(metas), config)
+            _partition(sample_count, config)
         support.log(Real, 'Preserved samples: {}',
-                    support.format_percentage(preserved_count, len(metas)))
+                    support.format_percentage(preserved_count, sample_count))
         metas = metas[:preserved_count]
         training_metas = metas[:training_count]
         metas = metas[training_count:]
@@ -159,23 +161,24 @@ class Standard:
                 self.v += (value - m) * (value - self.m)
 
 
-def _distribute(path, metas, fetch,
-                standard=(0, 1), separator=',', granularity=2):
+def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
+                granularity=2, report_each=10000):
     os.makedirs(path)
-    count = len(metas)
-    support.log('Distribute samples: {}, path: {}', count, path)
+    sample_count = len(metas)
+    support.log('Distributed path: {}, samples: {}', path, sample_count)
     names = [separator.join([str(meta) for meta in meta]) for meta in metas]
     names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
     names = [name[:granularity] for name in names]
     seen = {}
+    done_count = 0
     new_standard = Standard()
-    for i in range(count):
+    for i in range(sample_count):
         if names[i] in seen:
             continue
         seen[names[i]] = True
         writer = tf.python_io.TFRecordWriter(
             os.path.join(path, names[i] + '.tfrecords'))
-        for j in range(i, count):
+        for j in range(i, sample_count):
             if names[i] != names[j]:
                 continue
             data = fetch(j)
@@ -186,6 +189,11 @@ def _distribute(path, metas, fetch,
             example = tf.train.Example(
                 features=tf.train.Features(feature={'data': feature}))
             writer.write(example.SerializeToString())
+            done_count += 1
+            if done_count % report_each == 0 or done_count == sample_count:
+                support.log(
+                    'Distributed samples: {}',
+                    support.format_percentage(done_count, sample_count))
         writer.close()
     return new_standard.compute()
 
