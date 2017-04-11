@@ -37,6 +37,15 @@ class Learner:
         self.state.save(self.session)
         self.checkpoint.save(self.session, self.state)
 
+    def run_compare(self, target):
+        errors = getattr(self, 'run_{}'.format(target))()
+        for key in errors:
+            tag = 'comparison_{}_{}'.format(target, key)
+            for i in range(len(errors[key])):
+                value = tf.Summary.Value(tag=tag, simple_value=errors[key][i])
+                self.summarer.add_summary(tf.Summary(value=[value]), i + 1)
+        self.summarer.flush()
+
     def run_test(self):
         return self._run_assessment(self.input.test, 'test')
 

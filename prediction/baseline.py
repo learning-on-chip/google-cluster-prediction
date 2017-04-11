@@ -2,12 +2,9 @@ from .learner import Learner
 import numpy as np
 
 
-class Baseline:
+class Baseline(Learner):
     def __init__(self, *arguments):
-        learner = Learner(*arguments)
-        self.input = learner.input
-        self.teacher = learner.teacher
-        self.summarer = learner.summarer
+        super(Baseline, self).__init__(*arguments)
 
     def run_test(self):
         return self.teacher.assess(self.input.test, self._run_assessment)
