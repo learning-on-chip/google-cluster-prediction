@@ -21,8 +21,8 @@ def main(config):
     path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'baseline')
     baseline = Baseline(input, config)
-    baseline.run_compare('validation')
-    baseline.run_compare('test')
+    baseline.run_comparison('validation')
+    baseline.run_comparison('test')
     config.output.path = os.path.join(path, 'learner')
     learner = Learner(input, config)
     manager = Manager(config.manager)
@@ -43,8 +43,8 @@ def main(config):
         elif i == 1:
             continue
         elif i == 2:
-            learner.run_compare('validation')
-            learner.run_compare('test')
+            learner.run_comparison('validation')
+            learner.run_comparison('test')
             return
 
 if __name__ == '__main__':

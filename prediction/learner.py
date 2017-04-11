@@ -37,7 +37,7 @@ class Learner:
         self.state.save(self.session)
         self.checkpoint.save(self.session, self.state)
 
-    def run_compare(self, target):
+    def run_comparison(self, target):
         errors = getattr(self, 'run_{}'.format(target))()
         for key in errors:
             tag = 'comparison_{}_{}'.format(target, key)
