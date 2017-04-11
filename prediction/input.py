@@ -51,7 +51,19 @@ class Input:
         if not os.path.exists(training_path) or \
            not os.path.exists(validation_path) or \
            not os.path.exists(test_path):
-           klass._prepare(training_path, validation_path, test_path, config)
+            training_metas, validation_metas, test_metas = klass._prepare(
+                training_path, validation_path, test_path, config)
+            standard = _standartize(training_metas, klass._fetch)
+            support.log(self, 'Standard mean: {}, deviation: {}', *standard)
+            if not os.path.exists(training_path):
+                _distribute(training_path, training_metas, klass._fetch,
+                            standard=standard)
+            if not os.path.exists(validation_path):
+                _distribute(validation_path, validation_metas, klass._fetch,
+                            standard=standard)
+            if not os.path.exists(test_path):
+                _distribute(test_path, test_metas, klass._fetch,
+                            standard=standard)
         self.training = Input.Part(training_path)
         self.validation = Input.Part(validation_path)
         self.test = Input.Part(test_path)
@@ -66,10 +78,6 @@ class Input:
 
 
 class Fake:
-    def _distribute(path, metas, **arguments):
-        return _distribute(path, metas, lambda i: Fake._fetch(*metas[i]),
-                           **arguments)
-
     def _fetch(a, b, n):
         return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), [-1, 1])
 
@@ -86,17 +94,11 @@ class Fake:
         training_metas = Fake._generate(training_count)
         validation_metas = Fake._generate(validation_count)
         test_metas = Fake._generate(test_count)
-        standard = Fake._distribute(training_path, training_metas)
-        support.log(Fake, 'Standard mean: {}, deviation: {}', *standard)
-        Fake._distribute(validation_path, validation_metas, standard=standard)
-        Fake._distribute(test_path, test_metas, standard=standard)
 
 
 class Real:
-    def _distribute(path, metas, **arguments):
-        return _distribute(path, [meta[1:] for meta in metas],
-                           lambda i: database.select_task_usage(*metas[i]),
-                           **arguments)
+    def _fetch(*meta):
+        return database.select_task_usage(*meta)
 
     def _index(config):
         metas = []
@@ -114,7 +116,9 @@ class Real:
         Random.get().shuffle(metas)
         return metas
 
-    def _partition(metas, config):
+    def _prepare(training_path, validation_path, test_path, config):
+        support.log(Real, 'Index path: {}', config.path)
+        metas = Real._index(config)
         sample_count = len(metas)
         preserved_count, training_count, validation_count, test_count = \
             _partition(sample_count, config)
@@ -129,15 +133,6 @@ class Real:
         metas = metas[test_count:]
         assert(len(metas) == 0)
         return training_metas, validation_metas, test_metas
-
-    def _prepare(training_path, validation_path, test_path, config):
-        support.log(Real, 'Index path: {}', config.path)
-        training_metas, validation_metas, test_metas = \
-            Real._partition(Real._index(config), config)
-        standard = Real._distribute(training_path, training_metas)
-        support.log(Real, 'Standard mean: {}, deviation: {}', *standard)
-        Real._distribute(validation_path, validation_metas, standard=standard)
-        Real._distribute(test_path, test_metas, standard=standard)
 
 
 class Standard:
@@ -171,7 +166,6 @@ def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
     names = [name[:granularity] for name in names]
     seen = {}
     done_count = 0
-    new_standard = Standard()
     for i in range(sample_count):
         if names[i] in seen:
             continue
@@ -181,9 +175,7 @@ def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
         for j in range(i, sample_count):
             if names[i] != names[j]:
                 continue
-            data = fetch(j)
-            new_standard.consume(data)
-            data = (np.ravel(data) - standard[0]) / standard[1]
+            data = (np.ravel(fetch(*metas[j])) - standard[0]) / standard[1]
             feature = tf.train.Feature(
                 float_list=tf.train.FloatList(value=data.tolist()))
             example = tf.train.Example(
@@ -195,7 +187,6 @@ def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
                     'Distributed samples: {}',
                     support.format_percentage(done_count, sample_count))
         writer.close()
-    return new_standard.compute()
 
 def _identify(config):
     real = 'path' in config
@@ -225,3 +216,15 @@ def _partition(count, config):
     test_count = preserved_count - training_count - validation_count
     assert(test_count > 0)
     return preserved_count, training_count, validation_count, test_count
+
+def _standartize(metas, fetch, report_each=10000):
+    sample_count = len(metas)
+    support.log('Standardize samples: {}', sample_count)
+    standard = Standard()
+    for i in range(sample_count):
+        standard.consume(fetch(*metas[i]))
+        done_count = i + 1
+        if done_count % report_each == 0 or done_count == sample_count:
+            support.log('Standardize samples: {}',
+                        support.format_percentage(done_count, sample_count))
+    return standard.compute()
