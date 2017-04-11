@@ -71,7 +71,7 @@ class Fake:
                            **arguments)
 
     def _fetch(a, b, n):
-        return np.sin(a * np.linspace(0, n - 1, n) + b)
+        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), [-1, 1])
 
     def _generate(count):
         metas = Random.get().rand(count, 3)
@@ -146,11 +146,11 @@ class Standard:
         return (self.s / self.k, np.sqrt(self.v / (self.k - 1)))
 
     def consume(self, data):
-        for value in data:
+        for value in data.flat:
             self.k += 1
             if self.k == 1:
-                self.s = data[0]
-                self.m = data[0]
+                self.s = value
+                self.m = value
                 self.v = 0
             else:
                 m = self.m
@@ -180,7 +180,7 @@ def _distribute(path, metas, fetch,
                 continue
             data = fetch(j)
             new_standard.consume(data)
-            data = (data - standard[0]) / standard[1]
+            data = (np.ravel(data) - standard[0]) / standard[1]
             feature = tf.train.Feature(
                 float_list=tf.train.FloatList(value=data.tolist()))
             example = tf.train.Example(
