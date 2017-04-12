@@ -30,24 +30,24 @@ def format_timestamp():
 def format_percentage(count, total):
     return '{} ({:.2f}%)'.format(count, 100 * count / total)
 
-def log(*arguments, name_limit=8, number_limit=4):
+def log(*arguments, name_limit=7, number_limit=4):
     arguments = list(arguments)
     first = arguments.pop(0)
     if isinstance(first, str):
         message = first
-        name = 'Main'
-        number = 0
+        name = ''
+        number = ''
     elif inspect.isclass(first):
         message = arguments.pop(0)
         name = first.__name__
-        number = 0
+        number = ''
     else:
         message = arguments.pop(0)
         name = first.__class__.__name__
-        number = id(first)
+        number = str(id(first))
     name = ('{:' + str(name_limit) + '}').format(name)
     name = name[:name_limit]
-    number = ('{:0' + str(number_limit) + '}').format(number)
+    number = ('{:' + str(number_limit) + '}').format(number)
     number = number[-number_limit:]
     logging.info('[%s|%s] %s', name, number, message.format(*arguments))
 
