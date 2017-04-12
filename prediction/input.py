@@ -160,7 +160,7 @@ def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
                 granularity=2, report_each=10000):
     os.makedirs(path)
     sample_count = len(metas)
-    support.log('Distributed path: {}, samples: {}', path, sample_count)
+    support.log('Distribute samples: {}, path: {}', sample_count, path)
     names = [separator.join([str(meta) for meta in meta]) for meta in metas]
     names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
     names = [name[:granularity] for name in names]
@@ -225,6 +225,6 @@ def _standartize(metas, fetch, report_each=10000):
         standard.consume(fetch(*metas[i]))
         done_count = i + 1
         if done_count % report_each == 0 or done_count == sample_count:
-            support.log('Standardize samples: {}',
+            support.log('Standardized samples: {}',
                         support.format_percentage(done_count, sample_count))
     return standard.compute()
