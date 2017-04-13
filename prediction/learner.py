@@ -13,13 +13,16 @@ class Learner:
         graph = tf.Graph()
         with graph.as_default():
             with tf.variable_scope('model'):
-                self.model = Model(config.model)
+                shape = [None, None, input.dimension_count]
+                x = tf.placeholder(tf.float32, shape, name='x')
+                y = tf.placeholder(tf.float32, shape, name='y')
+                self.model = Model(x, y, config.model)
                 with tf.variable_scope('state'):
                     self.state = State()
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
-            tf.summary.scalar('training_loss', self.teacher.training_loss)
-            self.training_summary = tf.summary.merge_all()
+            tf.summary.scalar('loss', self.teacher.loss)
+            self.summary = tf.summary.merge_all()
             self.summarer = tf.summary.FileWriter(self.output.path, graph)
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
@@ -105,9 +108,9 @@ class Learner:
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
-            'step': self.teacher.training_step,
-            'loss': self.teacher.training_loss,
-            'summary': self.training_summary,
+            'optimize': self.teacher.optimize,
+            'loss': self.teacher.loss,
+            'summary': self.summary,
         }
         result = self.session.run(fetch, feed)
         self.summarer.add_summary(result['summary'], self.state.step)

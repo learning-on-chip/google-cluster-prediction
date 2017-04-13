@@ -8,14 +8,14 @@ class Teacher:
 
     def __init__(self, model, config):
         self.future_length = config.future_length
-        with tf.variable_scope('training_loss'):
-            self.training_loss = tf.reduce_mean(
+        with tf.variable_scope('loss'):
+            self.loss = tf.reduce_mean(
                 tf.squared_difference(model.y, model.y_hat))
-        gradient = tf.gradients(self.training_loss, model.parameters)
+        gradient = tf.gradients(self.loss, model.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
         name = '{}Optimizer'.format(config.optimizer.name)
         optimizer = getattr(tf.train, name)(**config.optimizer.options)
-        self.training_step = optimizer.apply_gradients(
+        self.optimize = optimizer.apply_gradients(
             zip(gradient, model.parameters))
 
     def assess(self, input, predict):

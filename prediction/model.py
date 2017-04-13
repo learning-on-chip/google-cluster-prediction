@@ -6,19 +6,17 @@ import tensorflow as tf
 
 
 class Model:
-    def __init__(self, config):
-        shape = [None, None, config.dimension_count]
-        self.x = tf.placeholder(tf.float32, shape, name='x')
-        self.y = tf.placeholder(tf.float32, shape, name='y')
+    def __init__(self, x, y, config):
+        self.x, self.y = x, y
         with tf.variable_scope('batch_size'):
-            self.batch_size = tf.shape(self.x)[0]
+            self.batch_size = tf.shape(x)[0]
         with tf.variable_scope('network'):
-            self.start, self.finish, h = Model._network(self.x, config)
+            self.start, self.finish, h = Model._network(x, config)
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(h)[1]
         with tf.variable_scope('regression'):
-            w, b = Model._regression(self.y, self.batch_size,
-                                     self.unroll_count, config)
+            w, b = Model._regression(
+                self.batch_size, self.unroll_count, config)
         with tf.variable_scope('y_hat'):
             self.y_hat = tf.matmul(h, w) + b
         self.parameters = tf.trainable_variables()
@@ -51,7 +49,7 @@ class Model:
         finish = Model._finish(state, config)
         return start, finish, h
 
-    def _regression(y, batch_size, unroll_count, config):
+    def _regression(batch_size, unroll_count, config):
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
             initializer=Model._initialize(config))
