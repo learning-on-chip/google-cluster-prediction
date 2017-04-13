@@ -94,6 +94,7 @@ class Fake:
         training_metas = Fake._generate(training_count)
         validation_metas = Fake._generate(validation_count)
         test_metas = Fake._generate(test_count)
+        return training_metas, validation_metas, test_metas
 
 
 class Real:
