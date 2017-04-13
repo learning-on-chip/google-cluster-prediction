@@ -21,13 +21,13 @@ def main(config):
     path = config.learner.output.get('path', support.default_output())
     config.learner.output.path = os.path.join(path, 'baseline')
     baseline = Baseline(input, config.learner)
-    baseline.run_comparison('test')
+    baseline.run_comparison('testing')
     config.learner.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()
     config = explorer.configure(case, restore=step_count)
     learner = Learner(input, config)
-    learner.run_comparison('test')
+    learner.run_comparison('testing')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

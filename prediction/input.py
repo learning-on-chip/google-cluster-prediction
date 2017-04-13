@@ -44,15 +44,15 @@ class Input:
 
     def __init__(self, config):
         self.dimension_count = 1
-        klass, training_path, validation_path, test_path = _identify(config)
+        klass, training_path, validation_path, testing_path = _identify(config)
         support.log(self, 'Training path: {}', training_path)
         support.log(self, 'Validation path: {}', validation_path)
-        support.log(self, 'Test path: {}', test_path)
+        support.log(self, 'Testing path: {}', testing_path)
         if not os.path.exists(training_path) or \
            not os.path.exists(validation_path) or \
-           not os.path.exists(test_path):
-            training_metas, validation_metas, test_metas = klass._prepare(
-                training_path, validation_path, test_path, config)
+           not os.path.exists(testing_path):
+            training_metas, validation_metas, testing_metas = klass._prepare(
+                training_path, validation_path, testing_path, config)
             standard = _standartize(training_metas, klass._fetch)
             support.log(self, 'Standard mean: {}, deviation: {}', *standard)
             if not os.path.exists(training_path):
@@ -61,19 +61,19 @@ class Input:
             if not os.path.exists(validation_path):
                 _distribute(validation_path, validation_metas, klass._fetch,
                             standard=standard)
-            if not os.path.exists(test_path):
-                _distribute(test_path, test_metas, klass._fetch,
+            if not os.path.exists(testing_path):
+                _distribute(testing_path, testing_metas, klass._fetch,
                             standard=standard)
         self.training = Input.Part(training_path)
         self.validation = Input.Part(validation_path)
-        self.test = Input.Part(test_path)
+        self.testing = Input.Part(testing_path)
 
     def copy(self):
         copy = Input.__new__(Input)
         copy.dimension_count = self.dimension_count
         copy.training = self.training.copy()
         copy.validation = self.validation.copy()
-        copy.test = self.test.copy()
+        copy.testing = self.testing.copy()
         return copy
 
 
@@ -88,13 +88,13 @@ class Fake:
         metas[:, 2] = np.round(5 + 15 * metas[:, 2])
         return metas
 
-    def _prepare(training_path, validation_path, test_path, config):
-        _, training_count, validation_count, test_count = \
+    def _prepare(training_path, validation_path, testing_path, config):
+        _, training_count, validation_count, testing_count = \
             _partition(config.max_sample_count, config)
         training_metas = Fake._generate(training_count)
         validation_metas = Fake._generate(validation_count)
-        test_metas = Fake._generate(test_count)
-        return training_metas, validation_metas, test_metas
+        testing_metas = Fake._generate(testing_count)
+        return training_metas, validation_metas, testing_metas
 
 
 class Real:
@@ -117,11 +117,11 @@ class Real:
         Random.get().shuffle(metas)
         return metas
 
-    def _prepare(training_path, validation_path, test_path, config):
+    def _prepare(training_path, validation_path, testing_path, config):
         support.log(Real, 'Index path: {}', config.path)
         metas = Real._index(config)
         sample_count = len(metas)
-        preserved_count, training_count, validation_count, test_count = \
+        preserved_count, training_count, validation_count, testing_count = \
             _partition(sample_count, config)
         support.log(Real, 'Preserved samples: {}',
                     support.format_percentage(preserved_count, sample_count))
@@ -130,10 +130,10 @@ class Real:
         metas = metas[training_count:]
         validation_metas = metas[:validation_count]
         metas = metas[validation_count:]
-        test_metas = metas[:test_count]
-        metas = metas[test_count:]
+        testing_metas = metas[:testing_count]
+        metas = metas[testing_count:]
         assert(len(metas) == 0)
-        return training_metas, validation_metas, test_metas
+        return training_metas, validation_metas, testing_metas
 
 
 class Standard:
@@ -208,7 +208,7 @@ def _identify(config):
         klass,
         os.path.join(path, 'training'),
         os.path.join(path, 'validation'),
-        os.path.join(path, 'test'),
+        os.path.join(path, 'testing'),
     ]
 
 def _partition(count, config):
@@ -217,9 +217,9 @@ def _partition(count, config):
     assert(training_count > 0)
     validation_count = int(config.validation_fraction * preserved_count)
     assert(validation_count > 0)
-    test_count = preserved_count - training_count - validation_count
-    assert(test_count > 0)
-    return preserved_count, training_count, validation_count, test_count
+    testing_count = preserved_count - training_count - validation_count
+    assert(testing_count > 0)
+    return preserved_count, training_count, validation_count, testing_count
 
 def _standartize(metas, fetch, report_each=10000):
     sample_count = len(metas)

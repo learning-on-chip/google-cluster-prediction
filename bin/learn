@@ -22,14 +22,14 @@ def main(config):
     config.output.path = os.path.join(path, 'baseline')
     baseline = Baseline(input, config)
     baseline.run_comparison('validation')
-    baseline.run_comparison('test')
+    baseline.run_comparison('testing')
     config.output.path = os.path.join(path, 'learner')
     learner = Learner(input, config)
     manager = Manager(config.manager)
     while True:
         try:
             while True:
-                learner.run_train()
+                learner.run_training()
                 if manager.should_backup(learner.state):
                     learner.run_backup()
                 if manager.should_validation(learner.state):
@@ -44,7 +44,7 @@ def main(config):
             continue
         elif i == 2:
             learner.run_comparison('validation')
-            learner.run_comparison('test')
+            learner.run_comparison('testing')
             return
 
 if __name__ == '__main__':

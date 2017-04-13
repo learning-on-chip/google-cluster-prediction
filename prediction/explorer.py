@@ -106,7 +106,7 @@ class Agent:
             assert(last_step_count < step_count)
             support.log(self, 'Learn: start at step {}, stop at step {}',
                         last_step_count, step_count)
-            self.learner.run_train(step_count - last_step_count)
+            self.learner.run_training(step_count - last_step_count)
             error = self.learner.run_validation()['MRMSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
             score = np.sum(error * decay)

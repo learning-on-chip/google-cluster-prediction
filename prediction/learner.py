@@ -46,13 +46,13 @@ class Learner:
                 self.summarer.add_summary(tf.Summary(value=[value]), i + 1)
         self.summarer.flush()
 
-    def run_test(self):
-        return self._run_assessment('test')
+    def run_testing(self):
+        return self._run_assessment('testing')
 
-    def run_train(self, sample_count=1):
+    def run_training(self, sample_count=1):
         for _ in range(sample_count):
             try:
-                self._run_train()
+                self._run_training()
                 self.state.increment_time()
             except StopIteration:
                 self.state.increment_epoch()
@@ -94,7 +94,7 @@ class Learner:
         self.summarer.flush()
         return errors
 
-    def _run_train(self):
+    def _run_training(self):
         sample = self.input.training.next()
         feed = {
             self.model.start: self._zero_start(),
