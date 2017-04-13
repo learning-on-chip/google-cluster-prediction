@@ -6,9 +6,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from prediction import Baseline
 from prediction import Config
+from prediction import Experiment
 from prediction import Explorer
 from prediction import Input
-from prediction import Learner
 from prediction import Random
 from prediction import support
 import argparse
@@ -17,17 +17,17 @@ import json
 def main(config):
     support.loggalize()
     Random.initialize(config.seed)
-    input = Input(config.learner.input)
-    path = config.learner.output.get('path', support.default_output())
-    config.learner.output.path = os.path.join(path, 'baseline')
-    baseline = Baseline(input, config.learner)
+    input = Input(config.experiment.input)
+    path = config.experiment.output.get('path', support.default_output())
+    config.experiment.output.path = os.path.join(path, 'baseline')
+    baseline = Baseline(input, config.experiment)
     baseline.run_comparison('testing')
-    config.learner.output.path = path
+    config.experiment.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()
     config = explorer.configure(case, restore=step_count)
-    learner = Learner(input, config)
-    learner.run_comparison('testing')
+    experiment = Experiment(input, config)
+    experiment.run_comparison('testing')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -36,10 +36,10 @@ if __name__ == '__main__':
     parser.add_argument('--output')
     arguments = parser.parse_args()
     config = Config(json.loads(open(arguments.config).read()))
-    if isinstance(config.learner, str):
-        config.learner = Config(json.loads(open(config.learner).read()))
+    if isinstance(config.experiment, str):
+        config.experiment = Config(json.loads(open(config.experiment).read()))
     if arguments.input is not None:
-        config.learner.input.path = arguments.input
+        config.experiment.input.path = arguments.input
     if arguments.output is not None:
-        config.learner.output.path = arguments.output
+        config.experiment.output.path = arguments.output
     main(config)

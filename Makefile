@@ -2,10 +2,10 @@ analyze: input/index.csv
 	./bin/analyze $<
 
 explore: input/index.csv
-	./bin/explore --input $< --config config/explorer.json
+	./bin/explore --input $< --config config/explore.json
 
 learn: input/index.csv
-	./bin/learn --input $< --config config/learner.json
+	./bin/learn --input $< --config config/learn.json
 
 test:
 	pytest prediction

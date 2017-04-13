@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 
-class Learner:
+class Experiment:
     def __init__(self, input, config):
         self.input = input
         self.output = config.output

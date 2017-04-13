@@ -1,8 +1,8 @@
-from .learner import Learner
+from .experiment import Experiment
 import numpy as np
 
 
-class Baseline(Learner):
+class Baseline(Experiment):
     def __init__(self, *arguments):
         super(Baseline, self).__init__(*arguments)
 

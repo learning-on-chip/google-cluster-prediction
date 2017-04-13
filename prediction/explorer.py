@@ -1,6 +1,6 @@
 from . import support
 from . import tuner
-from .learner import Learner
+from .experiment import Experiment
 from .random import Random
 import glob
 import numpy as np
@@ -12,7 +12,7 @@ import threading
 class Explorer:
     def __init__(self, input, config):
         self.input = input
-        self.config = config.learner
+        self.config = config.experiment
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
         self.resource_scale = config.max_step_count / self.tuner.resource
@@ -46,8 +46,8 @@ class Explorer:
             agent = self.agents.get(key)
             if agent is None:
                 config = self.configure(case)
-                learner = Learner(self.input.copy(), config)
-                agent = Agent(learner, self.semaphore, config)
+                experiment = Experiment(self.input.copy(), config)
+                agent = Agent(experiment, self.semaphore, config)
                 self.agents[key] = agent
             agent.submit(step_count)
             agents.append(agent)
@@ -59,8 +59,8 @@ class Explorer:
 
 
 class Agent:
-    def __init__(self, learner, semaphore, config):
-        self.learner = learner
+    def __init__(self, experiment, semaphore, config):
+        self.experiment = experiment
         self.semaphore = semaphore
         self.scores = Agent._load(config.output.path)
         self.output_path = config.output.path
@@ -106,12 +106,12 @@ class Agent:
             assert(last_step_count < step_count)
             support.log(self, 'Learn: start at step {}, stop at step {}',
                         last_step_count, step_count)
-            self.learner.run_training(step_count - last_step_count)
-            error = self.learner.run_validation()['MRMSE']
+            self.experiment.run_training(step_count - last_step_count)
+            error = self.experiment.run_validation()['MRMSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
             score = np.sum(error * decay)
             Agent._save(self.output_path, step_count, score)
-            self.learner.run_backup()
+            self.experiment.run_backup()
             with self.lock:
                 self.scores[step_count] = score
             support.log(self, 'Learn: stop at step {}, score {}',

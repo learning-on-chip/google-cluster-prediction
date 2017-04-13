@@ -6,8 +6,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from prediction import Baseline
 from prediction import Config
+from prediction import Experiment
 from prediction import Input
-from prediction import Learner
 from prediction import Manager
 from prediction import Random
 from prediction import support
@@ -23,17 +23,17 @@ def main(config):
     baseline = Baseline(input, config)
     baseline.run_comparison('validation')
     baseline.run_comparison('testing')
-    config.output.path = os.path.join(path, 'learner')
-    learner = Learner(input, config)
+    config.output.path = os.path.join(path, 'experiment')
+    experiment = Experiment(input, config)
     manager = Manager(config.manager)
     while True:
         try:
             while True:
-                learner.run_training()
-                if manager.should_backup(learner.state):
-                    learner.run_backup()
-                if manager.should_validation(learner.state):
-                    learner.run_validation()
+                experiment.run_training()
+                if manager.should_backup(experiment.state):
+                    experiment.run_backup()
+                if manager.should_validation(experiment.state):
+                    experiment.run_validation()
         except KeyboardInterrupt:
             print()
         i = support.ask('Abort', 'Continue training',
@@ -43,8 +43,8 @@ def main(config):
         elif i == 1:
             continue
         elif i == 2:
-            learner.run_comparison('validation')
-            learner.run_comparison('testing')
+            experiment.run_comparison('validation')
+            experiment.run_comparison('testing')
             return
 
 if __name__ == '__main__':
