@@ -30,7 +30,7 @@ def format_timestamp():
 def format_percentage(count, total):
     return '{} ({:.2f}%)'.format(count, 100 * count / total)
 
-def log(*arguments, name_limit=7, number_limit=4):
+def log(*arguments, name_limit=4, number_limit=4):
     arguments = list(arguments)
     first = arguments.pop(0)
     if isinstance(first, str):
