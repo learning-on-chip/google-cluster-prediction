@@ -24,10 +24,10 @@ class Input:
 
         def iterate(self):
             for record in self._iterate():
-                yield _parse(record)
+                yield _decode(record)
 
         def next(self):
-            return _parse(next(self.iterator))
+            return _decode(next(self.iterator))
 
         def restart(self, seed=0):
             random_state = Random.get().get_state()
@@ -175,18 +175,27 @@ def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
         for j in range(i, sample_count):
             if names[i] != names[j]:
                 continue
-            data = (np.ravel(fetch(*metas[j])) - standard[0]) / standard[1]
-            feature = tf.train.Feature(
-                float_list=tf.train.FloatList(value=data.tolist()))
-            example = tf.train.Example(
-                features=tf.train.Features(feature={'data': feature}))
-            writer.write(example.SerializeToString())
+            data = (fetch(*metas[j]) - standard[0]) / standard[1]
+            writer.write(_encode(data))
             done_count += 1
             if done_count % report_each == 0 or done_count == sample_count:
                 support.log(
                     'Distributed samples: {}',
                     support.format_percentage(done_count, sample_count))
         writer.close()
+
+def _decode(record):
+    example = tf.train.Example()
+    example.ParseFromString(record)
+    data = example.features.feature['data'].float_list.value
+    return np.reshape([value for value in data], [-1, 1])
+
+def _encode(data):
+    float_list = tf.train.FloatList(value=np.ravel(data).tolist())
+    feature = tf.train.Feature(float_list=float_list)
+    features = tf.train.Features(feature={'data': feature})
+    example = tf.train.Example(features=features)
+    return example.SerializeToString()
 
 def _identify(config):
     real = 'path' in config
@@ -200,12 +209,6 @@ def _identify(config):
         os.path.join(path, 'validation'),
         os.path.join(path, 'test'),
     ]
-
-def _parse(record):
-    example = tf.train.Example()
-    example.ParseFromString(record)
-    data = example.features.feature['data'].float_list.value
-    return np.reshape([value for value in data], [-1, 1])
 
 def _partition(count, config):
     preserved_count = min(count, config.max_sample_count)
