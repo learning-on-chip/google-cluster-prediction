@@ -138,15 +138,15 @@ class Sampler:
 
 def _adjust(config, key, value):
     if key == 'dropout_rate':
-        config.model.dropout.options.input_keep_prob = 1 - value[0]
-        config.model.dropout.options.output_keep_prob = 1 - value[1]
+        config.learner.dropout.options.input_keep_prob = 1 - value[0]
+        config.learner.dropout.options.output_keep_prob = 1 - value[1]
     elif key == 'layer_count':
-        config.model.layer_count = value
+        config.learner.layer_count = value
     elif key == 'learning_rate':
         config.teacher.optimizer.options.learning_rate = value
     elif key == 'unit_count':
-        config.model.unit_count = value
+        config.learner.unit_count = value
     elif key == 'use_peepholes':
-        config.model.cell.options.use_peepholes = value
+        config.learner.cell.options.use_peepholes = value
     else:
         assert(False)

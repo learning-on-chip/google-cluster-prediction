@@ -34,13 +34,13 @@ class Checkpoint:
         support.log(self, 'Restore: {}', path)
 
     def save(self, session, state):
-        path = os.path.join(self.path, 'model-{}'.format(state.step))
+        path = os.path.join(self.path, 'learner-{}'.format(state.step))
         path = self.saver.save(session, path)
         support.log(self, 'Save: {}', path)
 
     def _load(path):
         paths = {}
-        for path in glob.glob(os.path.join(path, 'model-*.meta')):
-            step_count = int(re.search('.*model-(.*).meta', path).group(1))
+        for path in glob.glob(os.path.join(path, 'learner-*.meta')):
+            step_count = int(re.search('.*learner-(.*).meta', path).group(1))
             paths[step_count] = re.sub('.meta$', '', path)
         return paths

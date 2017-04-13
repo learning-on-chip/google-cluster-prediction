@@ -1,6 +1,6 @@
 from . import support
 from .checkpoint import Checkpoint
-from .model import Model
+from .learner import Learner
 from .teacher import Teacher
 import numpy as np
 import tensorflow as tf
@@ -10,18 +10,18 @@ class Experiment:
     def __init__(self, input, config):
         self.input = input
         self.output = config.output
-        model = tf.make_template(
-            'model', lambda x, y: Model(x, y, config.model))
+        learner = tf.make_template(
+            'learner', lambda x, y: Learner(x, y, config.learner))
         graph = tf.Graph()
         with graph.as_default():
             shape = [None, None, input.dimension_count]
             x = tf.placeholder(tf.float32, shape, name='x')
             y = tf.placeholder(tf.float32, shape, name='y')
-            self.model = model(x, y)
+            self.learner = learner(x, y)
             with tf.variable_scope('state'):
                 self.state = State()
             with tf.variable_scope('teacher'):
-                self.teacher = Teacher(self.model, config.teacher)
+                self.teacher = Teacher(self.learner, config.teacher)
             tf.summary.scalar('loss', self.teacher.loss)
             self.summary = tf.summary.merge_all()
             self.summarer = tf.summary.FileWriter(self.output.path, graph)
@@ -70,21 +70,22 @@ class Experiment:
 
     def _assess(self, sample, future_length):
         fetch = {
-            'y_hat': self.model.y_hat,
-            'finish': self.model.finish,
+            'y_hat': self.learner.y_hat,
+            'finish': self.learner.finish,
         }
         sample_length, dimension_count = sample.shape
         y_hat = np.empty([sample_length, future_length, dimension_count])
         for i in range(sample_length):
             feed = {
-                self.model.start: self._zero_start(),
-                self.model.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
+                self.learner.start: self._zero_start(),
+                self.learner.x: np.reshape(
+                    sample[:(i + 1), :], [1, i + 1, -1]),
             }
             for j in range(future_length):
                 result = self.session.run(fetch, feed)
                 y_hat[i, j, :] = result['y_hat'][0, -1, :]
-                feed[self.model.start] = result['finish']
-                feed[self.model.x] = y_hat[i:(i + 1), j:(j + 1), :]
+                feed[self.learner.start] = result['finish']
+                feed[self.learner.x] = y_hat[i:(i + 1), j:(j + 1), :]
         return y_hat
 
     def _run_assessment(self, target):
@@ -101,10 +102,10 @@ class Experiment:
     def _run_training(self):
         sample = self.input.training.next()
         feed = {
-            self.model.start: self._zero_start(),
-            self.model.x: np.reshape(
+            self.learner.start: self._zero_start(),
+            self.learner.x: np.reshape(
                 sample, [1, -1, self.input.dimension_count]),
-            self.model.y: np.reshape(
+            self.learner.y: np.reshape(
                 support.shift(sample, -1, padding=0),
                 [1, -1, self.input.dimension_count]),
         }
@@ -118,7 +119,7 @@ class Experiment:
         return result['loss']
 
     def _zero_start(self):
-        return np.zeros(self.model.start.get_shape(), np.float32)
+        return np.zeros(self.learner.start.get_shape(), np.float32)
 
 
 class State:

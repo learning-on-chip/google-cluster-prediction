@@ -6,17 +6,17 @@ import tensorflow as tf
 class Teacher:
     _EPSILON = np.finfo(np.float32).eps
 
-    def __init__(self, model, config):
+    def __init__(self, learner, config):
         self.future_length = config.future_length
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(
-                tf.squared_difference(model.y, model.y_hat))
-        gradient = tf.gradients(self.loss, model.parameters)
+                tf.squared_difference(learner.y, learner.y_hat))
+        gradient = tf.gradients(self.loss, learner.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
         name = '{}Optimizer'.format(config.optimizer.name)
         optimizer = getattr(tf.train, name)(**config.optimizer.options)
         self.optimize = optimizer.apply_gradients(
-            zip(gradient, model.parameters))
+            zip(gradient, learner.parameters))
 
     def assess(self, input, predict):
         return Teacher._assess(input, self.future_length, predict)
