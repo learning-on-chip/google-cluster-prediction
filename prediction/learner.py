@@ -38,7 +38,7 @@ class Learner:
         self.checkpoint.save(self.session, self.state)
 
     def run_comparison(self, target):
-        errors = getattr(self, 'run_{}'.format(target))()
+        errors = self._run_assessment(target)
         for key in errors:
             tag = 'comparison_{}_{}'.format(target, key)
             for i in range(len(errors[key])):
@@ -47,7 +47,7 @@ class Learner:
         self.summarer.flush()
 
     def run_test(self):
-        return self._run_assessment(self.input.test, 'test')
+        return self._run_assessment('test')
 
     def run_train(self, sample_count=1):
         for _ in range(sample_count):
@@ -62,7 +62,7 @@ class Learner:
                     self.state.step, self.state.epoch, self.state.sample)
 
     def run_validation(self):
-        return self._run_assessment(self.input.validation, 'validation')
+        return self._run_assessment('validation')
 
     def _assess(self, sample, future_length):
         fetch = {
@@ -83,14 +83,14 @@ class Learner:
                 feed[self.model.x] = y_hat[i:(i + 1), j:(j + 1), :]
         return y_hat
 
-    def _run_assessment(self, input, tag_prefix):
-        errors = self.teacher.assess(input, self._assess)
+    def _run_assessment(self, target):
+        errors = self.teacher.assess(getattr(self.input, target), self._assess)
         for name in errors:
             for i in range(len(errors[name])):
-                tag = '{}_{}_{}'.format(tag_prefix, name, i + 1)
+                tag = '{}_{}_{}'.format(target, name, i + 1)
                 value = tf.Summary.Value(tag=tag, simple_value=errors[name][i])
-                self.summarer.add_summary(
-                    tf.Summary(value=[value]), self.state.step)
+                self.summarer.add_summary(tf.Summary(value=[value]),
+                                          self.state.step)
         self.summarer.flush()
         return errors
 
