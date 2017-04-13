@@ -4,12 +4,12 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from prediction import Baseline
 from prediction import Config
 from prediction import Experiment
 from prediction import Explorer
 from prediction import Input
 from prediction import Random
+from prediction import Reference
 from prediction import support
 import argparse
 import json
@@ -19,9 +19,9 @@ def main(config):
     Random.initialize(config.seed)
     input = Input(config.experiment.input)
     path = config.experiment.output.get('path', support.default_output())
-    config.experiment.output.path = os.path.join(path, 'baseline')
-    baseline = Baseline(input, config.experiment)
-    baseline.run_comparison('testing')
+    config.experiment.output.path = os.path.join(path, 'reference')
+    reference = Reference(input, config.experiment)
+    reference.run_comparison('testing')
     config.experiment.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()

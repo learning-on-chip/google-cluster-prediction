@@ -2,9 +2,9 @@ from .experiment import Experiment
 import numpy as np
 
 
-class Baseline(Experiment):
+class Reference(Experiment):
     def __init__(self, *arguments):
-        super(Baseline, self).__init__(*arguments)
+        super(Reference, self).__init__(*arguments)
 
     def _assess(self, sample, future_length):
         sample_length, dimension_count = sample.shape
