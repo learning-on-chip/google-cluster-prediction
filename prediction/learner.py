@@ -10,15 +10,16 @@ class Learner:
     def __init__(self, input, config):
         self.input = input
         self.output = config.output
+        model = tf.make_template(
+            'model', lambda x, y: Model(x, y, config.model))
         graph = tf.Graph()
         with graph.as_default():
-            with tf.variable_scope('model'):
-                shape = [None, None, input.dimension_count]
-                x = tf.placeholder(tf.float32, shape, name='x')
-                y = tf.placeholder(tf.float32, shape, name='y')
-                self.model = Model(x, y, config.model)
-                with tf.variable_scope('state'):
-                    self.state = State()
+            shape = [None, None, input.dimension_count]
+            x = tf.placeholder(tf.float32, shape, name='x')
+            y = tf.placeholder(tf.float32, shape, name='y')
+            self.model = model(x, y)
+            with tf.variable_scope('state'):
+                self.state = State()
             with tf.variable_scope('teacher'):
                 self.teacher = Teacher(self.model, config.teacher)
             tf.summary.scalar('loss', self.teacher.loss)
