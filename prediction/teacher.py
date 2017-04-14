@@ -4,8 +4,6 @@ import tensorflow as tf
 
 
 class Teacher:
-    _EPSILON = np.finfo(np.float32).eps
-
     def __init__(self, learner, config):
         self.future_length = config.future_length
         with tf.variable_scope('loss'):
@@ -18,35 +16,30 @@ class Teacher:
         self.optimize = optimizer.apply_gradients(
             zip(gradient, learner.parameters))
 
-    def assess(self, input, predict):
-        return Teacher._assess(input, self.future_length, predict)
-
-    def _assess(input, future_length, predict):
-        rmse_sum = np.zeros([future_length])
-        nrmse_sum = np.zeros([future_length])
-        total_count, flat_count = 0, 0
-        sum = np.zeros([future_length])
+    def test(self, input, compute):
+        sum, count = np.zeros([self.future_length]), 0
         for sample in input.iterate():
-            total_count += 1
-            norm = np.amax(sample) - np.amin(sample)
-            if norm < Teacher._EPSILON:
-                flat_count += 1
-                continue
             sample_length, dimension_count = sample.shape
-            y_hat = predict(sample, future_length)
-            sum.fill(0)
+            count += sample_length * dimension_count
+            y_hat = compute(sample, self.future_length)
             for i in range(sample_length):
-                length = min(sample_length - (i + 1), future_length)
+                length = min(sample_length - (i + 1), self.future_length)
                 y_hat[i, :length, :] -= sample[(i + 1):(i + 1 + length), :]
                 sum += np.sum(y_hat[i, :, :]**2, axis=-1)
-            rmse = np.sqrt(sum / sample_length / dimension_count)
-            rmse_sum += rmse
-            nrmse_sum += rmse / norm
-        if flat_count > 0:
-            support.log(
-                Teacher, 'Flat samples: {}',
-                support.format_percentage(flat_count, total_count))
         return {
-            'MRMSE': rmse_sum / (total_count - flat_count),
-            'MNRMSE': nrmse_sum / (total_count - flat_count),
+            'RMSE': np.sqrt(sum / count),
+        }
+
+    def train(self, input, compute):
+        return {
+            'RMSE': np.sqrt([compute(input.next())]),
+        }
+
+    def validate(self, input, compute):
+        sum, count = 0, 0
+        for sample in input.iterate():
+            count += 1
+            sum += compute(sample)
+        return {
+            'RMSE': np.sqrt([sum / count]),
         }
