@@ -3,6 +3,7 @@ import inspect
 import logging
 import numpy as np
 import os
+import tensorflow as tf
 
 
 class Progress:
@@ -88,13 +89,29 @@ def loggalize(level=logging.INFO):
     logging.basicConfig(format='%(asctime)s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S', level=level)
 
-def shift(data, amount, padding=0.0):
-    data = np.roll(data, amount, axis=0)
+def shift(data, amount, axis=0, padding=0):
+    data = np.roll(data, amount, axis=axis)
     if amount > 0:
         data[:amount, :] = padding
     elif amount < 0:
         data[amount:, :] = padding
     return data
+
+def summarize_dynamic(summarer, state, data, name):
+    for key in data:
+        for i in range(len(data[key])):
+            tag = '{}_{}_{}'.format(name, key, i + 1)
+            value = tf.Summary.Value(tag=tag, simple_value=data[key][i])
+            summarer.add_summary(tf.Summary(value=[value]), state.step)
+    summarer.flush()
+
+def summarize_static(summarer, data, name):
+    for key in data:
+        tag = '{}_{}'.format(name, key)
+        for i in range(len(data[key])):
+            value = tf.Summary.Value(tag=tag, simple_value=data[key][i])
+            summarer.add_summary(tf.Summary(value=[value]), i + 1)
+    summarer.flush()
 
 def tokenize(dictionary):
     chunks = []

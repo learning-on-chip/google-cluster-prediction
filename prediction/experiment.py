@@ -41,11 +41,9 @@ class Experiment:
         support.log(self, 'Initial step: {}, epoch: {}, sample: {}',
                     self.state.step, self.state.epoch, self.state.sample)
 
-    def run_comparison(self, target, summarize=True):
+    def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)
-        if summarize:
-            self._summarize_static(errors, 'comparison_' + target)
-        return errors
+        self.summarize_static(self.summarer, errors, 'comparison_' + target)
 
     def run_saving(self):
         self.state.save(self.session)
@@ -54,7 +52,8 @@ class Experiment:
     def run_testing(self, summarize=True):
         errors = self.examiner.test(self.input.testing, self._test)
         if summarize:
-            self._summarize_dynamic(errors, 'testing')
+            support.summarize_dynamic(
+                self.summarer, self.state, errors, 'testing')
         return errors
 
     def run_training(self, summarize=True, sample_count=1):
@@ -63,7 +62,8 @@ class Experiment:
                 errors = self.trainer.train(
                     self.input.training, self._train)
                 if summarize:
-                    self._summarize_dynamic(errors, 'training')
+                    support.summarize_dynamic(
+                        self.summarer, self.state, errors, 'training')
                 self.state.increment_time()
             except StopIteration:
                 self.state.increment_epoch()
@@ -73,28 +73,11 @@ class Experiment:
                     self.state.step, self.state.epoch, self.state.sample)
 
     def run_validation(self, summarize=True):
-        errors = self.examiner.validate(
-            self.input.validation, self._validate)
+        errors = self.examiner.validate(self.input.validation, self._validate)
         if summarize:
-            self._summarize_dynamic(errors, 'validation')
+            support.summarize_dynamic(
+                self.summarer, self.state, errors, 'validation')
         return errors
-
-    def _summarize_dynamic(self, data, name):
-        for key in data:
-            for i in range(len(data[key])):
-                tag = '{}_{}_{}'.format(name, key, i + 1)
-                value = tf.Summary.Value(tag=tag, simple_value=data[key][i])
-                self.summarer.add_summary(tf.Summary(value=[value]),
-                                          self.state.step)
-        self.summarer.flush()
-
-    def _summarize_static(self, data, name):
-        for key in data:
-            tag = '{}_{}'.format(name, key)
-            for i in range(len(data[key])):
-                value = tf.Summary.Value(tag=tag, simple_value=data[key][i])
-                self.summarer.add_summary(tf.Summary(value=[value]), i + 1)
-        self.summarer.flush()
 
     def _train(self, sample):
         feed = {
@@ -103,7 +86,7 @@ class Experiment:
             self.training_learner.x: np.reshape(
                 sample, [1, -1, self.input.dimension_count]),
             self.training_learner.y: np.reshape(
-                support.shift(sample, -1, padding=0),
+                support.shift(sample, -1),
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
@@ -140,7 +123,7 @@ class Experiment:
             self.validation_learner.x: np.reshape(
                 sample, [1, -1, self.input.dimension_count]),
             self.validation_learner.y: np.reshape(
-                support.shift(sample, -1, padding=0),
+                support.shift(sample, -1),
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {

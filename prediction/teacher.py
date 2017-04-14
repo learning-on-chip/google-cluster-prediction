@@ -3,12 +3,15 @@ import numpy as np
 import tensorflow as tf
 
 
-class Examiner:
-    def __init__(self, learner, config):
+class Teacher:
+    def assess_numeric(y, y_hat):
+        return np.mean(np.ravel(y - y_hat)**2)
+
+    def assess_symbolic(y, y_hat):
+        return tf.reduce_mean(tf.squared_difference(y, y_hat))
+
+    def __init__(self, config):
         self.future_length = config.future_length
-        with tf.variable_scope('loss'):
-            self.loss = tf.reduce_mean(
-                tf.squared_difference(learner.y, learner.y_hat))
 
     def test(self, input, compute):
         progress = support.Progress(subject=self, description='testing')
@@ -23,7 +26,7 @@ class Examiner:
             progress.advance(sample_length * dimension_count)
         progress.finish()
         return {
-            'RMSE': np.sqrt(sum / progress.count),
+            'MSE': sum / progress.count,
         }
 
     def validate(self, input, compute):
@@ -34,8 +37,15 @@ class Examiner:
             progress.advance()
         progress.finish()
         return {
-            'RMSE': np.sqrt([sum / progress.count]),
+            'MSE': [sum / progress.count],
         }
+
+
+class Examiner(Teacher):
+    def __init__(self, learner, config):
+        super(Examiner, self).__init__(config)
+        with tf.variable_scope('loss'):
+            self.loss = Teacher.assess_symbolic(learner.y, learner.y_hat)
 
 
 class Trainer(Examiner):
@@ -50,5 +60,5 @@ class Trainer(Examiner):
 
     def train(self, input, compute):
         return {
-            'RMSE': np.sqrt([compute(input.next())]),
+            'MSE': [compute(input.next())],
         }
