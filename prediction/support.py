@@ -37,25 +37,8 @@ class Progress:
                 'Finished {} ({})'.format(self.description, self.count))
 
 
-def ask(*options):
-    print('Choose one of the following options:')
-    for i, option in enumerate(options):
-        print('    {}. {}'.format(i, option))
-    while True:
-        try:
-            i = int(input('Your choice: '))
-        except ValueError:
-            continue
-        if i < 0 or i >= len(options):
-            continue
-        return i
-
 def default_output():
     return os.path.join('output', format_timestamp())
-
-def figure(width=14, height=6):
-    import matplotlib.pyplot as pp
-    pp.figure(figsize=(width, height), dpi=80, facecolor='w', edgecolor='k')
 
 def format_timestamp():
     return '{:%Y-%m-%d %H-%M-%S}'.format(datetime.datetime.now())
@@ -88,6 +71,19 @@ def log(*arguments):
 def loggalize(level=logging.INFO):
     logging.basicConfig(format='%(asctime)s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S', level=level)
+
+def prompt(*options):
+    print('Choose one of the following options:')
+    for i, option in enumerate(options):
+        print('    {}. {}'.format(i, option))
+    while True:
+        try:
+            i = int(input('Your choice: '))
+        except ValueError:
+            continue
+        if i < 0 or i >= len(options):
+            continue
+        return i
 
 def shift(data, amount, axis=0, padding=0):
     data = np.roll(data, amount, axis=axis)

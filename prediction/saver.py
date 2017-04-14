@@ -20,7 +20,7 @@ class Saver:
         step_counts = sorted(list(paths.keys()))
         if self.restore is None:
             options = ['Load ' + paths[key] for key in step_counts]
-            i = support.ask('Start anew', *options)
+            i = support.prompt('Start anew', *options)
             if i == 0:
                 return
             else:

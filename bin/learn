@@ -36,8 +36,8 @@ def main(config):
                     experiment.run_validation()
         except KeyboardInterrupt:
             print()
-        i = support.ask('Abort', 'Continue training',
-                        'Stop training and start testing')
+        i = support.prompt('Abort', 'Continue training',
+                           'Stop training and start testing')
         if i == 0:
             return
         elif i == 1:
