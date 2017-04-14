@@ -34,7 +34,7 @@ class Experiment:
         self.state.load(self.session)
         self.input.training.restart(self.state.epoch)
         support.log(self, 'Output path: {}', self.output.path)
-        support.log(self, 'Initial state: step {}, epoch {}, sample {}',
+        support.log(self, 'Initial step: {}, epoch: {}, sample: {}',
                     self.state.step, self.state.epoch, self.state.sample)
 
     def run_backup(self):
@@ -64,7 +64,7 @@ class Experiment:
                 self.state.increment_epoch()
                 self.input.training.restart(self.state.epoch)
                 support.log(
-                    self, 'Current state: step {}, epoch {}, sample {}',
+                    self, 'Current step: {}, epoch: {}, sample: {}',
                     self.state.step, self.state.epoch, self.state.sample)
 
     def run_validation(self, summarize=True):
