@@ -44,7 +44,7 @@
 		"future_length": 4
 	},
 	"manager": {
-		"backup_period": 7000,
+		"save_period": 7000,
 		"validation_period": 7000
 	},
 	"output": {

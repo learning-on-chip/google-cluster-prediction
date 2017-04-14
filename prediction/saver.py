@@ -5,7 +5,7 @@ import re
 import tensorflow as tf
 
 
-class Checkpoint:
+class Saver:
     def __init__(self, config):
         self.saver = tf.train.Saver(max_to_keep=100)
         self.restore = config.get('restore')
@@ -14,7 +14,7 @@ class Checkpoint:
     def load(self, session, state=None):
         if self.restore is False:
             return
-        paths = Checkpoint._load(self.path)
+        paths = Saver._load(self.path)
         if len(paths) == 0:
             return
         step_counts = sorted(list(paths.keys()))
@@ -34,13 +34,13 @@ class Checkpoint:
         support.log(self, 'Restore: {}', path)
 
     def save(self, session, state):
-        path = os.path.join(self.path, 'learner-{}'.format(state.step))
+        path = os.path.join(self.path, 'experiment-{}'.format(state.step))
         path = self.saver.save(session, path)
         support.log(self, 'Save: {}', path)
 
     def _load(path):
         paths = {}
-        for path in glob.glob(os.path.join(path, 'learner-*.meta')):
-            step_count = int(re.search('.*learner-(.*).meta', path).group(1))
-            paths[step_count] = re.sub('.meta$', '', path)
+        for path in glob.glob(os.path.join(path, 'experiment-*.meta')):
+            step_count = re.search('.*experiment-(.*).meta', path).group(1)
+            paths[int(step_count)] = re.sub('.meta$', '', path)
         return paths

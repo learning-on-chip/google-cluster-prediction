@@ -30,8 +30,8 @@ def main(config):
         try:
             while True:
                 experiment.run_training()
-                if manager.should_backup(experiment.state):
-                    experiment.run_backup()
+                if manager.should_save(experiment.state):
+                    experiment.run_saving()
                 if manager.should_validation(experiment.state):
                     experiment.run_validation()
         except KeyboardInterrupt:

@@ -1,6 +1,6 @@
 from . import support
-from .checkpoint import Checkpoint
 from .learner import Learner
+from .saver import Saver
 from .teacher import Examiner
 from .teacher import Trainer
 import numpy as np
@@ -29,27 +29,27 @@ class Experiment:
             with tf.variable_scope('state'):
                 self.state = State()
             self.summarer = tf.summary.FileWriter(self.output.path, graph)
-            self.checkpoint = Checkpoint(self.output)
+            self.saver = Saver(self.output)
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
         self.session = tf.Session(graph=graph)
         self.session.run(initialize)
-        self.checkpoint.load(self.session)
+        self.saver.load(self.session)
         self.state.load(self.session)
         self.input.training.restart(self.state.epoch)
         support.log(self, 'Output path: {}', self.output.path)
         support.log(self, 'Initial step: {}, epoch: {}, sample: {}',
                     self.state.step, self.state.epoch, self.state.sample)
 
-    def run_backup(self):
-        self.state.save(self.session)
-        self.checkpoint.save(self.session, self.state)
-
     def run_comparison(self, target, summarize=True):
         errors = getattr(self, 'run_' + target)(summarize=False)
         if summarize:
             self._summarize_static(errors, 'comparison_' + target)
         return errors
+
+    def run_saving(self):
+        self.state.save(self.session)
+        self.saver.save(self.session, self.state)
 
     def run_testing(self, summarize=True):
         errors = self.examiner.test(self.input.testing, self._test)
