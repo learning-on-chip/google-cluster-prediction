@@ -1,7 +1,8 @@
 from . import support
 from .checkpoint import Checkpoint
 from .learner import Learner
-from .teacher import Teacher
+from .teacher import Examiner
+from .teacher import Trainer
 import numpy as np
 import tensorflow as tf
 
@@ -18,16 +19,19 @@ class Experiment:
             x = tf.placeholder(tf.float32, shape, name='x')
             y = tf.placeholder(tf.float32, shape, name='y')
             self.training_learner = learner(x, y)
-            self.validation_learner = self.training_learner
-            self.test_learner = self.training_learner
+            self.validation_learner = learner(x, y)
+            self.test_learner = learner(x, y)
+            with tf.variable_scope('trainer'):
+                self.trainer = Trainer(self.training_learner, config.teacher)
+            with tf.variable_scope('examiner'):
+                self.examiner = Examiner(
+                    self.validation_learner, config.teacher)
             with tf.variable_scope('state'):
                 self.state = State()
-            with tf.variable_scope('teacher'):
-                self.teacher = Teacher(self.training_learner, config.teacher)
             self.summarer = tf.summary.FileWriter(self.output.path, graph)
+            self.checkpoint = Checkpoint(self.output)
             initialize = tf.variables_initializer(
                 tf.global_variables(), name='initialize')
-            self.checkpoint = Checkpoint(self.output)
         self.session = tf.Session(graph=graph)
         self.session.run(initialize)
         self.checkpoint.load(self.session)
@@ -48,7 +52,7 @@ class Experiment:
         return errors
 
     def run_testing(self, summarize=True):
-        errors = self.teacher.test(self.input.testing, self._test)
+        errors = self.examiner.test(self.input.testing, self._test)
         if summarize:
             self._summarize_dynamic(errors, 'testing')
         return errors
@@ -56,7 +60,8 @@ class Experiment:
     def run_training(self, summarize=True, sample_count=1):
         for _ in range(sample_count):
             try:
-                errors = self.teacher.train(self.input.training, self._train)
+                errors = self.trainer.train(
+                    self.input.training, self._train)
                 if summarize:
                     self._summarize_dynamic(errors, 'training')
                 self.state.increment_time()
@@ -68,7 +73,8 @@ class Experiment:
                     self.state.step, self.state.epoch, self.state.sample)
 
     def run_validation(self, summarize=True):
-        errors = self.teacher.validate(self.input.validation, self._validate)
+        errors = self.examiner.validate(
+            self.input.validation, self._validate)
         if summarize:
             self._summarize_dynamic(errors, 'validation')
         return errors
@@ -101,8 +107,8 @@ class Experiment:
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
-            'optimize': self.teacher.optimize,
-            'loss': self.teacher.loss,
+            'optimize': self.trainer.optimize,
+            'loss': self.trainer.loss,
         }
         return self.session.run(fetch, feed)['loss']
 
@@ -138,7 +144,7 @@ class Experiment:
                 [1, -1, self.input.dimension_count]),
         }
         fetch = {
-            'loss': self.teacher.loss,
+            'loss': self.examiner.loss,
         }
         return self.session.run(fetch, feed)['loss']
 

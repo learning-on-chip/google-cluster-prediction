@@ -3,18 +3,12 @@ import numpy as np
 import tensorflow as tf
 
 
-class Teacher:
+class Examiner:
     def __init__(self, learner, config):
         self.future_length = config.future_length
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(
                 tf.squared_difference(learner.y, learner.y_hat))
-        gradient = tf.gradients(self.loss, learner.parameters)
-        gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
-        name = '{}Optimizer'.format(config.optimizer.name)
-        optimizer = getattr(tf.train, name)(**config.optimizer.options)
-        self.optimize = optimizer.apply_gradients(
-            zip(gradient, learner.parameters))
 
     def test(self, input, compute):
         progress = support.Progress(subject=self, description='testing')
@@ -32,11 +26,6 @@ class Teacher:
             'RMSE': np.sqrt(sum / progress.count),
         }
 
-    def train(self, input, compute):
-        return {
-            'RMSE': np.sqrt([compute(input.next())]),
-        }
-
     def validate(self, input, compute):
         progress = support.Progress(subject=self, description='validation')
         sum = 0
@@ -46,4 +35,20 @@ class Teacher:
         progress.finish()
         return {
             'RMSE': np.sqrt([sum / progress.count]),
+        }
+
+
+class Trainer(Examiner):
+    def __init__(self, learner, config):
+        super(Trainer, self).__init__(learner, config)
+        gradient = tf.gradients(self.loss, learner.parameters)
+        gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
+        name = '{}Optimizer'.format(config.optimizer.name)
+        optimizer = getattr(tf.train, name)(**config.optimizer.options)
+        self.optimize = optimizer.apply_gradients(
+            zip(gradient, learner.parameters))
+
+    def train(self, input, compute):
+        return {
+            'RMSE': np.sqrt([compute(input.next())]),
         }
