@@ -1,6 +1,3 @@
-analyze: input/index.csv
-	./bin/analyze $<
-
 explore: input/index.csv
 	./bin/explore --input $< --config config/explore.json
 
@@ -20,4 +17,4 @@ clean:
 	rm -rf input/data-*
 	rm -rf output
 
-.PHONY: all analyze clean learn test
+.PHONY: all clean learn test
