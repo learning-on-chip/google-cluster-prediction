@@ -158,15 +158,15 @@ class Standard:
 
 
 def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
-                granularity=2, report_each=10000):
+                granularity=2, **arguments):
     os.makedirs(path)
     sample_count = len(metas)
-    support.log('Distribute samples: {}, path: {}', sample_count, path)
+    progress = support.Progress(description='distributing ' + path,
+                                total_count=sample_count, **arguments)
     names = [separator.join([str(meta) for meta in meta]) for meta in metas]
     names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
     names = [name[:granularity] for name in names]
     seen = {}
-    done_count = 0
     for i in range(sample_count):
         if names[i] in seen:
             continue
@@ -178,12 +178,9 @@ def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
                 continue
             data = (fetch(*metas[j]) - standard[0]) / standard[1]
             writer.write(_encode(data))
-            done_count += 1
-            if done_count % report_each == 0 or done_count == sample_count:
-                support.log(
-                    'Distributed samples: {}',
-                    support.format_percentage(done_count, sample_count))
+            progress.advance()
         writer.close()
+    progress.finish()
 
 def _decode(record):
     example = tf.train.Example()
@@ -221,14 +218,13 @@ def _partition(count, config):
     assert(testing_count > 0)
     return preserved_count, training_count, validation_count, testing_count
 
-def _standartize(metas, fetch, report_each=10000):
+def _standartize(metas, fetch, **arguments):
     sample_count = len(metas)
-    support.log('Standardize samples: {}', sample_count)
+    progress = support.Progress(description='standardizing',
+                                total_count=sample_count, **arguments)
     standard = Standard()
     for i in range(sample_count):
         standard.consume(fetch(*metas[i]))
-        done_count = i + 1
-        if done_count % report_each == 0 or done_count == sample_count:
-            support.log('Standardized samples: {}',
-                        support.format_percentage(done_count, sample_count))
+        progress.advance()
+    progress.finish()
     return standard.compute()

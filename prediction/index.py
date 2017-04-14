@@ -6,48 +6,42 @@ import os
 class Index:
     def decode(path, callback):
         count = 0
-        for record in open(path, 'r'):
-            count += 1
-            record = record.split(',')
-            callback(
-                path=record[0],        # Path
-                user=int(record[1]),   # User
-                app=int(record[2]),    # App
-                job=int(record[3]),    # Job
-                task=int(record[4]),   # Task
-                length=int(record[5]), # Length
-            )
+        with open(path, 'r') as file:
+            for record in file:
+                count += 1
+                record = record.split(',')
+                callback(
+                    path=record[0],        # Path
+                    user=int(record[1]),   # User
+                    app=int(record[2]),    # App
+                    job=int(record[3]),    # Job
+                    task=int(record[4]),   # Task
+                    length=int(record[5]), # Length
+                )
         return count
 
-    def encode(input_path, meta_path, index_path, report_each=10000):
+    def encode(input_path, meta_path, index_path, **arguments):
         support.log(Index, 'Input path: {}', input_path)
+        support.log(Index, 'Meta path: {}', meta_path)
         pattern = os.path.join(input_path, '**', '*.sqlite3')
         paths = sorted(glob.glob(pattern, recursive=True))
         database_count = len(paths)
-        support.log(Index, 'Databases: {}', database_count)
-        support.log(Index, 'Meta path: {}', meta_path)
         mapping = database.map_job_to_user_app(meta_path)
-        support.log(Index, 'Jobs: {}', len(mapping))
-        trace_count = 0
-        file = open(index_path, 'w')
-        for i in range(database_count):
-            data = database.count_job_task_samples(paths[i])
-            trace_count += len(data)
-            for record in data:
-                meta = mapping[record[0]]
-                record = [
-                    paths[i],  # Path
-                    meta[0],   # User
-                    meta[1],   # App
-                    record[0], # Job
-                    record[1], # Task
-                    record[2], # Length
-                ]
-                file.write(','.join([str(item) for item in record]) + '\n')
-            done_count = i + 1
-            if done_count % report_each == 0 or done_count == database_count:
-                support.log(
-                    Index, 'Processed: {}, traces: {}',
-                    support.format_percentage(done_count, database_count),
-                    trace_count)
-        file.close()
+        progress = support.Progress(description='indexing',
+                                    total_count=database_count, **arguments)
+        with open(index_path, 'w') as file:
+            for i in range(database_count):
+                data = database.count_job_task_samples(paths[i])
+                for record in data:
+                    meta = mapping[record[0]]
+                    record = [
+                        paths[i],  # Path
+                        meta[0],   # User
+                        meta[1],   # App
+                        record[0], # Job
+                        record[1], # Task
+                        record[2], # Length
+                    ]
+                    file.write(','.join([str(item) for item in record]) + '\n')
+                progress.advance()
+        progress.finish()

@@ -17,17 +17,19 @@ class Teacher:
             zip(gradient, learner.parameters))
 
     def test(self, input, compute):
-        sum, count = np.zeros([self.future_length]), 0
+        progress = support.Progress(subject=self, description='testing')
+        sum = np.zeros([self.future_length])
         for sample in input.iterate():
             sample_length, dimension_count = sample.shape
-            count += sample_length * dimension_count
             y_hat = compute(sample, self.future_length)
             for i in range(sample_length):
                 length = min(sample_length - (i + 1), self.future_length)
                 y_hat[i, :length, :] -= sample[(i + 1):(i + 1 + length), :]
                 sum += np.sum(y_hat[i, :, :]**2, axis=-1)
+            progress.advance(sample_length * dimension_count)
+        progress.finish()
         return {
-            'RMSE': np.sqrt(sum / count),
+            'RMSE': np.sqrt(sum / progress.count),
         }
 
     def train(self, input, compute):
@@ -36,10 +38,12 @@ class Teacher:
         }
 
     def validate(self, input, compute):
-        sum, count = 0, 0
+        progress = support.Progress(subject=self, description='validation')
+        sum = 0
         for sample in input.iterate():
-            count += 1
             sum += compute(sample)
+            progress.advance()
+        progress.finish()
         return {
-            'RMSE': np.sqrt([sum / count]),
+            'RMSE': np.sqrt([sum / progress.count]),
         }
