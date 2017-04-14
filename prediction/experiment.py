@@ -43,7 +43,7 @@ class Experiment:
 
     def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)
-        self.summarize_static(self.summarer, errors, 'comparison_' + target)
+        support.summarize_static(self.summarer, errors, 'comparison_' + target)
 
     def run_saving(self):
         self.state.save(self.session)
