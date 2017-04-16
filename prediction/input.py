@@ -158,11 +158,12 @@ class Standard:
 
 
 def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
-                granularity=2, **arguments):
+                granularity=2, report_each=10000):
     os.makedirs(path)
     sample_count = len(metas)
     progress = support.Progress(description='distributing ' + path,
-                                total_count=sample_count, **arguments)
+                                total_count=sample_count,
+                                report_each=report_each)
     names = [separator.join([str(meta) for meta in meta]) for meta in metas]
     names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
     names = [name[:granularity] for name in names]
@@ -218,10 +219,11 @@ def _partition(count, config):
     assert(testing_count > 0)
     return preserved_count, training_count, validation_count, testing_count
 
-def _standartize(metas, fetch, **arguments):
+def _standartize(metas, fetch, report_each=10000):
     sample_count = len(metas)
     progress = support.Progress(description='standardizing',
-                                total_count=sample_count, **arguments)
+                                total_count=sample_count,
+                                report_each=report_each)
     standard = Standard()
     for i in range(sample_count):
         standard.consume(fetch(*metas[i]))

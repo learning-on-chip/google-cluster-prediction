@@ -13,8 +13,9 @@ class Teacher:
     def __init__(self, config):
         self.future_length = config.future_length
 
-    def test(self, input, compute):
-        progress = support.Progress(subject=self, description='testing')
+    def test(self, input, compute, report_each=10000):
+        progress = support.Progress(subject=self, description='testing',
+                                    report_each=report_each)
         sum = np.zeros([self.future_length])
         for sample in input.iterate():
             sample_length, dimension_count = sample.shape
@@ -29,8 +30,9 @@ class Teacher:
             'MSE': sum / progress.count,
         }
 
-    def validate(self, input, compute):
-        progress = support.Progress(subject=self, description='validation')
+    def validate(self, input, compute, report_each=10000):
+        progress = support.Progress(subject=self, description='validation',
+                                    report_each=report_each)
         sum = 0
         for sample in input.iterate():
             sum += compute(sample)

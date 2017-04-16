@@ -20,7 +20,7 @@ class Index:
                 )
         return count
 
-    def encode(input_path, meta_path, index_path, **arguments):
+    def encode(input_path, meta_path, index_path, report_each=10000):
         support.log(Index, 'Input path: {}', input_path)
         support.log(Index, 'Meta path: {}', meta_path)
         pattern = os.path.join(input_path, '**', '*.sqlite3')
@@ -28,7 +28,8 @@ class Index:
         database_count = len(paths)
         mapping = database.map_job_to_user_app(meta_path)
         progress = support.Progress(description='indexing',
-                                    total_count=database_count, **arguments)
+                                    total_count=database_count,
+                                    report_each=report_each)
         with open(index_path, 'w') as file:
             for i in range(database_count):
                 data = database.count_job_task_samples(paths[i])
