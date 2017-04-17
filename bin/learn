@@ -10,7 +10,6 @@ from prediction import Input
 from prediction import Learner
 from prediction import Manager
 from prediction import Random
-from prediction import Reference
 from prediction import support
 import argparse
 import json
@@ -21,12 +20,11 @@ def main(config):
     input = Input(config.input)
     path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'reference')
-    reference = Reference(input, config)
-    reference.run_comparison('validation')
-    reference.run_comparison('testing')
-    learner = Learner(config.candidate)
-    config.output.path = os.path.join(path, 'experiment')
-    experiment = Experiment(input, learner, config)
+    experiment = Experiment(input, Learner(config.reference), config)
+    experiment.run_comparison('validation')
+    experiment.run_comparison('testing')
+    config.output.path = os.path.join(path, 'candidate')
+    experiment = Experiment(input, Learner(config.candidate), config)
     manager = Manager(config.manager)
     while True:
         try:

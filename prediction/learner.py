@@ -113,5 +113,35 @@ class Candidate:
         return start, tuple(state)
 
 
+class Reference:
+    def __init__(self, x, y, _):
+        self.x, self.y, self.y_hat = x, y, x
+        self.parameters = []
+
+    def test(self, _, sample, future_length):
+        sample_length, dimension_count = sample.shape
+        y_hat = np.empty([sample_length, future_length, dimension_count])
+        for i in range(sample_length):
+            for j in range(future_length):
+                y_hat[i, j, :] = sample[i, :]
+        return y_hat
+
+    def validate(self, session, loss, sample):
+        shape = [1, sample.shape[0], -1]
+        feed = {
+            self.x: np.reshape(sample, shape),
+            self.y: np.reshape(support.shift(sample, -1), shape),
+        }
+        fetch = {
+            'loss': loss,
+        }
+        return session.run(fetch, feed)['loss']
+
+
 def Learner(config):
-    return tf.make_template('learner', lambda x, y: Candidate(x, y, config))
+    if len(config) > 0:
+        return tf.make_template('learner',
+                                lambda x, y: Candidate(x, y, config))
+    else:
+        return tf.make_template('learner',
+                                lambda x, y: Reference(x, y, config))

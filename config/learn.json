@@ -33,6 +33,8 @@
 			}
 		}
 	},
+	"reference": {
+	},
 	"teacher": {
 		"gradient_clip": 1.0,
 		"optimizer": {

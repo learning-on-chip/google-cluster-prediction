@@ -3,15 +3,12 @@ import numpy as np
 import tensorflow as tf
 
 
-class Teacher:
-    def assess_numeric(y, y_hat):
-        return np.mean(np.ravel(y - y_hat)**2)
-
-    def assess_symbolic(y, y_hat):
-        return tf.reduce_mean(tf.squared_difference(y, y_hat))
-
-    def __init__(self, config):
+class Examiner:
+    def __init__(self, learner, config):
         self.future_length = config.future_length
+        with tf.variable_scope('loss'):
+            self.loss = tf.reduce_mean(
+                tf.squared_difference(learner.y, learner.y_hat))
 
     def test(self, input, compute, report_each=10000):
         progress = support.Progress(subject=self, description='testing',
@@ -43,16 +40,12 @@ class Teacher:
         }
 
 
-class Examiner(Teacher):
-    def __init__(self, learner, config):
-        super(Examiner, self).__init__(config)
-        with tf.variable_scope('loss'):
-            self.loss = Teacher.assess_symbolic(learner.y, learner.y_hat)
-
-
 class Trainer(Examiner):
     def __init__(self, learner, config):
-        super(Trainer, self).__init__(learner, config)
+        super(self.__class__, self).__init__(learner, config)
+        if len(learner.parameters) == 0:
+            self.optimize = tf.no_op()
+            return
         gradient = tf.gradients(self.loss, learner.parameters)
         gradient, _ = tf.clip_by_global_norm(gradient, config.gradient_clip)
         name = '{}Optimizer'.format(config.optimizer.name)
