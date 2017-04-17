@@ -5,17 +5,17 @@ import numpy as np
 import tensorflow as tf
 
 
-class Learner:
+class Candidate:
     def __init__(self, x, y, config):
         self.x, self.y = x, y
         with tf.variable_scope('batch_size'):
             self.batch_size = tf.shape(x)[0]
         with tf.variable_scope('network'):
-            self.start, self.finish, h = Learner._network(x, config)
+            self.start, self.finish, h = Candidate._network(x, config)
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(h)[1]
         with tf.variable_scope('regression'):
-            w, b = Learner._regression(
+            w, b = Candidate._regression(
                 self.batch_size, self.unroll_count, config)
         with tf.variable_scope('y_hat'):
             self.y_hat = tf.matmul(h, w) + b
@@ -40,19 +40,19 @@ class Learner:
     def _network(x, config):
         name = '{}Cell'.format(config.cell.name)
         cell = getattr(crnn, name)(config.unit_count,
-                                   initializer=Learner._initialize(config),
+                                   initializer=Candidate._initialize(config),
                                    **config.cell.options)
         cell = crnn.DropoutWrapper(cell, **config.dropout.options)
         cell = crnn.MultiRNNCell([cell] * config.layer_count)
-        start, state = Learner._start(config)
+        start, state = Candidate._start(config)
         h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
-        finish = Learner._finish(state, config)
+        finish = Candidate._finish(state, config)
         return start, finish, h
 
     def _regression(batch_size, unroll_count, config):
         w = tf.get_variable(
             'w', [1, config.unit_count, config.dimension_count],
-            initializer=Learner._initialize(config))
+            initializer=Candidate._initialize(config))
         b = tf.get_variable('b', [1, 1, config.dimension_count])
         w = tf.tile(w, [batch_size, 1, 1])
         b = tf.tile(b, [batch_size, unroll_count, 1])
@@ -67,3 +67,7 @@ class Learner:
             c, h = parts[2 * i], parts[2 * i + 1]
             state.append(crnn.LSTMStateTuple(c, h))
         return start, tuple(state)
+
+
+def Learner(config):
+    return tf.make_template('learner', lambda x, y: Candidate(x, y, config))

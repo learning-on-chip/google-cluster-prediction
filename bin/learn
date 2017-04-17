@@ -7,6 +7,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from prediction import Config
 from prediction import Experiment
 from prediction import Input
+from prediction import Learner
 from prediction import Manager
 from prediction import Random
 from prediction import Reference
@@ -23,8 +24,9 @@ def main(config):
     reference = Reference(input, config)
     reference.run_comparison('validation')
     reference.run_comparison('testing')
+    learner = Learner(config.candidate)
     config.output.path = os.path.join(path, 'experiment')
-    experiment = Experiment(input, config)
+    experiment = Experiment(input, learner, config)
     manager = Manager(config.manager)
     while True:
         try:

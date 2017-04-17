@@ -8,11 +8,9 @@ import tensorflow as tf
 
 
 class Experiment:
-    def __init__(self, input, config):
+    def __init__(self, input, learner, config):
         self.input = input
         self.output = config.output
-        learner = tf.make_template(
-            'learner', lambda x, y: Learner(x, y, config.learner))
         graph = tf.Graph()
         with graph.as_default():
             shape = [None, None, input.dimension_count]
