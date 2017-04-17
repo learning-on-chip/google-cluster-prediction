@@ -1,8 +1,9 @@
 from . import support
 from .learner import Learner
 from .saver import Saver
-from .teacher import Examiner
+from .teacher import Tester
 from .teacher import Trainer
+from .teacher import Validator
 import numpy as np
 import tensorflow as tf
 
@@ -16,20 +17,21 @@ class Session:
             shape = [None, None, input.dimension_count]
             x = tf.placeholder(tf.float32, shape, name='x')
             y = tf.placeholder(tf.float32, shape, name='y')
-            self.training_learner = learner(x, y)
-            self.validation_learner = learner(x, y)
-            self.test_learner = learner(x, y)
+            self.trainee = learner(x, y)
             with tf.variable_scope('trainer'):
-                self.trainer = Trainer(self.training_learner, config.teacher)
-            with tf.variable_scope('examiner'):
-                self.examiner = Examiner(
-                    self.validation_learner, config.teacher)
+                self.trainer = Trainer(self.trainee, config.teacher)
+            self.validee = learner(x, y)
+            with tf.variable_scope('validator'):
+                self.validator = Validator(self.validee, config.teacher)
+            self.testee = learner(x, y)
+            with tf.variable_scope('tester'):
+                self.tester = Tester(self.testee, config.teacher)
             with tf.variable_scope('state'):
                 self.state = State()
-            self.summarer = tf.summary.FileWriter(self.output.path, graph)
             self.saver = Saver(self.output)
-            initialize = tf.variables_initializer(
-                tf.global_variables(), name='initialize')
+            initialize = tf.variables_initializer(tf.global_variables(),
+                                                  name='initialize')
+        self.summarer = tf.summary.FileWriter(self.output.path, graph)
         self.session = tf.Session(graph=graph)
         self.session.run(initialize)
         self.saver.load(self.session)
@@ -49,24 +51,23 @@ class Session:
 
     def run_testing(self, summarize=True):
         def _compute(*arguments):
-            return self.test_learner.test(self.session, *arguments)
-        errors = self.examiner.test(self.input.testing, _compute)
+            return self.testee.test(self.session, *arguments)
+        errors = self.tester.run(self.input.testing, _compute)
         if summarize:
-            support.summarize_dynamic(
-                self.summarer, self.state, errors, 'testing')
+            support.summarize_dynamic(self.summarer, self.state, errors,
+                                      'testing')
         return errors
 
     def run_training(self, summarize=True, sample_count=1):
         def _compute(*arguments):
-            return self.training_learner.train(
-                self.session, self.trainer.optimize,
-                self.trainer.loss, *arguments)
+            return self.trainee.train(self.session, self.trainer.optimize,
+                                      self.trainer.loss, *arguments)
         for _ in range(sample_count):
             try:
-                errors = self.trainer.train(self.input.training, _compute)
+                errors = self.trainer.run(self.input.training, _compute)
                 if summarize:
-                    support.summarize_dynamic(
-                        self.summarer, self.state, errors, 'training')
+                    support.summarize_dynamic(self.summarer, self.state,
+                                              errors, 'training')
                 self.state.increment_time()
             except StopIteration:
                 self.state.increment_epoch()
@@ -77,19 +78,19 @@ class Session:
 
     def run_validation(self, summarize=True):
         def _compute(*arguments):
-            return self.validation_learner.validate(
-                self.session, self.examiner.loss, *arguments)
-        errors = self.examiner.validate(self.input.validation, _compute)
+            return self.validee.validate(self.session, self.validator.loss,
+                                         *arguments)
+        errors = self.validator.run(self.input.validation, _compute)
         if summarize:
-            support.summarize_dynamic(
-                self.summarer, self.state, errors, 'validation')
+            support.summarize_dynamic(self.summarer, self.state, errors,
+                                      'validation')
         return errors
 
 
 class State:
     def __init__(self):
-        self.current = tf.Variable(
-            [0, 0, 0], name='current', dtype=tf.int64, trainable=False)
+        self.current = tf.Variable([0, 0, 0], name='current', dtype=tf.int64,
+                                   trainable=False)
         self.new = tf.placeholder(tf.int64, shape=3, name='new')
         self.assign_new = self.current.assign(self.new)
         self.step, self.epoch, self.sample = None, None, None

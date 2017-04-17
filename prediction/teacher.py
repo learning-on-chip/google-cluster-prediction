@@ -3,14 +3,11 @@ import numpy as np
 import tensorflow as tf
 
 
-class Examiner:
-    def __init__(self, learner, config):
+class Tester:
+    def __init__(self, _, config):
         self.future_length = config.future_length
-        with tf.variable_scope('loss'):
-            self.loss = tf.reduce_mean(
-                tf.squared_difference(learner.y, learner.y_hat))
 
-    def test(self, input, compute, report_each=10000):
+    def run(self, input, compute, report_each=10000):
         progress = support.Progress(subject=self, description='testing',
                                     report_each=report_each)
         sum = np.zeros([self.future_length])
@@ -27,22 +24,12 @@ class Examiner:
             'MSE': sum / progress.count,
         }
 
-    def validate(self, input, compute, report_each=10000):
-        progress = support.Progress(subject=self, description='validation',
-                                    report_each=report_each)
-        sum = 0
-        for sample in input.iterate():
-            sum += compute(sample)
-            progress.advance()
-        progress.finish()
-        return {
-            'MSE': [sum / progress.count],
-        }
 
-
-class Trainer(Examiner):
+class Trainer:
     def __init__(self, learner, config):
-        super(self.__class__, self).__init__(learner, config)
+        with tf.variable_scope('loss'):
+            self.loss = tf.reduce_mean(
+                tf.squared_difference(learner.y, learner.y_hat))
         if len(learner.parameters) == 0:
             self.optimize = tf.no_op()
             return
@@ -53,7 +40,26 @@ class Trainer(Examiner):
         self.optimize = optimizer.apply_gradients(
             zip(gradient, learner.parameters))
 
-    def train(self, input, compute):
+    def run(self, input, compute):
         return {
             'MSE': [compute(input.next())],
+        }
+
+
+class Validator:
+    def __init__(self, learner, _):
+        with tf.variable_scope('loss'):
+            self.loss = tf.reduce_mean(
+                tf.squared_difference(learner.y, learner.y_hat))
+
+    def run(self, input, compute, report_each=10000):
+        progress = support.Progress(subject=self, description='validation',
+                                    report_each=report_each)
+        sum = 0
+        for sample in input.iterate():
+            sum += compute(sample)
+            progress.advance()
+        progress.finish()
+        return {
+            'MSE': [sum / progress.count],
         }
