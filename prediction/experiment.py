@@ -48,17 +48,22 @@ class Experiment:
         self.saver.save(self.session, self.state)
 
     def run_testing(self, summarize=True):
-        errors = self.examiner.test(self.input.testing, self._test)
+        def _compute(*arguments):
+            return self.test_learner.test(self.session, *arguments)
+        errors = self.examiner.test(self.input.testing, _compute)
         if summarize:
             support.summarize_dynamic(
                 self.summarer, self.state, errors, 'testing')
         return errors
 
     def run_training(self, summarize=True, sample_count=1):
+        def _compute(*arguments):
+            return self.training_learner.train(
+                self.session, self.trainer.optimize,
+                self.trainer.loss, *arguments)
         for _ in range(sample_count):
             try:
-                errors = self.trainer.train(
-                    self.input.training, self._train)
+                errors = self.trainer.train(self.input.training, _compute)
                 if summarize:
                     support.summarize_dynamic(
                         self.summarer, self.state, errors, 'training')
@@ -71,63 +76,14 @@ class Experiment:
                     self.state.step, self.state.epoch, self.state.sample)
 
     def run_validation(self, summarize=True):
-        errors = self.examiner.validate(self.input.validation, self._validate)
+        def _compute(*arguments):
+            return self.validation_learner.validate(
+                self.session, self.examiner.loss, *arguments)
+        errors = self.examiner.validate(self.input.validation, _compute)
         if summarize:
             support.summarize_dynamic(
                 self.summarer, self.state, errors, 'validation')
         return errors
-
-    def _train(self, sample):
-        feed = {
-            self.training_learner.start: np.zeros(
-                self.training_learner.start.get_shape(), np.float32),
-            self.training_learner.x: np.reshape(
-                sample, [1, -1, self.input.dimension_count]),
-            self.training_learner.y: np.reshape(
-                support.shift(sample, -1),
-                [1, -1, self.input.dimension_count]),
-        }
-        fetch = {
-            'optimize': self.trainer.optimize,
-            'loss': self.trainer.loss,
-        }
-        return self.session.run(fetch, feed)['loss']
-
-    def _test(self, sample, future_length):
-        fetch = {
-            'y_hat': self.test_learner.y_hat,
-            'finish': self.test_learner.finish,
-        }
-        sample_length, dimension_count = sample.shape
-        y_hat = np.empty([sample_length, future_length, dimension_count])
-        for i in range(sample_length):
-            feed = {
-                self.test_learner.start: np.zeros(
-                    self.test_learner.start.get_shape(), np.float32),
-                self.test_learner.x: np.reshape(
-                    sample[:(i + 1), :], [1, i + 1, -1]),
-            }
-            for j in range(future_length):
-                result = self.session.run(fetch, feed)
-                y_hat[i, j, :] = result['y_hat'][0, -1, :]
-                feed[self.test_learner.start] = result['finish']
-                feed[self.test_learner.x] = y_hat[i:(i + 1), j:(j + 1), :]
-        return y_hat
-
-    def _validate(self, sample):
-        feed = {
-            self.validation_learner.start: np.zeros(
-                self.validation_learner.start.get_shape(), np.float32),
-            self.validation_learner.x: np.reshape(
-                sample, [1, -1, self.input.dimension_count]),
-            self.validation_learner.y: np.reshape(
-                support.shift(sample, -1),
-                [1, -1, self.input.dimension_count]),
-        }
-        fetch = {
-            'loss': self.examiner.loss,
-        }
-        return self.session.run(fetch, feed)['loss']
 
 
 class State:

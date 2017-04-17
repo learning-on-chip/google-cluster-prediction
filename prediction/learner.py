@@ -26,6 +26,50 @@ class Candidate:
     def parameter_count(self):
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
+    def test(self, session, sample, future_length):
+        fetch = {
+            'y_hat': self.y_hat,
+            'finish': self.finish,
+        }
+        sample_length, dimension_count = sample.shape
+        y_hat = np.empty([sample_length, future_length, dimension_count])
+        for i in range(sample_length):
+            feed = {
+                self.start: np.zeros(self.start.get_shape(), np.float32),
+                self.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
+            }
+            for j in range(future_length):
+                result = session.run(fetch, feed)
+                y_hat[i, j, :] = result['y_hat'][0, -1, :]
+                feed[self.start] = result['finish']
+                feed[self.x] = y_hat[i:(i + 1), j:(j + 1), :]
+        return y_hat
+
+    def train(self, session, optimize, loss, sample):
+        shape = [1, sample.shape[0], -1]
+        feed = {
+            self.start: np.zeros(self.start.get_shape(), np.float32),
+            self.x: np.reshape(sample, shape),
+            self.y: np.reshape(support.shift(sample, -1), shape),
+        }
+        fetch = {
+            'optimize': optimize,
+            'loss': loss,
+        }
+        return session.run(fetch, feed)['loss']
+
+    def validate(self, session, loss, sample):
+        shape = [1, sample.shape[0], -1]
+        feed = {
+            self.start: np.zeros(self.start.get_shape(), np.float32),
+            self.x: np.reshape(sample, shape),
+            self.y: np.reshape(support.shift(sample, -1), shape),
+        }
+        fetch = {
+            'loss': loss,
+        }
+        return session.run(fetch, feed)['loss']
+
     def _finish(state, config):
         parts = []
         for i in range(config.layer_count):
