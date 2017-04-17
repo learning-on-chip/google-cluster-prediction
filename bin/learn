@@ -5,11 +5,11 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from prediction import Config
-from prediction import Experiment
 from prediction import Input
 from prediction import Learner
 from prediction import Manager
 from prediction import Random
+from prediction import Session
 from prediction import support
 import argparse
 import json
@@ -20,20 +20,20 @@ def main(config):
     input = Input(config.input)
     path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'reference')
-    experiment = Experiment(input, Learner(config.reference), config)
-    experiment.run_comparison('validation')
-    experiment.run_comparison('testing')
+    session = Session(input, Learner(config.reference), config)
+    session.run_comparison('validation')
+    session.run_comparison('testing')
     config.output.path = os.path.join(path, 'candidate')
-    experiment = Experiment(input, Learner(config.candidate), config)
+    session = Session(input, Learner(config.candidate), config)
     manager = Manager(config.manager)
     while True:
         try:
             while True:
-                experiment.run_training()
-                if manager.should_save(experiment.state):
-                    experiment.run_saving()
-                if manager.should_validation(experiment.state):
-                    experiment.run_validation()
+                session.run_training()
+                if manager.should_save(session.state):
+                    session.run_saving()
+                if manager.should_validation(session.state):
+                    session.run_validation()
         except KeyboardInterrupt:
             print()
         i = support.prompt('Abort', 'Continue training',
@@ -43,8 +43,8 @@ def main(config):
         elif i == 1:
             continue
         elif i == 2:
-            experiment.run_comparison('validation')
-            experiment.run_comparison('testing')
+            session.run_comparison('validation')
+            session.run_comparison('testing')
             return
 
 if __name__ == '__main__':

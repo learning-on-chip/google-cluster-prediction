@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow as tf
 
 
-class Experiment:
+class Session:
     def __init__(self, input, learner, config):
         self.input = input
         self.output = config.output
