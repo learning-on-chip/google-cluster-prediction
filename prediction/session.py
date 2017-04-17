@@ -38,8 +38,7 @@ class Session:
         self.state.load(self.session)
         self.input.training.restart(self.state.epoch)
         support.log(self, 'Output path: {}', self.output.path)
-        support.log(self, 'Initial step: {}, epoch: {}, sample: {}',
-                    self.state.step, self.state.epoch, self.state.sample)
+        self._report_state()
 
     def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)
@@ -72,9 +71,7 @@ class Session:
             except StopIteration:
                 self.state.increment_epoch()
                 self.input.training.restart(self.state.epoch)
-                support.log(
-                    self, 'Current step: {}, epoch: {}, sample: {}',
-                    self.state.step, self.state.epoch, self.state.sample)
+                self._report_state()
 
     def run_validation(self, summarize=True):
         def _compute(*arguments):
@@ -85,6 +82,10 @@ class Session:
             support.summarize_dynamic(self.summarer, self.state, errors,
                                       'validation')
         return errors
+
+    def _report_state(self):
+        support.log(self, 'Current step: {}, epoch: {}, sample: {}',
+                    self.state.step, self.state.epoch, self.state.sample)
 
 
 class State:
