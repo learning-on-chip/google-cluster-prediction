@@ -6,12 +6,12 @@ import tensorflow as tf
 
 
 class Saver:
-    def __init__(self, config):
-        self.saver = tf.train.Saver(max_to_keep=100)
+    def __init__(self, config, **arguments):
+        self.backend = tf.train.Saver(max_to_keep=100, **arguments)
         self.restore = config.get('restore')
         self.path = config.path
 
-    def load(self, session, state=None):
+    def load(self, session):
         if self.restore is False:
             return
         paths = Saver._load(self.path)
@@ -30,12 +30,12 @@ class Saver:
         else:
             i = step_counts.index(self.restore)
         path = paths[step_counts[i]]
-        self.saver.restore(session, path)
+        self.backend.restore(session, path)
         support.log(self, 'Restore: {}', path)
 
     def save(self, session, state):
         path = os.path.join(self.path, 'session-{}'.format(state.step))
-        path = self.saver.save(session, path)
+        path = self.backend.save(session, path)
         support.log(self, 'Save: {}', path)
 
     def _load(path):

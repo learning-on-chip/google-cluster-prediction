@@ -10,10 +10,11 @@ import tensorflow as tf
 
 class Session:
     def __init__(self, input, learner, config):
-        self.input = input
+        support.log(self, 'Output path: {}', config.output.path)
         self.output = config.output
         graph = tf.Graph()
         with graph.as_default():
+            self.input = input
             shape = [None, None, input.dimension_count]
             x = tf.placeholder(tf.float32, shape, name='x')
             y = tf.placeholder(tf.float32, shape, name='y')
@@ -28,16 +29,15 @@ class Session:
                 self.tester = Tester(self.testee, config.teacher)
             with tf.variable_scope('state'):
                 self.state = State()
-            self.saver = Saver(self.output)
-            initialize = tf.variables_initializer(tf.global_variables(),
-                                                  name='initialize')
+            self.saver = Saver(self.output, name='saver')
+        with graph.as_default():
+            self.backend = tf.Session()
+            self.backend.run(tf.variables_initializer(tf.global_variables(),
+                                                      name='initialize'))
         self.summarer = tf.summary.FileWriter(self.output.path, graph)
-        self.session = tf.Session(graph=graph)
-        self.session.run(initialize)
-        self.saver.load(self.session)
-        self.state.load(self.session)
+        self.saver.load(self.backend)
+        self.state.load(self.backend)
         self.input.training.restart(self.state.epoch)
-        support.log(self, 'Output path: {}', self.output.path)
         self._report_state()
 
     def run_comparison(self, target):
@@ -45,12 +45,12 @@ class Session:
         support.summarize_static(self.summarer, errors, 'comparison_' + target)
 
     def run_saving(self):
-        self.state.save(self.session)
-        self.saver.save(self.session, self.state)
+        self.state.save(self.backend)
+        self.saver.save(self.backend, self.state)
 
     def run_testing(self, summarize=True):
         def _compute(*arguments):
-            return self.testee.test(self.session, *arguments)
+            return self.testee.test(self.backend, *arguments)
         errors = self.tester.run(self.input.testing, _compute)
         if summarize:
             support.summarize_dynamic(self.summarer, self.state, errors,
@@ -59,7 +59,7 @@ class Session:
 
     def run_training(self, summarize=True, sample_count=1):
         def _compute(*arguments):
-            return self.trainee.train(self.session, self.trainer.optimize,
+            return self.trainee.train(self.backend, self.trainer.optimize,
                                       self.trainer.loss, *arguments)
         for _ in range(sample_count):
             try:
@@ -75,7 +75,7 @@ class Session:
 
     def run_validation(self, summarize=True):
         def _compute(*arguments):
-            return self.validee.validate(self.session, self.validator.loss,
+            return self.validee.validate(self.backend, self.validator.loss,
                                          *arguments)
         errors = self.validator.run(self.input.validation, _compute)
         if summarize:

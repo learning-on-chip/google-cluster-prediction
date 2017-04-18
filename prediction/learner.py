@@ -10,10 +10,10 @@ class Candidate:
         self.x, self.y = x, y
         with tf.variable_scope('batch_size'):
             self.batch_size = tf.shape(x)[0]
+        with tf.variable_scope('unroll_count'):
+            self.unroll_count = tf.shape(x)[1]
         with tf.variable_scope('network'):
             self.start, self.finish, h = Candidate._network(x, config)
-        with tf.variable_scope('unroll_count'):
-            self.unroll_count = tf.shape(h)[1]
         with tf.variable_scope('regression'):
             w, b = Candidate._regression(
                 self.batch_size, self.unroll_count, config)
