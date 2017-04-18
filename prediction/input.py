@@ -4,47 +4,18 @@ from .index import Index
 from .random import Random
 import glob
 import hashlib
+import json
 import numpy as np
 import os
 import tensorflow as tf
 
+_META_NAME = 'meta.json'
+
 
 class Input:
-    class Part:
-        def __init__(self, path):
-            pattern = os.path.join(path, '**', '*.tfrecords')
-            self.paths = sorted(glob.glob(pattern, recursive=True))
-            self.restart()
-
-        def copy(self):
-            copy = Input.Part.__new__(Input.Part)
-            copy.paths = self.paths
-            copy.restart()
-            return copy
-
-        def iterate(self):
-            for record in self._iterate():
-                yield _decode(record)
-
-        def next(self):
-            return _decode(next(self.iterator))
-
-        def restart(self, seed=0):
-            random_state = Random.get().get_state()
-            Random.get().seed(seed)
-            index = Random.get().permutation(len(self.paths))
-            Random.get().set_state(random_state)
-            self.iterator = self._iterate(index)
-
-        def _iterate(self, index=None):
-            for i in index if not index is None else range(len(self.paths)):
-                for record in tf.python_io.tf_record_iterator(self.paths[i]):
-                    yield record
-            raise StopIteration()
-
     def __init__(self, config):
-        self.dimension_count = 1
-        klass, training_path, validation_path, testing_path = _identify(config)
+        klass, training_path, validation_path, testing_path = \
+            Input._identify(config)
         support.log(self, 'Training path: {}', training_path)
         support.log(self, 'Validation path: {}', validation_path)
         support.log(self, 'Testing path: {}', testing_path)
@@ -53,33 +24,169 @@ class Input:
            not os.path.exists(testing_path):
             training_metas, validation_metas, testing_metas = klass._prepare(
                 training_path, validation_path, testing_path, config)
-            standard = _standartize(training_metas, klass._fetch)
+            standard = Input._standartize(training_metas, klass._fetch)
             support.log(self, 'Standard mean: {}, deviation: {}', *standard)
             if not os.path.exists(training_path):
-                _distribute(training_path, training_metas, klass._fetch,
-                            standard=standard)
+                Input._distribute(training_path, training_metas,
+                                  klass._fetch, standard=standard)
             if not os.path.exists(validation_path):
-                _distribute(validation_path, validation_metas, klass._fetch,
-                            standard=standard)
+                Input._distribute(validation_path, validation_metas,
+                                  klass._fetch, standard=standard)
             if not os.path.exists(testing_path):
-                _distribute(testing_path, testing_metas, klass._fetch,
-                            standard=standard)
-        self.training = Input.Part(training_path)
-        self.validation = Input.Part(validation_path)
-        self.testing = Input.Part(testing_path)
+                Input._distribute(testing_path, testing_metas,
+                                  klass._fetch, standard=standard)
+        self.training_path = training_path
+        self.validation_path = validation_path
+        self.testing_path = testing_path
 
-    def copy(self):
-        copy = Input.__new__(Input)
-        copy.dimension_count = self.dimension_count
-        copy.training = self.training.copy()
-        copy.validation = self.validation.copy()
-        copy.testing = self.testing.copy()
-        return copy
+    def __call__(self):
+        return Instance(self.training_path, self.validation_path,
+                        self.testing_path)
+
+    def _collect(path):
+        pattern = os.path.join(path, '**', '*.tfrecords')
+        paths = sorted(glob.glob(pattern, recursive=True))
+        meta = json.loads(open(os.path.join(path, 'meta.json')).read())
+        assert(meta['path_count'] == len(paths))
+        return paths, meta
+
+    def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
+                    granularity=2, report_each=10000):
+        os.makedirs(path)
+        sample_count = len(metas)
+        progress = support.Progress(description='distributing ' + path,
+                                    total_count=sample_count,
+                                    report_each=report_each)
+        names = [separator.join([str(meta) for meta in meta])
+                 for meta in metas]
+        names = [hashlib.md5(name.encode('utf-8')).hexdigest()[:granularity]
+                 for name in names]
+        seen = {}
+        for i in range(sample_count):
+            if names[i] in seen:
+                continue
+            seen[names[i]] = True
+            writer = tf.python_io.TFRecordWriter(
+                os.path.join(path, names[i] + '.tfrecords'))
+            for j in range(i, sample_count):
+                if names[i] != names[j]:
+                    continue
+                data = (fetch(*metas[j]) - standard[0]) / standard[1]
+                writer.write(Input._encode(data))
+                progress.advance()
+            writer.close()
+        progress.finish()
+        with open(os.path.join(path, 'meta.json'), 'w') as file:
+            meta = {
+                'sample_count': sample_count,
+                'path_count': len(seen),
+            }
+            file.write(json.dumps(meta))
+
+    def _encode(data):
+        float_list = tf.train.FloatList(value=np.ravel(data).tolist())
+        feature = tf.train.Feature(float_list=float_list)
+        features = tf.train.Features(feature={'data': feature})
+        example = tf.train.Example(features=features)
+        return example.SerializeToString()
+
+    def _identify(config):
+        real = 'path' in config
+        klass = Real if real else Fake
+        path = os.path.dirname(config.path) if real else 'input'
+        key = support.tokenize(config).encode('utf-8')
+        key = hashlib.md5(key).hexdigest()
+        path = os.path.join(path, 'data-' + key)
+        return [
+            klass,
+            os.path.join(path, 'training'),
+            os.path.join(path, 'validation'),
+            os.path.join(path, 'testing'),
+        ]
+
+    def _partition(available, config):
+        preserved = min(available, config.max_sample_count)
+        training = int(config.training_fraction * preserved)
+        validation = int(config.validation_fraction * preserved)
+        testing = preserved - training - validation
+        assert(training > 0 and validation > 0 and testing > 0)
+        return preserved, training, validation, testing
+
+    def _standartize(metas, fetch, report_each=10000):
+        sample_count = len(metas)
+        progress = support.Progress(description='standardizing',
+                                    total_count=sample_count,
+                                    report_each=report_each)
+        standard = support.Standard()
+        for i in range(sample_count):
+            standard.consume(fetch(*metas[i]))
+            progress.advance()
+        progress.finish()
+        return standard.compute()
+
+
+class Instance:
+    class Part:
+        def __init__(self, path, dimension_count):
+            self.paths, meta = Input._collect(path)
+            self.sample_count = meta['sample_count']
+            self.path_count = meta['path_count']
+            self.step_count = 0
+            with tf.variable_scope('source'):
+                self.enqueue_paths = tf.placeholder(tf.string,
+                                                    name='enqueue_paths')
+                queue = tf.FIFOQueue(None, [tf.string])
+                self.enqueue = queue.enqueue_many([self.enqueue_paths])
+                reader = tf.TFRecordReader()
+                _, record = reader.read(queue)
+            with tf.variable_scope('x'):
+                features = tf.parse_single_example(record, {
+                    'data': tf.VarLenFeature(tf.float32),
+                })
+                data = tf.sparse_tensor_to_dense(features['data'])
+                self.x = tf.reshape(data, [1, -1, dimension_count])
+            with tf.variable_scope('y'):
+                self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
+
+        def loop(self, session, count):
+            for i in range(count):
+                if self.step_count % self.sample_count == 0:
+                    self._enqueue(session)
+                self.step_count += 1
+                yield i
+            raise StopIteration()
+
+        def offset(self, session, step_count):
+            pass
+
+        def walk(self, session):
+            for i in self.loop(session, self.sample_count):
+                yield i
+            raise StopIteration()
+
+        def _enqueue(self, session):
+            random_state = Random.get().get_state()
+            Random.get().seed(self.step_count // self.sample_count)
+            index = Random.get().permutation(len(self.paths))
+            Random.get().set_state(random_state)
+            feed = {
+                self.enqueue_paths: [self.paths[i] for i in index],
+            }
+            session.run(self.enqueue, feed)
+
+
+    def __init__(self, training_path, validation_path, testing_path,
+                 dimension_count=1):
+        self.dimension_count = dimension_count
+        self.training = Instance.Part(training_path, dimension_count)
+        self.validation = Instance.Part(validation_path, dimension_count)
+        self.testing = Instance.Part(testing_path, dimension_count)
 
 
 class Fake:
     def _fetch(a, b, n):
-        return np.reshape(np.sin(a * np.linspace(0, n - 1, n) + b), [-1, 1])
+        x = np.linspace(0, n - 1, n, dtype=np.float32)
+        return np.reshape(np.sin(a * x + b), [-1, 1])
 
     def _generate(count):
         metas = Random.get().rand(count, 3)
@@ -90,7 +197,7 @@ class Fake:
 
     def _prepare(training_path, validation_path, testing_path, config):
         _, training_count, validation_count, testing_count = \
-            _partition(config.max_sample_count, config)
+            Input._partition(config.max_sample_count, config)
         training_metas = Fake._generate(training_count)
         validation_metas = Fake._generate(validation_count)
         testing_metas = Fake._generate(testing_count)
@@ -120,113 +227,16 @@ class Real:
     def _prepare(training_path, validation_path, testing_path, config):
         support.log(Real, 'Index path: {}', config.path)
         metas = Real._index(config)
-        sample_count = len(metas)
+        available_count = len(metas)
         preserved_count, training_count, validation_count, testing_count = \
-            _partition(sample_count, config)
+            Input._partition(available_count, config)
         support.log(Real, 'Preserved samples: {}',
-                    support.format_percentage(preserved_count, sample_count))
+                    support.format_percentage(preserved_count,
+                                              available_count))
         metas = metas[:preserved_count]
         training_metas = metas[:training_count]
         metas = metas[training_count:]
         validation_metas = metas[:validation_count]
         metas = metas[validation_count:]
         testing_metas = metas[:testing_count]
-        metas = metas[testing_count:]
-        assert(len(metas) == 0)
         return training_metas, validation_metas, testing_metas
-
-
-class Standard:
-    def __init__(self):
-        self.s, self.m, self.v, self.k = None, None, None, 0
-
-    def compute(self):
-        return (self.s / self.k, np.sqrt(self.v / (self.k - 1)))
-
-    def consume(self, data):
-        for value in data.flat:
-            self.k += 1
-            if self.k == 1:
-                self.s = value
-                self.m = value
-                self.v = 0
-            else:
-                m = self.m
-                self.s += value
-                self.m += (value - self.m) / self.k
-                self.v += (value - m) * (value - self.m)
-
-
-def _distribute(path, metas, fetch, standard=(0, 1), separator=',',
-                granularity=2, report_each=10000):
-    os.makedirs(path)
-    sample_count = len(metas)
-    progress = support.Progress(description='distributing ' + path,
-                                total_count=sample_count,
-                                report_each=report_each)
-    names = [separator.join([str(meta) for meta in meta]) for meta in metas]
-    names = [hashlib.md5(name.encode('utf-8')).hexdigest() for name in names]
-    names = [name[:granularity] for name in names]
-    seen = {}
-    for i in range(sample_count):
-        if names[i] in seen:
-            continue
-        seen[names[i]] = True
-        writer = tf.python_io.TFRecordWriter(
-            os.path.join(path, names[i] + '.tfrecords'))
-        for j in range(i, sample_count):
-            if names[i] != names[j]:
-                continue
-            data = (fetch(*metas[j]) - standard[0]) / standard[1]
-            writer.write(_encode(data))
-            progress.advance()
-        writer.close()
-    progress.finish()
-
-def _decode(record):
-    example = tf.train.Example()
-    example.ParseFromString(record)
-    data = example.features.feature['data'].float_list.value
-    return np.reshape([value for value in data], [-1, 1])
-
-def _encode(data):
-    float_list = tf.train.FloatList(value=np.ravel(data).tolist())
-    feature = tf.train.Feature(float_list=float_list)
-    features = tf.train.Features(feature={'data': feature})
-    example = tf.train.Example(features=features)
-    return example.SerializeToString()
-
-def _identify(config):
-    real = 'path' in config
-    klass = Real if real else Fake
-    path = os.path.dirname(config.path) if real else 'input'
-    key = hashlib.md5(support.tokenize(config).encode('utf-8')).hexdigest()
-    path = os.path.join(path, 'data-' + key)
-    return [
-        klass,
-        os.path.join(path, 'training'),
-        os.path.join(path, 'validation'),
-        os.path.join(path, 'testing'),
-    ]
-
-def _partition(count, config):
-    preserved_count = min(count, config.max_sample_count)
-    training_count = int(config.training_fraction * preserved_count)
-    assert(training_count > 0)
-    validation_count = int(config.validation_fraction * preserved_count)
-    assert(validation_count > 0)
-    testing_count = preserved_count - training_count - validation_count
-    assert(testing_count > 0)
-    return preserved_count, training_count, validation_count, testing_count
-
-def _standartize(metas, fetch, report_each=10000):
-    sample_count = len(metas)
-    progress = support.Progress(description='standardizing',
-                                total_count=sample_count,
-                                report_each=report_each)
-    standard = Standard()
-    for i in range(sample_count):
-        standard.consume(fetch(*metas[i]))
-        progress.advance()
-    progress.finish()
-    return standard.compute()

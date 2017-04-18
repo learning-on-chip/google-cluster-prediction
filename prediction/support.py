@@ -37,6 +37,27 @@ class Progress:
                 'Finished {} ({})'.format(self.description, self.count))
 
 
+class Standard:
+    def __init__(self):
+        self.s, self.m, self.v, self.k = None, None, None, 0
+
+    def compute(self):
+        return (self.s / self.k, np.sqrt(self.v / (self.k - 1)))
+
+    def consume(self, data):
+        for value in data.flat:
+            self.k += 1
+            if self.k == 1:
+                self.s = value
+                self.m = value
+                self.v = 0
+            else:
+                m = self.m
+                self.s += value
+                self.m += (value - self.m) / self.k
+                self.v += (value - m) * (value - self.m)
+
+
 def default_output():
     return os.path.join('output', format_timestamp())
 

@@ -36,14 +36,14 @@
 	"reference": {
 	},
 	"teacher": {
+		"future_length": 1,
 		"gradient_clip": 1.0,
 		"optimizer": {
 			"name": "Adam",
 			"options": {
 				"learning_rate": 1e-4
 			}
-		},
-		"future_length": 4
+		}
 	},
 	"manager": {
 		"save_period": 7000,

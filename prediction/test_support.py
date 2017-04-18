@@ -1,4 +1,4 @@
-from .input import Standard
+from .support import Standard
 import numpy as np
 import unittest
 

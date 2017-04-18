@@ -14,17 +14,17 @@ class Session:
         self.output = config.output
         graph = tf.Graph()
         with graph.as_default():
-            self.input = input
-            shape = [None, None, input.dimension_count]
-            x = tf.placeholder(tf.float32, shape, name='x')
-            y = tf.placeholder(tf.float32, shape, name='y')
-            self.trainee = learner(x, y)
+            with tf.variable_scope('input'):
+                self.input = input()
+            self.trainee = learner(self.input.training.x,
+                                   self.input.training.y)
             with tf.variable_scope('trainer'):
                 self.trainer = Trainer(self.trainee, config.teacher)
-            self.validee = learner(x, y)
+            self.validee = learner(self.input.validation.x,
+                                   self.input.validation.y)
             with tf.variable_scope('validator'):
                 self.validator = Validator(self.validee, config.teacher)
-            self.testee = learner(x, y)
+            self.testee = learner(self.input.testing.x, self.input.testing.y)
             with tf.variable_scope('tester'):
                 self.tester = Tester(self.testee, config.teacher)
             with tf.variable_scope('state'):
@@ -32,13 +32,12 @@ class Session:
             self.saver = Saver(self.output, name='saver')
         with graph.as_default():
             self.backend = tf.Session()
-            self.backend.run(tf.variables_initializer(tf.global_variables(),
-                                                      name='initialize'))
+            self.backend.run(tf.variables_initializer(
+                tf.global_variables(), name='initialize'))
         self.summarer = tf.summary.FileWriter(self.output.path, graph)
         self.saver.load(self.backend)
         self.state.load(self.backend)
-        self.input.training.restart(self.state.epoch)
-        self._report_state()
+        self.input.training.offset(self.backend, self.state.step)
 
     def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)
@@ -49,67 +48,63 @@ class Session:
         self.saver.save(self.backend, self.state)
 
     def run_testing(self, summarize=True):
-        def _compute(*arguments):
-            return self.testee.test(self.backend, *arguments)
-        errors = self.tester.run(self.input.testing, _compute)
+        errors = self.tester.run(
+            self.input.testing, self.backend,
+            lambda *arguments: self.testee.test(self.backend, *arguments))
         if summarize:
-            support.summarize_dynamic(self.summarer, self.state, errors,
-                                      'testing')
+            support.summarize_dynamic(
+                self.summarer, self.state, errors, 'testing')
         return errors
 
-    def run_training(self, summarize=True, sample_count=1):
-        def _compute(*arguments):
-            return self.trainee.train(self.backend, self.trainer.optimize,
-                                      self.trainer.loss, *arguments)
-        for _ in range(sample_count):
-            try:
-                errors = self.trainer.run(self.input.training, _compute)
-                if summarize:
-                    support.summarize_dynamic(self.summarer, self.state,
-                                              errors, 'training')
-                self.state.increment_time()
-            except StopIteration:
-                self.state.increment_epoch()
-                self.input.training.restart(self.state.epoch)
-                self._report_state()
+    def run_training(self, sample_count=1, summarize=True):
+        errors = self.trainer.run(
+            self.input.training, self.backend, sample_count,
+            lambda *arguments: self.trainee.train(
+                self.backend, self.trainer.optimize, self.trainer.loss,
+                *arguments))
+        self.state.advance(sample_count)
+        if summarize:
+            support.summarize_dynamic(
+                self.summarer, self.state, errors, 'training')
+        return errors
 
     def run_validation(self, summarize=True):
-        def _compute(*arguments):
-            return self.validee.validate(self.backend, self.validator.loss,
-                                         *arguments)
-        errors = self.validator.run(self.input.validation, _compute)
+        errors = self.validator.run(
+            self.input.validation, self.backend,
+            lambda *arguments: self.validee.validate(
+                self.backend, self.validator.loss, *arguments))
         if summarize:
-            support.summarize_dynamic(self.summarer, self.state, errors,
-                                      'validation')
+            support.summarize_dynamic(
+                self.summarer, self.state, errors, 'validation')
         return errors
-
-    def _report_state(self):
-        support.log(self, 'Current step: {}, epoch: {}, sample: {}',
-                    self.state.step, self.state.epoch, self.state.sample)
 
 
 class State:
-    def __init__(self):
-        self.current = tf.Variable([0, 0, 0], name='current', dtype=tf.int64,
-                                   trainable=False)
-        self.new = tf.placeholder(tf.int64, shape=3, name='new')
+    def __init__(self, report_each=10000):
+        self.report_each = report_each
+        state = np.zeros(1, dtype=np.int64)
+        self.current = tf.Variable(
+            state, name='current', dtype=tf.int64, trainable=False)
+        self.new = tf.placeholder(tf.int64, shape=state.shape, name='new')
         self.assign_new = self.current.assign(self.new)
-        self.step, self.epoch, self.sample = None, None, None
+        self.step = None
 
-    def increment_epoch(self):
-        self.epoch += 1
-        self.sample = 0
-
-    def increment_time(self):
-        self.step += 1
-        self.sample += 1
+    def advance(self, count=1):
+        for _ in range(count):
+            self.step += 1
+            if self.step % self.report_each == 0:
+                self._report()
 
     def load(self, session):
         state = session.run(self.current)
-        self.step, self.epoch, self.sample = state
+        self.step = state[0]
+        self._report()
 
     def save(self, session):
         feed = {
-            self.new: [self.step, self.epoch, self.sample],
+            self.new: [self.step],
         }
         session.run(self.assign_new, feed)
+
+    def _report(self):
+        support.log(self, 'Current step: {}', self.step)

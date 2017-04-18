@@ -26,31 +26,16 @@ class Candidate:
     def parameter_count(self):
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
-    def test(self, session, sample, future_length):
-        fetch = {
-            'y_hat': self.y_hat,
-            'finish': self.finish,
-        }
-        sample_length, dimension_count = sample.shape
-        y_hat = np.empty([sample_length, future_length, dimension_count])
-        for i in range(sample_length):
-            feed = {
-                self.start: np.zeros(self.start.get_shape(), np.float32),
-                self.x: np.reshape(sample[:(i + 1), :], [1, i + 1, -1]),
-            }
-            for j in range(future_length):
-                result = session.run(fetch, feed)
-                y_hat[i, j, :] = result['y_hat'][0, -1, :]
-                feed[self.start] = result['finish']
-                feed[self.x] = y_hat[i:(i + 1), j:(j + 1), :]
-        return y_hat
-
-    def train(self, session, optimize, loss, sample):
-        shape = [1, sample.shape[0], -1]
+    def test(self, session, future_length):
+        assert(future_length == 1)
         feed = {
             self.start: np.zeros(self.start.get_shape(), np.float32),
-            self.x: np.reshape(sample, shape),
-            self.y: np.reshape(support.shift(sample, -1), shape),
+        }
+        return session.run([self.y, self.y_hat], feed)
+
+    def train(self, session, optimize, loss):
+        feed = {
+            self.start: np.zeros(self.start.get_shape(), np.float32),
         }
         fetch = {
             'optimize': optimize,
@@ -58,17 +43,11 @@ class Candidate:
         }
         return session.run(fetch, feed)['loss']
 
-    def validate(self, session, loss, sample):
-        shape = [1, sample.shape[0], -1]
+    def validate(self, session, loss):
         feed = {
             self.start: np.zeros(self.start.get_shape(), np.float32),
-            self.x: np.reshape(sample, shape),
-            self.y: np.reshape(support.shift(sample, -1), shape),
         }
-        fetch = {
-            'loss': loss,
-        }
-        return session.run(fetch, feed)['loss']
+        return session.run(loss, feed)
 
     def _finish(state, config):
         parts = []
@@ -118,30 +97,18 @@ class Reference:
         self.x, self.y, self.y_hat = x, y, x
         self.parameters = []
 
-    def test(self, _, sample, future_length):
-        sample_length, dimension_count = sample.shape
-        y_hat = np.empty([sample_length, future_length, dimension_count])
-        for i in range(sample_length):
-            for j in range(future_length):
-                y_hat[i, j, :] = sample[i, :]
-        return y_hat
+    def test(self, session, future_length):
+        assert(future_length == 1)
+        return session.run([self.y, self.y_hat])
 
-    def validate(self, session, loss, sample):
-        shape = [1, sample.shape[0], -1]
-        feed = {
-            self.x: np.reshape(sample, shape),
-            self.y: np.reshape(support.shift(sample, -1), shape),
-        }
-        fetch = {
-            'loss': loss,
-        }
-        return session.run(fetch, feed)['loss']
+    def validate(self, session, loss):
+        return session.run(loss)
 
 
 def Learner(config):
     if len(config) > 0:
-        return tf.make_template('learner',
-                                lambda x, y: Candidate(x, y, config))
+        return tf.make_template(
+            'learner', lambda x, y: Candidate(x, y, config))
     else:
-        return tf.make_template('learner',
-                                lambda x, y: Reference(x, y, config))
+        return tf.make_template(
+            'learner', lambda x, y: Reference(x, y, config))
