@@ -56,13 +56,13 @@ class Session:
             summarize_dynamic(self.summarer, self.state, errors, 'testing')
         return errors
 
-    def run_training(self, sample_count=1, summarize=True):
+    def run_training(self, step_count=1, summarize=True):
         errors = self.trainer.run(
-            self.input.training, self.backend, sample_count,
+            self.input.training, self.backend, step_count,
             lambda *arguments: self.trainee.train(
                 self.backend, self.trainer.optimize, self.trainer.loss,
                 *arguments))
-        self.state.advance(sample_count)
+        self.state.advance(step_count)
         if summarize:
             summarize_dynamic(self.summarer, self.state, errors, 'training')
         return errors

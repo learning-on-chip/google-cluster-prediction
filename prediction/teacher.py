@@ -11,7 +11,7 @@ class Tester:
         progress = support.Progress(subject=self, description='testing',
                                     report_each=report_each)
         sum = np.zeros([self.future_length])
-        for _ in input.walk(session):
+        for _ in input.iterate(session):
             y, y_hat = compute(self.future_length)
             _, sample_length, dimension_count = y.shape
             for i in range(sample_length):
@@ -40,9 +40,9 @@ class Trainer:
         self.optimize = optimizer.apply_gradients(
             zip(gradient, learner.parameters))
 
-    def run(self, input, session, sample_count, compute):
+    def run(self, input, session, step_count, compute):
         error = None
-        for _ in input.loop(session, sample_count):
+        for _ in input.iterate(session, step_count):
             error = compute()
         return {
             'MSE': [error],
@@ -59,7 +59,7 @@ class Validator:
         progress = support.Progress(subject=self, description='validation',
                                     report_each=report_each)
         sum = 0
-        for _ in input.walk(session):
+        for _ in input.iterate(session):
             sum += compute()
             progress.advance()
         progress.finish()

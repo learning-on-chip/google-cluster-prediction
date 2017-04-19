@@ -75,11 +75,10 @@ class Input:
             writer.close()
         progress.finish()
         with open(os.path.join(path, 'meta.json'), 'w') as file:
-            meta = {
+            file.write(json.dumps({
                 'sample_count': sample_count,
                 'path_count': len(seen),
-            }
-            file.write(json.dumps(meta))
+            }))
 
     def _encode(data):
         float_list = tf.train.FloatList(value=np.ravel(data).tolist())
@@ -146,8 +145,8 @@ class Instance:
             with tf.variable_scope('y'):
                 self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
 
-        def loop(self, session, count):
-            for i in range(count):
+        def iterate(self, session, step_count=None):
+            for i in range(step_count if step_count else self.sample_count):
                 if self.step_count % self.sample_count == 0:
                     self._enqueue(session)
                 self.step_count += 1
@@ -156,11 +155,6 @@ class Instance:
 
         def offset(self, session, step_count):
             pass
-
-        def walk(self, session):
-            for i in self.loop(session, self.sample_count):
-                yield i
-            raise StopIteration()
 
         def _enqueue(self, session):
             random_state = Random.get().get_state()
