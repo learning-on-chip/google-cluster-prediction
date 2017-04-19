@@ -27,8 +27,11 @@ class Session:
             self.testee = learner(self.input.testing.x, self.input.testing.y)
             with tf.variable_scope('tester'):
                 self.tester = Tester(self.testee, config.teacher)
+        with graph.as_default():
             self.saver = Saver(self.output, name='saver')
-            self.saver.subscribe(self.input)
+            self.saver.subscribe(self.input.training)
+            self.saver.subscribe(self.input.validation)
+            self.saver.subscribe(self.input.testing)
         with graph.as_default():
             self.backend = tf.Session()
             self.backend.run(tf.variables_initializer(

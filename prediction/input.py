@@ -182,14 +182,6 @@ class Instance:
         self.validation = Instance.Part(validation_path, dimension_count)
         self.testing = Instance.Part(testing_path, dimension_count)
 
-    def restore(self, session):
-        for part in [self.training, self.validation, self.testing]:
-            part.restore(session)
-
-    def save(self, session):
-        for part in [self.training, self.validation, self.testing]:
-            part.save(session)
-
 
 class Fake:
     def _fetch(a, b, n):
