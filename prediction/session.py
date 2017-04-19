@@ -28,16 +28,16 @@ class Session:
             with tf.variable_scope('tester'):
                 self.tester = Tester(self.testee, config.teacher)
         with graph.as_default():
+            self.backend = tf.Session()
+            self.backend.run(tf.variables_initializer(
+                tf.global_variables(), name='initialize'))
+        with graph.as_default():
             self.saver = Saver(self.output, name='saver')
             self.saver.subscribe(self.input.training)
             self.saver.subscribe(self.input.validation)
             self.saver.subscribe(self.input.testing)
-        with graph.as_default():
-            self.backend = tf.Session()
-            self.backend.run(tf.variables_initializer(
-                tf.global_variables(), name='initialize'))
+            self.saver.restore(self.backend)
         self.summarer = tf.summary.FileWriter(self.output.path, graph)
-        self.saver.restore(self.backend)
 
     def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)
