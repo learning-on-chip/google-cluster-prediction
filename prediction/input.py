@@ -9,8 +9,6 @@ import numpy as np
 import os
 import tensorflow as tf
 
-_META_NAME = 'meta.json'
-
 
 class Input:
     def __init__(self, config):
