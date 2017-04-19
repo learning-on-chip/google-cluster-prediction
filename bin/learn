@@ -7,7 +7,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from prediction import Config
 from prediction import Input
 from prediction import Learner
-from prediction import Manager
 from prediction import Random
 from prediction import Session
 from prediction import support
@@ -25,14 +24,14 @@ def main(config):
     session.run_comparison('testing')
     config.output.path = os.path.join(path, 'candidate')
     session = Session(input, Learner(config.candidate), config)
-    manager = Manager(config.manager)
+    manager = support.Manager(config.manager)
     while True:
         try:
             while True:
                 session.run_training()
-                if manager.should_save(session.state):
+                if manager.should_save(session.step):
                     session.run_saving()
-                if manager.should_validation(session.state):
+                if manager.should_validation(session.step):
                     session.run_validation()
         except KeyboardInterrupt:
             print()

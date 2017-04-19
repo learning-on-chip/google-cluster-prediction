@@ -128,7 +128,6 @@ class Instance:
             self.paths, meta = Input._collect(path)
             self.sample_count = meta['sample_count']
             self.path_count = meta['path_count']
-            self.step_count = 0
             with tf.variable_scope('source'):
                 self.enqueue_paths = tf.placeholder(tf.string,
                                                     name='enqueue_paths')
@@ -144,21 +143,30 @@ class Instance:
                 self.x = tf.reshape(data, [1, -1, dimension_count])
             with tf.variable_scope('y'):
                 self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
+            with tf.variable_scope('state'):
+                self.state = State()
 
         def iterate(self, session, step_count=None):
             for i in range(step_count if step_count else self.sample_count):
-                if self.step_count % self.sample_count == 0:
+                if self.state.step % self.sample_count == 0:
                     self._enqueue(session)
-                self.step_count += 1
+                self.state.advance()
                 yield i
             raise StopIteration()
 
-        def offset(self, session, step_count):
-            pass
+        def restore(self, session):
+            self.state.restore(session)
+
+        def save(self, session):
+            self.state.save(session)
+
+        @property
+        def step(self):
+            return self.state.step
 
         def _enqueue(self, session):
             random_state = Random.get().get_state()
-            Random.get().seed(self.step_count // self.sample_count)
+            Random.get().seed(self.state.step // self.sample_count)
             index = Random.get().permutation(len(self.paths))
             Random.get().set_state(random_state)
             feed = {
@@ -173,6 +181,14 @@ class Instance:
         self.training = Instance.Part(training_path, dimension_count)
         self.validation = Instance.Part(validation_path, dimension_count)
         self.testing = Instance.Part(testing_path, dimension_count)
+
+    def restore(self, session):
+        for part in [self.training, self.validation, self.testing]:
+            part.restore(session)
+
+    def save(self, session):
+        for part in [self.training, self.validation, self.testing]:
+            part.save(session)
 
 
 class Fake:
@@ -232,3 +248,33 @@ class Real:
         metas = metas[validation_count:]
         testing_metas = metas[:testing_count]
         return training_metas, validation_metas, testing_metas
+
+
+class State:
+    def __init__(self, report_each=10000):
+        self.report_each = report_each
+        state = np.zeros(1, dtype=np.int64)
+        self.current = tf.Variable(state, name='current', dtype=tf.int64,
+                                   trainable=False)
+        self.new = tf.placeholder(tf.int64, shape=state.shape, name='new')
+        self.assign_new = self.current.assign(self.new)
+        self.step = None
+
+    def advance(self):
+        self.step += 1
+        if self.step % self.report_each == 0:
+            self._report()
+
+    def restore(self, session):
+        state = session.run(self.current)
+        self.step = state[0]
+        self._report()
+
+    def save(self, session):
+        feed = {
+            self.new: [self.step],
+        }
+        session.run(self.assign_new, feed)
+
+    def _report(self):
+        support.log(self, 'Current step: {}', self.step)
