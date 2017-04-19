@@ -1,6 +1,7 @@
 from . import support
 from .learner import Learner
 from .saver import Saver
+from .state import State
 from .teacher import Tester
 from .teacher import Trainer
 from .teacher import Validator
@@ -41,7 +42,7 @@ class Session:
 
     def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)
-        support.summarize_static(self.summarer, errors, 'comparison_' + target)
+        summarize_static(self.summarer, errors, 'comparison_' + target)
 
     def run_saving(self):
         self.state.save(self.backend)
@@ -52,8 +53,7 @@ class Session:
             self.input.testing, self.backend,
             lambda *arguments: self.testee.test(self.backend, *arguments))
         if summarize:
-            support.summarize_dynamic(
-                self.summarer, self.state, errors, 'testing')
+            summarize_dynamic(self.summarer, self.state, errors, 'testing')
         return errors
 
     def run_training(self, sample_count=1, summarize=True):
@@ -64,8 +64,7 @@ class Session:
                 *arguments))
         self.state.advance(sample_count)
         if summarize:
-            support.summarize_dynamic(
-                self.summarer, self.state, errors, 'training')
+            summarize_dynamic(self.summarer, self.state, errors, 'training')
         return errors
 
     def run_validation(self, summarize=True):
@@ -74,37 +73,22 @@ class Session:
             lambda *arguments: self.validee.validate(
                 self.backend, self.validator.loss, *arguments))
         if summarize:
-            support.summarize_dynamic(
-                self.summarer, self.state, errors, 'validation')
+            summarize_dynamic(self.summarer, self.state, errors, 'validation')
         return errors
 
 
-class State:
-    def __init__(self, report_each=10000):
-        self.report_each = report_each
-        state = np.zeros(1, dtype=np.int64)
-        self.current = tf.Variable(
-            state, name='current', dtype=tf.int64, trainable=False)
-        self.new = tf.placeholder(tf.int64, shape=state.shape, name='new')
-        self.assign_new = self.current.assign(self.new)
-        self.step = None
+def summarize_dynamic(summarer, state, data, name):
+    for key in data:
+        for i in range(len(data[key])):
+            tag = '{}_{}_{}'.format(name, key, i + 1)
+            value = tf.Summary.Value(tag=tag, simple_value=data[key][i])
+            summarer.add_summary(tf.Summary(value=[value]), state.step)
+    summarer.flush()
 
-    def advance(self, count=1):
-        for _ in range(count):
-            self.step += 1
-            if self.step % self.report_each == 0:
-                self._report()
-
-    def load(self, session):
-        state = session.run(self.current)
-        self.step = state[0]
-        self._report()
-
-    def save(self, session):
-        feed = {
-            self.new: [self.step],
-        }
-        session.run(self.assign_new, feed)
-
-    def _report(self):
-        support.log(self, 'Current step: {}', self.step)
+def summarize_static(summarer, data, name):
+    for key in data:
+        tag = '{}_{}'.format(name, key)
+        for i in range(len(data[key])):
+            value = tf.Summary.Value(tag=tag, simple_value=data[key][i])
+            summarer.add_summary(tf.Summary(value=[value]), i + 1)
+    summarer.flush()
