@@ -62,7 +62,7 @@ class Agent:
     def __init__(self, session, semaphore, config):
         self.session = session
         self.semaphore = semaphore
-        self.scores = Agent._load(config.output.path)
+        self.scores = Agent._restore(config.output.path)
         self.output_path = config.output.path
         self.lock = threading.Lock()
         self.done = threading.Lock()
@@ -81,18 +81,13 @@ class Agent:
                                   daemon=True)
         worker.start()
 
-    def _load(path):
+    def _restore(path):
         scores = {}
         for path in glob.glob(os.path.join(path, 'score-*.txt')):
             step_count = int(re.search('.*score-(.*).txt', path).group(1))
             scores[step_count] = float(open(path).read())
             support.log(Agent, 'Score: {}', path)
         return scores
-
-    def _save(path, step_count, score):
-        path = os.path.join(path, 'score-{}.txt'.format(step_count))
-        with open(path, 'w') as file:
-            file.write('{:.15e}'.format(score))
 
     def _run(self, step_count):
         with self.semaphore:
@@ -117,6 +112,11 @@ class Agent:
             support.log(self, 'Learn: stop at step {}, score {}',
                         step_count, score)
             self.done.release()
+
+    def _save(path, step_count, score):
+        path = os.path.join(path, 'score-{}.txt'.format(step_count))
+        with open(path, 'w') as file:
+            file.write('{:.15e}'.format(score))
 
 
 class Sampler:
