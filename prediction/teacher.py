@@ -45,7 +45,7 @@ class Trainer:
         for _ in input.iterate(session, step_count):
             error = compute()
         return {
-            'MSE': [error],
+            'MSE': np.array([error]),
         }
 
 
@@ -64,5 +64,5 @@ class Validator:
             progress.advance()
         progress.finish()
         return {
-            'MSE': [sum / progress.count],
+            'MSE': np.array([sum / progress.count]),
         }

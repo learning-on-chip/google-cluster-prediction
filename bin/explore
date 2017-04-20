@@ -7,8 +7,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from prediction import Config
 from prediction import Explorer
 from prediction import Input
+from prediction import Learner
 from prediction import Random
-from prediction import Reference
 from prediction import Session
 from prediction import support
 import argparse
@@ -20,13 +20,13 @@ def main(config):
     input = Input(config.session.input)
     path = config.session.output.get('path', support.default_output())
     config.session.output.path = os.path.join(path, 'reference')
-    reference = Reference(input, config.session)
-    reference.run_comparison('testing')
+    session = Session(input, Learner(config.session.reference), config.session)
+    session.run_comparison('testing')
     config.session.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()
     config = explorer.configure(case, restore=step_count)
-    session = Session(input, config)
+    session = Session(input, Learner(config.candidate), config)
     session.run_comparison('testing')
 
 if __name__ == '__main__':
