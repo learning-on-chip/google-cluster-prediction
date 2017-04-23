@@ -119,7 +119,7 @@ def prompt(*options):
         return i
 
 def scan(path, name):
-    pattern = os.path.join(path, '**', name)
+    pattern = os.path.join(glob.escape(path), '**', name)
     return sorted(glob.glob(pattern, recursive=True))
 
 def shift(data, amount, axis=0, padding=0):
