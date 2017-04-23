@@ -9,19 +9,21 @@ class Tester:
 
     def run(self, input, session, compute, report_each=10000):
         progress = support.Progress(subject=self, description='testing',
+                                    total_count=input.sample_count,
                                     report_each=report_each)
-        sum = np.zeros([self.future_length])
+        sum, count = np.zeros([self.future_length]), 0
         for _ in input.iterate(session):
             y, y_hat = compute(self.future_length)
             _, sample_length, dimension_count = y.shape
+            count += sample_length * dimension_count
             for i in range(sample_length):
                 length = min(sample_length - (i + 1), self.future_length)
                 y_hat[:length, i, :] -= y[0, (i + 1):(i + 1 + length), :]
                 sum += np.sum(y_hat[:, i, :]**2, axis=-1)
-            progress.advance(sample_length * dimension_count)
+            progress.advance()
         progress.finish()
         return {
-            'MSE': sum / progress.count,
+            'MSE': sum / count,
         }
 
 
@@ -57,6 +59,7 @@ class Validator:
 
     def run(self, input, session, compute, report_each=10000):
         progress = support.Progress(subject=self, description='validation',
+                                    total_count=input.sample_count,
                                     report_each=report_each)
         sum = 0
         for _ in input.iterate(session):
@@ -64,5 +67,5 @@ class Validator:
             progress.advance()
         progress.finish()
         return {
-            'MSE': np.array([sum / progress.count]),
+            'MSE': np.array([sum / input.sample_count]),
         }

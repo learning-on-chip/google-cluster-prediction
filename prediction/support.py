@@ -25,28 +25,24 @@ class Progress:
         self.description = description
         self.total_count = total_count
         self.report_each = report_each
-        self.finish_count = 0
-        self.finished = False
+        self.done_count = 0
         log(self.subject, 'Start {}...'.format(self.description))
 
-    def advance(self, count=1):
-        self.finish_count += count
-        if self.finish_count == self.total_count:
-            self.finish()
-        elif self.report_each is not None and \
-             self.finish_count % self.report_each == 0:
-            log(self.subject, 'Finished: {}',
-                format_percentage(self.finish_count, self.total_count))
-
-    @property
-    def count(self):
-        return self.finish_count
+    def advance(self):
+        self.done_count += 1
+        if self.report_each is None:
+            return
+        if self.done_count % self.report_each != 0:
+            return
+        if self.total_count is None:
+            message = self.done_count
+        else:
+            message = format_percentage(self.done_count, self.total_count)
+        log(self.subject, 'Done: {}', message)
 
     def finish(self):
-        if not self.finished:
-            self.finished = True
-            log(self.subject,
-                'Finished {} ({})'.format(self.description, self.count))
+        log(self.subject, 'Done {} ({})'.format(self.description,
+                                                self.total_count))
 
 
 class Standard:

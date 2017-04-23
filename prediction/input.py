@@ -122,7 +122,7 @@ class Input:
 
 class Instance:
     class Part:
-        def __init__(self, path, dimension_count):
+        def __init__(self, path, dimension_count, **arguments):
             self.paths, meta = Input._collect(path)
             self.sample_count = meta['sample_count']
             self.path_count = meta['path_count']
@@ -142,7 +142,7 @@ class Instance:
             with tf.variable_scope('y'):
                 self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
             with tf.variable_scope('state'):
-                self.state = State()
+                self.state = State(**arguments)
 
         def iterate(self, session, step_count=None):
             for i in range(step_count if step_count else self.sample_count):
@@ -174,9 +174,10 @@ class Instance:
 
 
     def __init__(self, training_path, validation_path, testing_path,
-                 dimension_count=1):
+                 dimension_count=1, training_report_each=10000):
         self.dimension_count = dimension_count
-        self.training = Instance.Part(training_path, dimension_count)
+        self.training = Instance.Part(training_path, dimension_count,
+                                      report_each=training_report_each)
         self.validation = Instance.Part(validation_path, dimension_count)
         self.testing = Instance.Part(testing_path, dimension_count)
 
@@ -241,7 +242,7 @@ class Real:
 
 
 class State:
-    def __init__(self, report_each=10000):
+    def __init__(self, report_each=None):
         self.report_each = report_each
         state = np.zeros(1, dtype=np.int64)
         self.current = tf.Variable(state, name='current', dtype=tf.int64,
@@ -252,7 +253,7 @@ class State:
 
     def advance(self):
         self.step += 1
-        if self.step % self.report_each == 0:
+        if self.report_each is not None and self.step % self.report_each == 0:
             self._report()
 
     def restore(self, session):
