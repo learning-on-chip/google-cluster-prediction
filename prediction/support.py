@@ -134,6 +134,8 @@ def tokenize(dictionary):
     chunks = []
     for key in sorted(dictionary.keys()):
         alias = ''.join([chunk[0] for chunk in key.split('_')])
-        value = str(dictionary[key]).replace(' ', '')
+        value = str(dictionary[key])
+        for this, that in [(' ', ''), ('[', '('), (']', ')')]:
+            value = value.replace(this, that)
         chunks.append('{}={}'.format(alias, value))
     return ','.join(chunks).lower()
