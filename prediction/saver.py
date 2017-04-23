@@ -1,5 +1,4 @@
 from . import support
-import glob
 import os
 import re
 import tensorflow as tf
@@ -49,7 +48,7 @@ class Saver:
 
     def _find(path):
         paths = {}
-        for path in glob.glob(os.path.join(path, 'session-*.meta')):
+        for path in support.scan(path, 'session-*.meta'):
             step_count = int(re.search('.*session-(.*).meta', path).group(1))
             paths[step_count] = re.sub('.meta$', '', path)
         return paths

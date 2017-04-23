@@ -3,7 +3,6 @@ from . import tuner
 from .learner import Learner
 from .random import Random
 from .session import Session
-import glob
 import numpy as np
 import os
 import re
@@ -35,7 +34,7 @@ class Agent:
 
     def _restore(path):
         scores = {}
-        for path in glob.glob(os.path.join(path, 'score-*.txt')):
+        for path in support.scan(path, 'score-*.txt'):
             step_count = int(re.search('.*score-(.*).txt', path).group(1))
             scores[step_count] = float(open(path).read())
             support.log(Agent, 'Score: {}', path)

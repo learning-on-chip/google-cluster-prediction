@@ -2,7 +2,6 @@ from . import database
 from . import support
 from .index import Index
 from .random import Random
-import glob
 import hashlib
 import json
 import numpy as np
@@ -42,8 +41,7 @@ class Input:
                         self.testing_path)
 
     def _collect(path):
-        pattern = os.path.join(path, '**', '*.tfrecords')
-        paths = sorted(glob.glob(pattern, recursive=True))
+        paths = support.scan(path, '*.tfrecords')
         meta = json.loads(open(os.path.join(path, 'meta.json')).read())
         assert(meta['path_count'] == len(paths))
         return paths, meta

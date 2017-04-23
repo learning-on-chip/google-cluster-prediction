@@ -1,4 +1,5 @@
 import datetime
+import glob
 import inspect
 import logging
 import numpy as np
@@ -116,6 +117,10 @@ def prompt(*options):
         if i < 0 or i >= len(options):
             continue
         return i
+
+def scan(path, name):
+    pattern = os.path.join(path, '**', name)
+    return sorted(glob.glob(pattern, recursive=True))
 
 def shift(data, amount, axis=0, padding=0):
     data = np.roll(data, amount, axis=axis)

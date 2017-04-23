@@ -1,6 +1,5 @@
 from . import database
 from . import support
-import glob
 import os
 
 class Index:
@@ -23,8 +22,7 @@ class Index:
     def encode(input_path, meta_path, index_path, report_each=10000):
         support.log(Index, 'Input path: {}', input_path)
         support.log(Index, 'Meta path: {}', meta_path)
-        pattern = os.path.join(input_path, '**', '*.sqlite3')
-        paths = sorted(glob.glob(pattern, recursive=True))
+        paths = support.scan(input_path, '*.sqlite3')
         database_count = len(paths)
         mapping = database.map_job_to_user_app(meta_path)
         progress = support.Progress(description='indexing',
