@@ -51,7 +51,7 @@ class Agent:
                     if key > last_step_count:
                         last_step_count = key
             assert(last_step_count < step_count)
-            support.log(self, 'Learn: start at step {}, stop at step {}',
+            support.log(self, 'Learning start: {}, stop: {}',
                         last_step_count, step_count)
             self.session.run_training(step_count - last_step_count)
             error = self.session.run_validation()['MSE']
@@ -61,7 +61,7 @@ class Agent:
             self.session.run_saving()
             with self.lock:
                 self.scores[step_count] = score
-            support.log(self, 'Learn: stop at step {}, score {}',
+            support.log(self, 'Learning stop: {}, score: {}',
                         step_count, score)
             self.done.release()
 
@@ -94,13 +94,13 @@ class Explorer:
     def run(self):
         case, resource, score = self.tuner.run(self._generate, self._assess)
         step_count = int(self.resource_scale * resource)
-        support.log(self, 'Best: case {}, step {}, score {}',
+        support.log(self, 'Best case: {}, step: {}, score: {}',
                     case, step_count, score)
         return (case, step_count)
 
     def _assess(self, resource, cases):
         step_count = int(self.resource_scale * resource)
-        support.log(self, 'Assess: {} cases, up to {} steps',
+        support.log(self, 'Assess cases: {}, stop: {}',
                     len(cases), step_count)
         agents = []
         for case in cases:
@@ -117,7 +117,7 @@ class Explorer:
         return [agent.collect(step_count) for agent in agents]
 
     def _generate(self, count):
-        support.log(self, 'Generate: {} cases', count)
+        support.log(self, 'Generate cases: {}', count)
         return [self.sampler.get() for _ in range(count)]
 
 
