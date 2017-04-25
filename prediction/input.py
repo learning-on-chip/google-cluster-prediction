@@ -50,7 +50,7 @@ class Input:
                     granularity=2, report_each=10000):
         os.makedirs(path)
         sample_count = len(metas)
-        progress = support.Progress(description='distributing ' + path,
+        progress = support.Progress(description=('distributing ' + path),
                                     total_count=sample_count,
                                     report_each=report_each)
         names = [separator.join([str(meta) for meta in meta])
