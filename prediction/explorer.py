@@ -3,9 +3,9 @@ from . import tuner
 from .learner import Learner
 from .random import Random
 from .session import Session
+import json
 import numpy as np
 import os
-import re
 import threading
 
 
@@ -34,9 +34,9 @@ class Agent:
 
     def _restore(path):
         scores = {}
-        for path in support.scan(path, 'score-*.txt'):
-            step_count = int(re.search('.*score-(.*).txt', path).group(1))
-            scores[step_count] = float(open(path).read())
+        for path in support.scan(path, 'meta-*.json'):
+            meta = json.loads(open(path).read())
+            scores[meta['step_count']] = meta['score']
             support.log(Agent, 'Score: {}', path)
         return scores
 
@@ -65,9 +65,12 @@ class Agent:
             self.done.release()
 
     def _save(path, step_count, score):
-        path = os.path.join(path, 'score-{}.txt'.format(step_count))
+        path = os.path.join(path, 'meta-{}.json'.format(step_count))
         with open(path, 'w') as file:
-            file.write('{:.15e}'.format(score))
+            file.write(json.dumps({
+                'step_count': step_count,
+                'score': score,
+            }))
 
 
 class Explorer:
