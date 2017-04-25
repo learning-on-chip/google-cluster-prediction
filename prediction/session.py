@@ -16,15 +16,16 @@ class Session:
         with graph.as_default():
             with tf.variable_scope('input'):
                 self.input = input()
-            self.trainee = learner(self.input.training.x,
-                                   self.input.training.y)
+                training = self.input.training.initiate()
+                validation = self.input.validation.initiate()
+                testing = self.input.testing.initiate()
+            self.trainee = learner(*training)
             with tf.variable_scope('trainer'):
                 self.trainer = Trainer(self.trainee, config.teacher)
-            self.validee = learner(self.input.validation.x,
-                                   self.input.validation.y)
+            self.validee = learner(*validation)
             with tf.variable_scope('validator'):
                 self.validator = Validator(self.validee, config.teacher)
-            self.testee = learner(self.input.testing.x, self.input.testing.y)
+            self.testee = learner(*testing)
             with tf.variable_scope('tester'):
                 self.tester = Tester(self.testee, config.teacher)
         with graph.as_default():

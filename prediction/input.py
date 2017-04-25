@@ -74,8 +74,9 @@ class Input:
         progress.finish()
         with open(os.path.join(path, 'meta.json'), 'w') as file:
             file.write(json.dumps({
-                'sample_count': sample_count,
+                'dimension_count': 1,
                 'path_count': len(seen),
+                'sample_count': sample_count,
             }))
 
     def _encode(data):
@@ -122,31 +123,37 @@ class Input:
 
 class Instance:
     class Part:
-        def __init__(self, path, dimension_count, **arguments):
+        def __init__(self, path, **arguments):
             paths, meta = Input._collect(path)
+            self.dimension_count = meta['dimension_count']
             self.sample_count = meta['sample_count']
             with tf.variable_scope('source'):
-                paths = tf.Variable(paths, name='paths', dtype=tf.string,
-                                    trainable=False)
-                reader = tf.TFRecordReader()
-                queue = tf.FIFOQueue(None, [tf.string])
-                done_count = reader.num_work_units_completed()
+                self.paths = tf.Variable(paths, name='paths', dtype=tf.string,
+                                         trainable=False)
+                self.reader = tf.TFRecordReader()
+                self.queue = tf.FIFOQueue(None, [tf.string])
+            with tf.variable_scope('state'):
+                self.state = State(**arguments)
+
+        def initiate(self):
+            with tf.variable_scope('drain'):
+                done_count = self.reader.num_work_units_completed()
                 enqueue = tf.cond(
                     tf.equal(tf.mod(done_count, self.sample_count), 0),
-                    lambda: queue.enqueue_many([tf.random_shuffle(paths)]),
+                    lambda: self.queue.enqueue_many(
+                        [tf.random_shuffle(self.paths)]),
                     lambda: tf.no_op())
                 with tf.control_dependencies([enqueue]):
-                    _, record = reader.read(queue)
+                    _, record = self.reader.read(self.queue)
             with tf.variable_scope('x'):
                 features = tf.parse_single_example(record, {
                     'data': tf.VarLenFeature(tf.float32),
                 })
                 data = tf.sparse_tensor_to_dense(features['data'])
-                self.x = tf.reshape(data, [1, -1, dimension_count])
+                x = tf.reshape(data, [1, -1, self.dimension_count])
             with tf.variable_scope('y'):
-                self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
-            with tf.variable_scope('state'):
-                self.state = State(**arguments)
+                y = tf.pad(x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
+            return x, y
 
         def iterate(self, session, step_count=None):
             for i in range(step_count if step_count else self.sample_count):
@@ -166,12 +173,11 @@ class Instance:
 
 
     def __init__(self, training_path, validation_path, testing_path,
-                 dimension_count=1, training_report_each=10000):
-        self.dimension_count = dimension_count
-        self.training = Instance.Part(training_path, dimension_count,
+                 training_report_each=10000):
+        self.training = Instance.Part(training_path,
                                       report_each=training_report_each)
-        self.validation = Instance.Part(validation_path, dimension_count)
-        self.testing = Instance.Part(testing_path, dimension_count)
+        self.validation = Instance.Part(validation_path)
+        self.testing = Instance.Part(testing_path)
 
 
 class Fake:
