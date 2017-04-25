@@ -123,16 +123,20 @@ class Input:
 class Instance:
     class Part:
         def __init__(self, path, dimension_count, **arguments):
-            self.paths, meta = Input._collect(path)
+            paths, meta = Input._collect(path)
             self.sample_count = meta['sample_count']
-            self.path_count = meta['path_count']
             with tf.variable_scope('source'):
-                self.enqueue_paths = tf.placeholder(tf.string,
-                                                    name='enqueue_paths')
-                queue = tf.FIFOQueue(None, [tf.string])
-                self.enqueue = queue.enqueue_many([self.enqueue_paths])
+                paths = tf.Variable(paths, name='paths', dtype=tf.string,
+                                    trainable=False)
                 reader = tf.TFRecordReader()
-                _, record = reader.read(queue)
+                queue = tf.FIFOQueue(None, [tf.string])
+                done_count = reader.num_work_units_completed()
+                enqueue = tf.cond(
+                    tf.equal(tf.mod(done_count, self.sample_count), 0),
+                    lambda: queue.enqueue_many([tf.random_shuffle(paths)]),
+                    lambda: tf.no_op())
+                with tf.control_dependencies([enqueue]):
+                    _, record = reader.read(queue)
             with tf.variable_scope('x'):
                 features = tf.parse_single_example(record, {
                     'data': tf.VarLenFeature(tf.float32),
@@ -146,8 +150,6 @@ class Instance:
 
         def iterate(self, session, step_count=None):
             for i in range(step_count if step_count else self.sample_count):
-                if self.state.step % self.sample_count == 0:
-                    self._enqueue(session)
                 self.state.advance()
                 yield i
             raise StopIteration()
@@ -161,16 +163,6 @@ class Instance:
         @property
         def step(self):
             return self.state.step
-
-        def _enqueue(self, session):
-            random_state = Random.get().get_state()
-            Random.get().seed(self.state.step // self.sample_count)
-            index = Random.get().permutation(len(self.paths))
-            Random.get().set_state(random_state)
-            feed = {
-                self.enqueue_paths: [self.paths[i] for i in index],
-            }
-            session.run(self.enqueue, feed)
 
 
     def __init__(self, training_path, validation_path, testing_path,
