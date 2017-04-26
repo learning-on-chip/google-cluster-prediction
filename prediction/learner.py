@@ -13,7 +13,7 @@ class Candidate:
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(x)[1]
         with tf.variable_scope('network'):
-            self.start, self.finish, h = Candidate._network(x, config)
+            h, _, _ = Candidate._network(x, config)
         with tf.variable_scope('regression'):
             w, b = Candidate._regression(
                 self.batch_size, self.unroll_count, config)
@@ -28,26 +28,17 @@ class Candidate:
 
     def test(self, session, future_length):
         assert(future_length == 1)
-        feed = {
-            self.start: np.zeros(self.start.get_shape(), np.float32),
-        }
-        return session.run([self.y, self.y_hat], feed)
+        return session.run([self.y, self.y_hat])
 
     def train(self, session, optimize, loss):
-        feed = {
-            self.start: np.zeros(self.start.get_shape(), np.float32),
-        }
         fetch = {
             'optimize': optimize,
             'loss': loss,
         }
-        return session.run(fetch, feed)['loss']
+        return session.run(fetch)['loss']
 
     def validate(self, session, loss):
-        feed = {
-            self.start: np.zeros(self.start.get_shape(), np.float32),
-        }
-        return session.run(loss, feed)
+        return session.run(loss)
 
     def _finish(state, config):
         parts = []
@@ -70,7 +61,7 @@ class Candidate:
         start, state = Candidate._start(config)
         h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
         finish = Candidate._finish(state, config)
-        return start, finish, h
+        return h, start, finish
 
     def _regression(batch_size, unroll_count, config):
         w = tf.get_variable(
@@ -83,7 +74,8 @@ class Candidate:
 
     def _start(config):
         shape = [2 * config.layer_count, 1, config.unit_count]
-        start = tf.placeholder(tf.float32, shape, name='start')
+        start = tf.placeholder_with_default(np.zeros(shape, np.float32),
+                                            name='start', shape=shape)
         parts = tf.unstack(start)
         state = []
         for i in range(config.layer_count):
