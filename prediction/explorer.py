@@ -52,7 +52,8 @@ class Agent:
             assert(last_step_count < step_count)
             support.log(self, 'Learning start: {}, stop: {}',
                         last_step_count, step_count)
-            self.session.run_training(step_count - last_step_count)
+            self.session.run_training(step_count - last_step_count,
+                                      summarize=False)
             error = self.session.run_validation()['MSE']
             decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
             score = np.sum(error * decay)
