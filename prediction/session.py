@@ -9,33 +9,32 @@ import tensorflow as tf
 
 
 class Session:
-    def __init__(self, input, learner, config):
+    def __init__(self, input_, learner_, config):
         support.log(self, 'Output path: {}', config.output.path)
         self.output = config.output
         graph = tf.Graph()
         with graph.as_default():
             with tf.variable_scope('training'):
                 with tf.variable_scope('input'):
-                    input_ = input('training')
-                    inputs = input_.initiate()
-                learner_ = learner(*inputs)
+                    input = input_('training')
+                    inputs = input.initiate()
+                learner = learner_(*inputs)
                 with tf.variable_scope('teacher'):
-                    self.trainer = Trainer(input_, learner_, config.teacher)
+                    self.trainer = Trainer(input, learner, config.teacher)
             with tf.variable_scope('validation'):
                 with tf.variable_scope('input'):
-                    input_ = input('validation')
-                    inputs = input_.initiate()
-                learner_ = learner(*inputs)
+                    input = input_('validation')
+                    inputs = input.initiate()
+                learner = learner_(*inputs)
                 with tf.variable_scope('teacher'):
-                    self.validator = Validator(input_, learner_,
-                                               config.teacher)
+                    self.validator = Validator(input, learner, config.teacher)
             with tf.variable_scope('testing'):
                 with tf.variable_scope('input'):
-                    input_ = input('testing')
-                    inputs = input_.initiate()
-                learner_ = learner(*inputs)
+                    input = input_('testing')
+                    inputs = input.initiate()
+                learner = learner_(*inputs)
                 with tf.variable_scope('teacher'):
-                    self.tester = Tester(input_, learner_, config.teacher)
+                    self.tester = Tester(input, learner, config.teacher)
         with graph.as_default():
             self.backend = tf.Session()
             self.backend.run(tf.variables_initializer(
