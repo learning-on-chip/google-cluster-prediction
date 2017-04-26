@@ -4,16 +4,17 @@ import tensorflow as tf
 
 
 class Tester:
-    def __init__(self, learner, config):
+    def __init__(self, input, learner, config):
+        self.input = input
         self.learner = learner
         self.future_length = config.future_length
 
-    def run(self, input, session, report_each=10000):
+    def run(self, session, report_each=10000):
         progress = support.Progress(subject=self, description='testing',
-                                    total_count=input.sample_count,
+                                    total_count=self.input.sample_count,
                                     report_each=report_each)
         sum, count = np.zeros([self.future_length]), 0
-        for _ in input.iterate(session):
+        for _ in self.input.iterate(session):
             y, y_hat = self.learner.test(session, self.future_length)
             _, sample_length, dimension_count = y.shape
             count += sample_length * dimension_count
@@ -29,7 +30,8 @@ class Tester:
 
 
 class Trainer:
-    def __init__(self, learner, config):
+    def __init__(self, input, learner, config):
+        self.input = input
         self.learner = learner
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(
@@ -44,9 +46,9 @@ class Trainer:
         self.optimize = optimizer.apply_gradients(
             zip(gradient, learner.parameters))
 
-    def run(self, input, session, step_count):
+    def run(self, session, step_count):
         error = None
-        for _ in input.iterate(session, step_count):
+        for _ in self.input.iterate(session, step_count):
             error = self.learner.train(session, self.optimize, self.loss)
         return {
             'MSE': np.array([error]),
@@ -54,21 +56,22 @@ class Trainer:
 
 
 class Validator:
-    def __init__(self, learner, _):
+    def __init__(self, input, learner, _):
+        self.input = input
         self.learner = learner
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(
                 tf.squared_difference(learner.y, learner.y_hat))
 
-    def run(self, input, session, report_each=10000):
+    def run(self, session, report_each=10000):
         progress = support.Progress(subject=self, description='validation',
-                                    total_count=input.sample_count,
+                                    total_count=self.input.sample_count,
                                     report_each=report_each)
         sum = 0
-        for _ in input.iterate(session):
+        for _ in self.input.iterate(session):
             sum += self.learner.validate(session, self.loss)
             progress.advance()
         progress.finish()
         return {
-            'MSE': np.array([sum / input.sample_count]),
+            'MSE': np.array([sum / self.input.sample_count]),
         }

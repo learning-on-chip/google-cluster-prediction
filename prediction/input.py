@@ -36,9 +36,8 @@ class Input:
         self.validation_path = validation_path
         self.testing_path = testing_path
 
-    def __call__(self):
-        return Instance(self.training_path, self.validation_path,
-                        self.testing_path)
+    def __call__(self, target, **arguments):
+        return Instance(getattr(self, target + '_path'), **arguments)
 
     def _collect(path):
         paths = support.scan(path, '*.tfrecords')
@@ -122,62 +121,53 @@ class Input:
 
 
 class Instance:
-    class Part:
-        def __init__(self, path, **arguments):
-            paths, meta = Input._collect(path)
-            self.dimension_count = meta['dimension_count']
-            self.sample_count = meta['sample_count']
-            with tf.variable_scope('source'):
-                self.paths = tf.Variable(paths, name='paths', dtype=tf.string,
-                                         trainable=False)
-                self.reader = tf.TFRecordReader()
-                self.queue = tf.FIFOQueue(None, [tf.string])
-            with tf.variable_scope('state'):
-                self.state = State(**arguments)
+    def __init__(self, path, **arguments):
+        paths, meta = Input._collect(path)
+        self.dimension_count = meta['dimension_count']
+        self.sample_count = meta['sample_count']
+        with tf.variable_scope('source'):
+            self.paths = tf.Variable(paths, name='paths', dtype=tf.string,
+                                     trainable=False)
+            self.reader = tf.TFRecordReader()
+            self.queue = tf.FIFOQueue(None, [tf.string])
+        with tf.variable_scope('state'):
+            self.state = State(**arguments)
 
-        def initiate(self):
-            with tf.variable_scope('drain'):
-                done_count = self.reader.num_work_units_completed()
-                enqueue = tf.cond(
-                    tf.equal(tf.mod(done_count, self.sample_count), 0),
-                    lambda: self.queue.enqueue_many(
-                        [tf.random_shuffle(self.paths)]),
-                    lambda: tf.no_op())
-                with tf.control_dependencies([enqueue]):
-                    _, record = self.reader.read(self.queue)
-            with tf.variable_scope('x'):
-                features = tf.parse_single_example(record, {
-                    'data': tf.VarLenFeature(tf.float32),
-                })
-                data = tf.sparse_tensor_to_dense(features['data'])
-                x = tf.reshape(data, [1, -1, self.dimension_count])
-            with tf.variable_scope('y'):
-                y = tf.pad(x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
-            return x, y
+    def initiate(self):
+        with tf.variable_scope('drain'):
+            done_count = self.reader.num_work_units_completed()
+            enqueue = tf.cond(
+                tf.equal(tf.mod(done_count, self.sample_count), 0),
+                lambda: self.queue.enqueue_many(
+                    [tf.random_shuffle(self.paths)]),
+                lambda: tf.no_op())
+            with tf.control_dependencies([enqueue]):
+                _, record = self.reader.read(self.queue)
+        with tf.variable_scope('x'):
+            features = tf.parse_single_example(record, {
+                'data': tf.VarLenFeature(tf.float32),
+            })
+            data = tf.sparse_tensor_to_dense(features['data'])
+            x = tf.reshape(data, [1, -1, self.dimension_count])
+        with tf.variable_scope('y'):
+            y = tf.pad(x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
+        return x, y
 
-        def iterate(self, session, step_count=None):
-            for i in range(step_count if step_count else self.sample_count):
-                self.state.advance()
-                yield i
-            raise StopIteration()
+    def iterate(self, session, step_count=None):
+        for i in range(step_count if step_count else self.sample_count):
+            self.state.advance()
+            yield i
+        raise StopIteration()
 
-        def restore(self, session):
-            self.state.restore(session)
+    def restore(self, session):
+        self.state.restore(session)
 
-        def save(self, session):
-            self.state.save(session)
+    def save(self, session):
+        self.state.save(session)
 
-        @property
-        def step(self):
-            return self.state.step
-
-
-    def __init__(self, training_path, validation_path, testing_path,
-                 training_report_each=10000):
-        self.training = Instance.Part(training_path,
-                                      report_each=training_report_each)
-        self.validation = Instance.Part(validation_path)
-        self.testing = Instance.Part(testing_path)
+    @property
+    def step(self):
+        return self.state.step
 
 
 class Fake:

@@ -14,35 +14,37 @@ class Session:
         self.output = config.output
         graph = tf.Graph()
         with graph.as_default():
-            with tf.variable_scope('input'):
-                self.input = input()
             with tf.variable_scope('training'):
                 with tf.variable_scope('input'):
-                    input_ = self.input.training.initiate()
-                learner_ = learner(*input_)
+                    input_ = input('training', report_each=10000)
+                    inputs = input_.initiate()
+                learner_ = learner(*inputs)
                 with tf.variable_scope('teacher'):
-                    self.trainer = Trainer(learner_, config.teacher)
+                    self.trainer = Trainer(input_, learner_, config.teacher)
             with tf.variable_scope('validation'):
                 with tf.variable_scope('input'):
-                    input_ = self.input.validation.initiate()
-                learner_ = learner(*input_)
+                    input_ = input('validation')
+                    inputs = input_.initiate()
+                learner_ = learner(*inputs)
                 with tf.variable_scope('teacher'):
-                    self.validator = Validator(learner_, config.teacher)
+                    self.validator = Validator(input_, learner_,
+                                               config.teacher)
             with tf.variable_scope('testing'):
                 with tf.variable_scope('input'):
-                    input_ = self.input.testing.initiate()
-                learner_ = learner(*input_)
+                    input_ = input('testing')
+                    inputs = input_.initiate()
+                learner_ = learner(*inputs)
                 with tf.variable_scope('teacher'):
-                    self.tester = Tester(learner_, config.teacher)
+                    self.tester = Tester(input_, learner_, config.teacher)
         with graph.as_default():
             self.backend = tf.Session()
             self.backend.run(tf.variables_initializer(
                 tf.global_variables(), name='initialize'))
         with graph.as_default():
             self.saver = Saver(self.output, name='saver')
-            self.saver.subscribe(self.input.training)
-            self.saver.subscribe(self.input.validation)
-            self.saver.subscribe(self.input.testing)
+            self.saver.subscribe(self.trainer.input)
+            self.saver.subscribe(self.validator.input)
+            self.saver.subscribe(self.tester.input)
             self.saver.restore(self.backend)
         self.summarer = tf.summary.FileWriter(self.output.path, graph)
 
@@ -54,27 +56,26 @@ class Session:
         self.saver.save(self.backend, self.step)
 
     def run_testing(self, summarize=True):
-        errors = self.tester.run(self.input.testing, self.backend)
+        errors = self.tester.run(self.backend)
         if summarize:
             summarize_dynamic(self.summarer, self.step, errors, 'testing')
         return errors
 
     def run_training(self, step_count=1, summarize=True):
-        errors = self.trainer.run(self.input.training, self.backend,
-                                  step_count)
+        errors = self.trainer.run(self.backend, step_count)
         if summarize:
             summarize_dynamic(self.summarer, self.step, errors, 'training')
         return errors
 
     def run_validation(self, summarize=True):
-        errors = self.validator.run(self.input.validation, self.backend)
+        errors = self.validator.run(self.backend)
         if summarize:
             summarize_dynamic(self.summarer, self.step, errors, 'validation')
         return errors
 
     @property
     def step(self):
-        return self.input.training.step
+        return self.trainer.input.step
 
 
 def summarize_dynamic(summarer, step, data, name):
