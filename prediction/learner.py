@@ -31,11 +31,7 @@ class Candidate:
         return session.run([self.y, self.y_hat])
 
     def train(self, session, optimize, loss):
-        fetch = {
-            'optimize': optimize,
-            'loss': loss,
-        }
-        return session.run(fetch)['loss']
+        return session.run([optimize, loss])[1]
 
     def validate(self, session, loss):
         return session.run(loss)
