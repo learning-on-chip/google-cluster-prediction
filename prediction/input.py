@@ -126,33 +126,28 @@ class Instance:
         paths, meta = Input._collect(config.path)
         self.dimension_count = meta['dimension_count']
         self.sample_count = meta['sample_count']
-        with tf.variable_scope('source'):
-            self.paths = tf.Variable(paths, name='paths', dtype=tf.string,
-                                     trainable=False)
-            self.reader = tf.TFRecordReader()
-            self.queue = tf.FIFOQueue(None, [tf.string])
         with tf.variable_scope('state'):
             self.state = State(report_each=config.get('report_each', None))
-
-    def initiate(self):
-        with tf.variable_scope('drain'):
-            done_count = self.reader.num_work_units_completed()
+        with tf.variable_scope('source'):
+            paths = tf.Variable(paths, name='paths', dtype=tf.string,
+                                trainable=False)
+            reader = tf.TFRecordReader()
+            queue = tf.FIFOQueue(None, [tf.string])
+            done_count = reader.num_work_units_completed()
             enqueue = tf.cond(
                 tf.equal(tf.mod(done_count, self.sample_count), 0),
-                lambda: self.queue.enqueue_many(
-                    [tf.random_shuffle(self.paths)]),
+                lambda: queue.enqueue_many([tf.random_shuffle(paths)]),
                 lambda: tf.no_op())
             with tf.control_dependencies([enqueue]):
-                _, record = self.reader.read(self.queue)
+                _, record = reader.read(queue)
         with tf.variable_scope('x'):
             features = tf.parse_single_example(record, {
                 'data': tf.VarLenFeature(tf.float32),
             })
             data = tf.sparse_tensor_to_dense(features['data'])
-            x = tf.reshape(data, [1, -1, self.dimension_count])
+            self.x = tf.reshape(data, [1, -1, self.dimension_count])
         with tf.variable_scope('y'):
-            y = tf.pad(x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
-        return x, y
+            self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
 
     def iterate(self, session, step_count=None):
         for i in range(step_count if step_count else self.sample_count):

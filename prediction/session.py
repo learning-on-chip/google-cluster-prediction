@@ -17,22 +17,19 @@ class Session:
             with tf.variable_scope('training'):
                 with tf.variable_scope('input'):
                     input = input_('training')
-                    inputs = input.initiate()
-                learner = learner_(*inputs)
+                learner = learner_(input.x, input.y)
                 with tf.variable_scope('teacher'):
                     self.trainer = Trainer(input, learner, config.teacher)
             with tf.variable_scope('validation'):
                 with tf.variable_scope('input'):
                     input = input_('validation')
-                    inputs = input.initiate()
-                learner = learner_(*inputs)
+                learner = learner_(input.x, input.y)
                 with tf.variable_scope('teacher'):
                     self.validator = Validator(input, learner, config.teacher)
             with tf.variable_scope('testing'):
                 with tf.variable_scope('input'):
                     input = input_('testing')
-                    inputs = input.initiate()
-                learner = learner_(*inputs)
+                learner = learner_(input.x, input.y)
                 with tf.variable_scope('teacher'):
                     self.tester = Tester(input, learner, config.teacher)
         with graph.as_default():
