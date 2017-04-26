@@ -29,7 +29,10 @@ class Session:
             with tf.variable_scope('testing'):
                 with tf.variable_scope('input'):
                     input = input_('testing')
-                learner = learner_(input.x, input.y)
+                    shape = [None, None, input.dimension_count]
+                    x = tf.placeholder(tf.float32, shape, name='x_proxy')
+                    y = tf.placeholder(tf.float32, shape, name='y_proxy')
+                learner = learner_(x, y)
                 with tf.variable_scope('teacher'):
                     self.tester = Tester(input, learner, config.teacher)
         with graph.as_default():

@@ -13,7 +13,7 @@ class Candidate:
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(x)[1]
         with tf.variable_scope('network'):
-            h, _, _ = Candidate._network(x, config)
+            h, self.start, self.finish = Candidate._network(x, config)
         with tf.variable_scope('regression'):
             w, b = Candidate._regression(
                 self.batch_size, self.unroll_count, config)
@@ -26,9 +26,23 @@ class Candidate:
     def parameter_count(self):
         return np.sum([int(np.prod(p.get_shape())) for p in self.parameters])
 
-    def test(self, session, future_length):
-        assert(future_length == 1)
-        return session.run([self.y, self.y_hat])
+    def test(self, session, input, future_length):
+        x = session.run(input.x)
+        if future_length == 1:
+            y_hat = session.run(self.y_hat, {self.x: x})
+        else:
+            _, sample_length, dimension_count = x.shape
+            y_hat = np.zeros([future_length, sample_length, dimension_count])
+            for i in range(sample_length):
+                feed = {
+                    self.x: x[:, :(i + 1), :],
+                }
+                for j in range(future_length):
+                    y_hat_k, finish = session.run([self.y_hat, self.finish], feed)
+                    y_hat[j, i, :] = y_hat_k[0, -1, :]
+                    feed[self.start] = finish
+                    feed[self.x] = y_hat_k[:1, -1:, :]
+        return _time_travel(x, future_length), y_hat
 
     def train(self, session, optimize, loss):
         return session.run([optimize, loss])[1]
@@ -85,9 +99,14 @@ class Reference:
         self.x, self.y, self.y_hat = x, y, x
         self.parameters = []
 
-    def test(self, session, future_length):
-        assert(future_length == 1)
-        return session.run([self.y, self.y_hat])
+    def test(self, session, input, future_length):
+        x = session.run(input.x)
+        _, sample_length, dimension_count = x.shape
+        y_hat = np.zeros([future_length, sample_length, dimension_count])
+        for i in range(sample_length):
+            for j in range(future_length):
+                y_hat[j, i, :] = x[0, i, :]
+        return _time_travel(x, future_length), y_hat
 
     def validate(self, session, loss):
         return session.run(loss)
@@ -100,3 +119,12 @@ def Learner(config):
     else:
         return tf.make_template(
             'learner', lambda x, y: Reference(x, y, config))
+
+def _time_travel(x, future_length):
+    _, sample_length, dimension_count = x.shape
+    y = np.empty([future_length, sample_length, dimension_count])
+    for i in range(sample_length):
+        for j in range(future_length):
+            k = i + j + 1
+            y[j, i, :] = x[0, k, :] if k < sample_length else 0
+    return y

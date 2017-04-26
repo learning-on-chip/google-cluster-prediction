@@ -44,7 +44,7 @@
 	"reference": {
 	},
 	"teacher": {
-		"future_length": 1,
+		"future_length": 2,
 		"gradient_clip": 1.0,
 		"optimizer": {
 			"name": "Adam",

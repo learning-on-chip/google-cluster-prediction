@@ -15,7 +15,8 @@ class Tester:
                                     report_each=report_each)
         sum, count = np.zeros([self.future_length]), 0
         for _ in self.input.iterate(session):
-            y, y_hat = self.learner.test(session, self.future_length)
+            y, y_hat = self.learner.test(session, self.input,
+                                         self.future_length)
             _, sample_length, dimension_count = y.shape
             count += sample_length * dimension_count
             for i in range(sample_length):
