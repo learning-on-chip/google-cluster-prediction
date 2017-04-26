@@ -54,8 +54,8 @@
 		}
 	},
 	"manager": {
-		"save_period": 7000,
-		"validation_period": 7000
+		"save_each": 7000,
+		"validation_each": 7000
 	},
 	"output": {
 	}
