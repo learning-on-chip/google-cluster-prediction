@@ -16,18 +16,24 @@ class Session:
         with graph.as_default():
             with tf.variable_scope('input'):
                 self.input = input()
-                training = self.input.training.initiate()
-                validation = self.input.validation.initiate()
-                testing = self.input.testing.initiate()
-            self.trainee = learner(*training)
-            with tf.variable_scope('trainer'):
-                self.trainer = Trainer(self.trainee, config.teacher)
-            self.validee = learner(*validation)
-            with tf.variable_scope('validator'):
-                self.validator = Validator(self.validee, config.teacher)
-            self.testee = learner(*testing)
-            with tf.variable_scope('tester'):
-                self.tester = Tester(self.testee, config.teacher)
+            with tf.variable_scope('training'):
+                with tf.variable_scope('input'):
+                    input_ = self.input.training.initiate()
+                learner_ = learner(*input_)
+                with tf.variable_scope('teacher'):
+                    self.trainer = Trainer(learner_, config.teacher)
+            with tf.variable_scope('validation'):
+                with tf.variable_scope('input'):
+                    input_ = self.input.validation.initiate()
+                learner_ = learner(*input_)
+                with tf.variable_scope('teacher'):
+                    self.validator = Validator(learner_, config.teacher)
+            with tf.variable_scope('testing'):
+                with tf.variable_scope('input'):
+                    input_ = self.input.testing.initiate()
+                learner_ = learner(*input_)
+                with tf.variable_scope('teacher'):
+                    self.tester = Tester(learner_, config.teacher)
         with graph.as_default():
             self.backend = tf.Session()
             self.backend.run(tf.variables_initializer(
@@ -48,28 +54,20 @@ class Session:
         self.saver.save(self.backend, self.step)
 
     def run_testing(self, summarize=True):
-        errors = self.tester.run(
-            self.input.testing, self.backend,
-            lambda *arguments: self.testee.test(self.backend, *arguments))
+        errors = self.tester.run(self.input.testing, self.backend)
         if summarize:
             summarize_dynamic(self.summarer, self.step, errors, 'testing')
         return errors
 
     def run_training(self, step_count=1, summarize=True):
-        errors = self.trainer.run(
-            self.input.training, self.backend, step_count,
-            lambda *arguments: self.trainee.train(
-                self.backend, self.trainer.optimize, self.trainer.loss,
-                *arguments))
+        errors = self.trainer.run(self.input.training, self.backend,
+                                  step_count)
         if summarize:
             summarize_dynamic(self.summarer, self.step, errors, 'training')
         return errors
 
     def run_validation(self, summarize=True):
-        errors = self.validator.run(
-            self.input.validation, self.backend,
-            lambda *arguments: self.validee.validate(
-                self.backend, self.validator.loss, *arguments))
+        errors = self.validator.run(self.input.validation, self.backend)
         if summarize:
             summarize_dynamic(self.summarer, self.step, errors, 'validation')
         return errors
