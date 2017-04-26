@@ -32,12 +32,13 @@ class Input:
             if not os.path.exists(testing_path):
                 Input._distribute(testing_path, testing_metas,
                                   klass._fetch, standard=standard)
-        self.training_path = training_path
-        self.validation_path = validation_path
-        self.testing_path = testing_path
+        self.config = config.copy()
+        self.config.training.path = training_path
+        self.config.validation.path = validation_path
+        self.config.testing.path = testing_path
 
-    def __call__(self, target, **arguments):
-        return Instance(getattr(self, target + '_path'), **arguments)
+    def __call__(self, target):
+        return Instance(self.config[target])
 
     def _collect(path):
         paths = support.scan(path, '*.tfrecords')
@@ -121,8 +122,8 @@ class Input:
 
 
 class Instance:
-    def __init__(self, path, **arguments):
-        paths, meta = Input._collect(path)
+    def __init__(self, config):
+        paths, meta = Input._collect(config.path)
         self.dimension_count = meta['dimension_count']
         self.sample_count = meta['sample_count']
         with tf.variable_scope('source'):
@@ -131,7 +132,7 @@ class Instance:
             self.reader = tf.TFRecordReader()
             self.queue = tf.FIFOQueue(None, [tf.string])
         with tf.variable_scope('state'):
-            self.state = State(**arguments)
+            self.state = State(report_each=config.get('report_each', None))
 
     def initiate(self):
         with tf.variable_scope('drain'):

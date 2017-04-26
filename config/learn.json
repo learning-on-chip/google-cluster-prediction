@@ -5,7 +5,8 @@
 		"min_sample_length": 5,
 		"max_sample_length": 50,
 		"training": {
-			"fraction": 0.7
+			"fraction": 0.7,
+			"report_each": 10000
 		},
 		"validation": {
 			"fraction": 0.1

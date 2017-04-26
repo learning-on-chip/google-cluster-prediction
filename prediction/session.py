@@ -16,7 +16,7 @@ class Session:
         with graph.as_default():
             with tf.variable_scope('training'):
                 with tf.variable_scope('input'):
-                    input_ = input('training', report_each=10000)
+                    input_ = input('training')
                     inputs = input_.initiate()
                 learner_ = learner(*inputs)
                 with tf.variable_scope('teacher'):
