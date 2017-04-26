@@ -4,8 +4,15 @@
 		"max_sample_count": 10000,
 		"min_sample_length": 5,
 		"max_sample_length": 50,
-		"training_fraction": 0.7,
-		"validation_fraction": 0.1
+		"training": {
+			"fraction": 0.7
+		},
+		"validation": {
+			"fraction": 0.1
+		},
+		"testing": {
+			"fraction": 0.2
+		}
 	},
 	"candidate": {
 		"dimension_count": 1,

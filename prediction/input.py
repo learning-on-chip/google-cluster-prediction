@@ -101,10 +101,10 @@ class Input:
 
     def _partition(available, config):
         preserved = min(available, config.max_sample_count)
-        training = int(config.training_fraction * preserved)
-        validation = int(config.validation_fraction * preserved)
-        testing = preserved - training - validation
-        assert(training > 0 and validation > 0 and testing > 0)
+        training = int(config.training.fraction * preserved)
+        validation = int(config.validation.fraction * preserved)
+        testing = int(config.testing.fraction * preserved)
+        assert(preserved >= training + validation + testing)
         return preserved, training, validation, testing
 
     def _standartize(metas, fetch, report_each=10000):
