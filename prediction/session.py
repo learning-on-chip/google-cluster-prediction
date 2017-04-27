@@ -46,6 +46,7 @@ class Session:
             self.saver.subscribe(self.tester.input)
             self.saver.restore(self.backend)
         self.summarer = tf.summary.FileWriter(self.output.path, graph)
+        tf.train.start_queue_runners(self.backend)
 
     def run_comparison(self, target):
         errors = getattr(self, 'run_' + target)(summarize=False)

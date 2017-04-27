@@ -131,15 +131,10 @@ class Instance:
         with tf.variable_scope('source'):
             paths = tf.Variable(paths, name='paths', dtype=tf.string,
                                 trainable=False)
-            reader = tf.TFRecordReader()
-            queue = tf.FIFOQueue(None, [tf.string])
-            done_count = reader.num_work_units_completed()
-            enqueue = tf.cond(
-                tf.equal(tf.mod(done_count, self.sample_count), 0),
-                lambda: queue.enqueue_many([tf.random_shuffle(paths)]),
-                lambda: tf.no_op())
-            with tf.control_dependencies([enqueue]):
-                _, record = reader.read(queue)
+            queue = tf.FIFOQueue(meta['path_count'], [tf.string])
+            enqueue = queue.enqueue_many([tf.random_shuffle(paths)])
+            tf.train.add_queue_runner(tf.train.QueueRunner(queue, [enqueue]))
+            _, record = tf.TFRecordReader().read(queue)
         with tf.variable_scope('x'):
             features = tf.parse_single_example(record, {
                 'data': tf.VarLenFeature(tf.float32),
