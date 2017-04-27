@@ -61,13 +61,16 @@ class Candidate:
         return getattr(tf, name)(**config.initializer.options)
 
     def _network(x, config):
-        name = '{}Cell'.format(config.cell.name)
-        cell = getattr(rnn, name)(config.unit_count,
-                                  initializer=Candidate._initialize(config),
-                                  reuse=tf.get_variable_scope().reuse,
-                                  **config.cell.options)
-        cell = rnn.DropoutWrapper(cell, **config.dropout.options)
-        cell = rnn.MultiRNNCell([cell] * config.layer_count)
+        klass = getattr(rnn, '{}Cell'.format(config.cell.name))
+        cells = []
+        for _ in range(config.layer_count):
+            cell = klass(config.unit_count,
+                         initializer=Candidate._initialize(config),
+                         reuse=tf.get_variable_scope().reuse,
+                         **config.cell.options)
+            cell = rnn.DropoutWrapper(cell, **config.dropout.options)
+            cells.append(cell)
+        cell = rnn.MultiRNNCell(cells)
         start, state = Candidate._start(config)
         h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state)
         finish = Candidate._finish(state, config)
