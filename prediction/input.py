@@ -50,14 +50,15 @@ class Input:
                     granularity=2, report_each=10000):
         os.makedirs(path)
         sample_count = len(metas)
-        progress = support.Progress(description=('distributing ' + path),
-                                    total_count=sample_count,
-                                    report_each=report_each)
         names = [separator.join([str(meta) for meta in meta])
                  for meta in metas]
         names = [hashlib.md5(name.encode('utf-8')).hexdigest()[:granularity]
                  for name in names]
         seen = {}
+        progress = support.Progress(description=('distributing ' + path),
+                                    total_count=sample_count,
+                                    report_each=report_each)
+        progress.start()
         for i in range(sample_count):
             if names[i] in seen:
                 continue
@@ -110,10 +111,11 @@ class Input:
 
     def _standartize(metas, fetch, report_each=10000):
         sample_count = len(metas)
+        standard = support.Standard()
         progress = support.Progress(description='standardizing',
                                     total_count=sample_count,
                                     report_each=report_each)
-        standard = support.Standard()
+        progress.start()
         for i in range(sample_count):
             standard.consume(fetch(*metas[i]))
             progress.advance()
@@ -127,7 +129,7 @@ class Instance:
         self.dimension_count = meta['dimension_count']
         self.sample_count = meta['sample_count']
         with tf.variable_scope('state'):
-            self.state = State(report_each=config.get('report_each', None))
+            self.state = State()
         with tf.variable_scope('source'):
             paths = tf.Variable(paths, name='paths', dtype=tf.string,
                                 trainable=False)
@@ -221,8 +223,7 @@ class Real:
 
 
 class State:
-    def __init__(self, report_each=None):
-        self.report_each = report_each
+    def __init__(self):
         state = np.zeros(1, dtype=np.int64)
         self.current = tf.Variable(state, name='current', dtype=tf.int64,
                                    trainable=False)
@@ -232,19 +233,14 @@ class State:
 
     def advance(self):
         self.step += 1
-        if self.report_each is not None and self.step % self.report_each == 0:
-            self._report()
 
     def restore(self, session):
         state = session.run(self.current)
         self.step = state[0]
-        self._report()
+        support.log(self, 'Restored step: {}'.format(self.step))
 
     def save(self, session):
         feed = {
             self.new: [self.step],
         }
         session.run(self.assign_new, feed)
-
-    def _report(self):
-        support.log(self, 'Current step: {}', self.step)

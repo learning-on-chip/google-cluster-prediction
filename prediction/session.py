@@ -19,13 +19,15 @@ class Session:
                     input = input_('training')
                 learner = learner_(input.x, input.y)
                 with tf.variable_scope('teacher'):
-                    self.trainer = Trainer(input, learner, config.teacher)
+                    self.trainer = Trainer(input, learner,
+                                           config.teacher.trainer)
             with tf.variable_scope('validation'):
                 with tf.variable_scope('input'):
                     input = input_('validation')
                 learner = learner_(input.x, input.y)
                 with tf.variable_scope('teacher'):
-                    self.validator = Validator(input, learner, config.teacher)
+                    self.validator = Validator(input, learner,
+                                               config.teacher.validator)
             with tf.variable_scope('testing'):
                 with tf.variable_scope('input'):
                     input = input_('testing')
@@ -34,7 +36,7 @@ class Session:
                     y = tf.placeholder(tf.float32, shape, name='y_proxy')
                 learner = learner_(x, y)
                 with tf.variable_scope('teacher'):
-                    self.tester = Tester(input, learner, config.teacher)
+                    self.tester = Tester(input, learner, config.teacher.tester)
         with graph.as_default():
             self.backend = tf.Session()
             self.backend.run(tf.variables_initializer(

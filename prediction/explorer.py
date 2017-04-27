@@ -148,7 +148,7 @@ def _adjust(config, key, value):
     elif key == 'layer_count':
         config.candidate.layer_count = value
     elif key == 'learning_rate':
-        config.teacher.optimizer.options.learning_rate = value
+        config.teacher.trainer.optimizer.options.learning_rate = value
     elif key == 'unit_count':
         config.candidate.unit_count = value
     elif key == 'use_peepholes':

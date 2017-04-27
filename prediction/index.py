@@ -28,6 +28,7 @@ class Index:
         progress = support.Progress(description='indexing',
                                     total_count=database_count,
                                     report_each=report_each)
+        progress.start()
         with open(index_path, 'w') as file:
             for i in range(database_count):
                 data = database.count_job_task_samples(paths[i])

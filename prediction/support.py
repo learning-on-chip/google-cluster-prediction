@@ -25,8 +25,6 @@ class Progress:
         self.description = description
         self.total_count = total_count
         self.report_each = report_each
-        self.done_count = 0
-        log(self.subject, 'Start {}...'.format(self.description))
 
     def advance(self):
         self.done_count += 1
@@ -38,11 +36,15 @@ class Progress:
             message = self.done_count
         else:
             message = format_percentage(self.done_count, self.total_count)
-        log(self.subject, 'Done: {}', message)
+        log(self.subject, '{}: {}', self.description.title(), message)
 
     def finish(self):
         log(self.subject, 'Done {} ({})'.format(self.description,
                                                 self.total_count))
+
+    def start(self):
+        self.done_count = 0
+        log(self.subject, 'Start {}...'.format(self.description))
 
 
 class Standard:
