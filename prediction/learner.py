@@ -1,6 +1,5 @@
 from . import support
-from tensorflow.contrib import rnn as crnn
-from tensorflow.python.ops import rnn
+from tensorflow.contrib import rnn
 import numpy as np
 import tensorflow as tf
 
@@ -63,13 +62,14 @@ class Candidate:
 
     def _network(x, config):
         name = '{}Cell'.format(config.cell.name)
-        cell = getattr(crnn, name)(config.unit_count,
-                                   initializer=Candidate._initialize(config),
-                                   **config.cell.options)
-        cell = crnn.DropoutWrapper(cell, **config.dropout.options)
-        cell = crnn.MultiRNNCell([cell] * config.layer_count)
+        cell = getattr(rnn, name)(config.unit_count,
+                                  initializer=Candidate._initialize(config),
+                                  reuse=tf.get_variable_scope().reuse,
+                                  **config.cell.options)
+        cell = rnn.DropoutWrapper(cell, **config.dropout.options)
+        cell = rnn.MultiRNNCell([cell] * config.layer_count)
         start, state = Candidate._start(config)
-        h, state = rnn.dynamic_rnn(cell, x, initial_state=state)
+        h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state)
         finish = Candidate._finish(state, config)
         return h, start, finish
 
@@ -90,7 +90,7 @@ class Candidate:
         state = []
         for i in range(config.layer_count):
             c, h = parts[2 * i], parts[2 * i + 1]
-            state.append(crnn.LSTMStateTuple(c, h))
+            state.append(rnn.LSTMStateTuple(c, h))
         return start, tuple(state)
 
 
