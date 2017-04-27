@@ -57,7 +57,7 @@ class Trainer:
         error = None
         for _ in self.input.iterate(session, step_count):
             error = self.learner.train(session, self.optimize, self.loss)
-        self.progress.advance()
+            self.progress.advance()
         return {
             'MSE': np.array([error]),
         }
