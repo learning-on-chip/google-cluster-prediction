@@ -142,7 +142,15 @@ class Instance:
                 'data': tf.VarLenFeature(tf.float32),
             })
             data = tf.sparse_tensor_to_dense(features['data'])
-            self.x = tf.reshape(data, [1, -1, self.dimension_count])
+            batch_size = config.get('batch_size', None)
+            if batch_size is None:
+                self.x = tf.reshape(data, [1, -1, self.dimension_count])
+            else:
+                x = tf.reshape(data, [-1, self.dimension_count])
+                _, outputs = tf.contrib.training.bucket_by_sequence_length(
+                    tf.shape(x)[0], [x], batch_size, config.bucket_boundaries,
+                    dynamic_pad=True)
+                self.x = outputs[0]
         with tf.variable_scope('y'):
             self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
 
