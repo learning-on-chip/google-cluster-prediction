@@ -36,7 +36,7 @@ class Progress:
             message = self.done_count
         else:
             message = format_percentage(self.done_count, self.total_count)
-        log(self.subject, '{}: {}', self.description.title(), message)
+        log(self.subject, '{}: {}', title(self.description), message)
 
     def finish(self):
         log(self.subject, 'Done {} ({})'.format(self.description,
@@ -127,6 +127,9 @@ def shift(data, amount, axis=0, padding=0):
     elif amount < 0:
         data[amount:, :] = padding
     return data
+
+def title(text):
+    return text[0].upper() + text[1:]
 
 def tokenize(dictionary):
     chunks = []
