@@ -7,15 +7,14 @@ import tensorflow as tf
 class Candidate:
     def __init__(self, x, y, config):
         self.x, self.y = x, y
-        with tf.variable_scope('batch_size'):
-            self.batch_size = tf.shape(x)[0]
+        batch_size = x.get_shape().as_list()[0]
         with tf.variable_scope('unroll_count'):
             self.unroll_count = tf.shape(x)[1]
         with tf.variable_scope('network'):
-            h, self.start, self.finish = Candidate._network(x, config)
+            h, self.start, self.finish = Candidate._network(x, batch_size,
+                                                            config)
         with tf.variable_scope('regression'):
-            w, b = Candidate._regression(
-                self.batch_size, self.unroll_count, config)
+            w, b = Candidate._regression(batch_size, self.unroll_count, config)
         with tf.variable_scope('y_hat'):
             self.y_hat = tf.matmul(h, w) + b
         self.parameters = tf.trainable_variables()
@@ -60,7 +59,7 @@ class Candidate:
         name = 'random_{}_initializer'.format(config.initializer.name)
         return getattr(tf, name)(**config.initializer.options)
 
-    def _network(x, config):
+    def _network(x, batch_size, config):
         klass = getattr(rnn, '{}Cell'.format(config.cell.name))
         cells = []
         for _ in range(config.layer_count):
@@ -71,7 +70,7 @@ class Candidate:
             cell = rnn.DropoutWrapper(cell, **config.dropout.options)
             cells.append(cell)
         cell = rnn.MultiRNNCell(cells)
-        start, state = Candidate._start(config)
+        start, state = Candidate._start(batch_size, config)
         h, state = tf.nn.dynamic_rnn(cell, x, initial_state=state)
         finish = Candidate._finish(state, config)
         return h, start, finish
@@ -85,8 +84,8 @@ class Candidate:
         b = tf.tile(b, [batch_size, unroll_count, 1])
         return w, b
 
-    def _start(config):
-        shape = [2 * config.layer_count, 1, config.unit_count]
+    def _start(batch_size, config):
+        shape = [2 * config.layer_count, batch_size, config.unit_count]
         start = tf.placeholder_with_default(np.zeros(shape, np.float32),
                                             name='start', shape=shape)
         parts = tf.unstack(start)
