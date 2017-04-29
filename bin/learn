@@ -16,14 +16,14 @@ import json
 def main(config):
     support.loggalize()
     Random.initialize(config.seed)
-    input = Input(config.input)
-    path = config.output.get('path', support.default_output())
-    config.output.path = os.path.join(path, 'reference')
-    session = Session(input, Learner(config.reference), config)
+    input = Input(config.session.input)
+    path = config.session.output.get('path', support.default_output())
+    config.session.output.path = os.path.join(path, 'reference')
+    session = Session(input, Learner(config.session.reference), config.session)
     session.run_comparison('validation')
     session.run_comparison('testing')
-    config.output.path = os.path.join(path, 'candidate')
-    session = Session(input, Learner(config.candidate), config)
+    config.session.output.path = os.path.join(path, 'candidate')
+    session = Session(input, Learner(config.session.candidate), config.session)
     manager = support.Manager(config.manager)
     while True:
         try:
@@ -53,8 +53,10 @@ if __name__ == '__main__':
     parser.add_argument('--output')
     arguments = parser.parse_args()
     config = Config(json.loads(open(arguments.config).read()))
+    if isinstance(config.session, str):
+        config.session = Config(json.loads(open(config.session).read()))
     if arguments.input is not None:
-        config.input.path = arguments.input
+        config.session.input.path = arguments.input
     if arguments.output is not None:
-        config.output.path = arguments.output
+        config.session.output.path = arguments.output
     main(config)

@@ -1,70 +1,8 @@
 {
 	"seed": 0,
-	"input": {
-		"max_sample_count": 10000,
-		"min_sample_length": 5,
-		"max_sample_length": 50,
-		"training": {
-			"fraction": 0.7
-		},
-		"validation": {
-			"fraction": 0.1
-		},
-		"testing": {
-			"fraction": 0.2
-		}
-	},
-	"candidate": {
-		"dimension_count": 1,
-		"layer_count": 1,
-		"unit_count": 200,
-		"cell": {
-			"name": "LSTM",
-			"options": {
-				"cell_clip": 1.0,
-				"forget_bias": 1.0,
-				"use_peepholes": true
-			}
-		},
-		"initializer": {
-			"name": "uniform",
-			"options": {
-				"minval": -0.01,
-				"maxval": 0.01
-			}
-		},
-		"dropout": {
-			"options": {
-				"input_keep_prob": 1.0,
-				"output_keep_prob": 1.0
-			}
-		}
-	},
-	"reference": {
-	},
-	"teacher": {
-		"trainer": {
-			"gradient_clip": 1.0,
-			"optimizer": {
-				"name": "Adam",
-				"options": {
-					"learning_rate": 1e-4
-				}
-			},
-			"report_each": 10000
-		},
-		"validator": {
-			"report_each": 10000
-		},
-		"tester": {
-			"future_length": 2,
-			"report_each": 10000
-		}
-	},
+	"session": "config/session.json",
 	"manager": {
 		"save_each": 10000,
-		"validation_each": 10000
-	},
-	"output": {
+		"validate_each": 10000
 	}
 }

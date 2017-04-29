@@ -1,6 +1,6 @@
 {
 	"seed": 0,
-	"session": "config/learn.json",
+	"session": "config/session.json",
 	"tuner": {
 		"name": "Hyperband",
 		"options": {
