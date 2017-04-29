@@ -11,7 +11,6 @@ from prediction import Random
 from prediction import Session
 from prediction import support
 import argparse
-import json
 
 def main(config):
     support.loggalize()
@@ -54,9 +53,9 @@ if __name__ == '__main__':
     parser.add_argument('--input')
     parser.add_argument('--output')
     arguments = parser.parse_args()
-    config = Config(json.loads(open(arguments.config).read()))
+    config = Config.load(arguments.config)
     if isinstance(config.session, str):
-        config.session = Config(json.loads(open(config.session).read()))
+        config.session = Config.load(config.session)
     if arguments.input is not None:
         config.session.input.path = arguments.input
     if arguments.output is not None:

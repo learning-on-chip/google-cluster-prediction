@@ -1,9 +1,13 @@
 from copy import deepcopy
+import json
 
 RESERVED_KEYS = vars(dict).keys()
 
 
 class Config(dict):
+    def load(path):
+        return Config(json.loads(open(path).read()))
+
     def __init__(self, options={}):
         super(Config, self).__init__()
         self.update(options)
