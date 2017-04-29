@@ -128,6 +128,7 @@ class Instance:
         paths, meta = Input._collect(config.path)
         self.dimension_count = meta['dimension_count']
         self.sample_count = meta['sample_count']
+        self.batch_size = config.get('batch_size', 1)
         with tf.variable_scope('state'):
             self.state = State()
         with tf.variable_scope('source'):
@@ -142,8 +143,7 @@ class Instance:
                 'data': tf.VarLenFeature(tf.float32),
             })
             data = tf.sparse_tensor_to_dense(features['data'])
-            batch_size = config.get('batch_size', None)
-            if batch_size is None:
+            if self.batch_size == 1:
                 self.x = tf.reshape(data, [1, -1, self.dimension_count])
             else:
                 x = tf.reshape(data, [-1, self.dimension_count])
