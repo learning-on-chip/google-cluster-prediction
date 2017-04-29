@@ -62,8 +62,8 @@
 		}
 	},
 	"manager": {
-		"save_each": 7000,
-		"validation_each": 7000
+		"save_each": 10000,
+		"validation_each": 10000
 	},
 	"output": {
 	}
