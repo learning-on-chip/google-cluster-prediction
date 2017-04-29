@@ -1,5 +1,5 @@
 {
-	"__include": "config/common.json",
+	"__include": "common.json",
 	"save_each": 10000,
 	"validate_each": 10000
 }

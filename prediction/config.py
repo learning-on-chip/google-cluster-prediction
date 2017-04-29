@@ -1,5 +1,6 @@
 from copy import deepcopy
 import json
+import os
 
 RESERVED_KEYS = vars(dict).keys()
 
@@ -9,7 +10,8 @@ class Config(dict):
         config = Config(json.loads(open(path).read()))
         for key in sorted(config.keys()):
             if key.startswith('__include'):
-                another = Config(json.loads(open(config.pop(key)).read()))
+                another = os.path.join(os.path.dirname(path), config.pop(key))
+                another = Config(json.loads(open(another).read()))
                 another.update(config)
                 config = another
         return config
