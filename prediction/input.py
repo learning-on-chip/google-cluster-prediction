@@ -153,7 +153,7 @@ class Instance:
             else:
                 x = tf.reshape(data, [-1, self.dimension_count])
                 _, outputs = tf.contrib.training.bucket_by_sequence_length(
-                    tf.shape(x)[0], [x], batch_size, config.buckets,
+                    tf.shape(x)[0], [x], self.batch_size, config.buckets,
                     dynamic_pad=True)
                 self.x = outputs[0]
         with tf.variable_scope('y'):
