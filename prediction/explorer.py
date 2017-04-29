@@ -111,8 +111,8 @@ class Explorer:
             agent = self.agents.get(key)
             if agent is None:
                 config = self.configure(case)
-                session = Session(
-                    self.input, Learner(config.candidate), config)
+                learner = Learner(config.learner.candidate)
+                session = Session(self.input, learner, config)
                 agent = Agent(session, self.semaphore, config)
                 self.agents[key] = agent
             agent.submit(step_count)
@@ -143,15 +143,16 @@ class Sampler:
 
 def _adjust(config, key, value):
     if key == 'dropout_rate':
-        config.candidate.dropout.options.input_keep_prob = 1 - value[0]
-        config.candidate.dropout.options.output_keep_prob = 1 - value[1]
+        value = 1 - value
+        config.learner.candidate.dropout.options.input_keep_prob = value[0]
+        config.learner.candidate.dropout.options.output_keep_prob = value[1]
     elif key == 'layer_count':
-        config.candidate.layer_count = value
+        config.learner.candidate.layer_count = value
     elif key == 'learning_rate':
         config.teacher.trainer.optimizer.options.learning_rate = value
     elif key == 'unit_count':
-        config.candidate.unit_count = value
+        config.learner.candidate.unit_count = value
     elif key == 'use_peepholes':
-        config.candidate.cell.options.use_peepholes = value
+        config.learner.candidate.cell.options.use_peepholes = value
     else:
         assert(False)

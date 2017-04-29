@@ -20,13 +20,15 @@ def main(config):
     input = Input(config.session.input)
     path = config.session.output.get('path', support.default_output())
     config.session.output.path = os.path.join(path, 'reference')
-    session = Session(input, Learner(config.session.reference), config.session)
+    learner = Learner(config.session.learner.reference)
+    session = Session(input, learner, config.session)
     session.run_comparison('testing')
     config.session.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()
     config = explorer.configure(case, restore=step_count)
-    session = Session(input, Learner(config.candidate), config)
+    learner = Learner(config.learner.candidate)
+    session = Session(input, learner, config)
     session.run_comparison('testing')
 
 if __name__ == '__main__':

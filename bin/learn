@@ -19,11 +19,13 @@ def main(config):
     input = Input(config.session.input)
     path = config.session.output.get('path', support.default_output())
     config.session.output.path = os.path.join(path, 'reference')
-    session = Session(input, Learner(config.session.reference), config.session)
+    learner = Learner(config.session.learner.reference)
+    session = Session(input, learner, config.session)
     session.run_comparison('validation')
     session.run_comparison('testing')
     config.session.output.path = os.path.join(path, 'candidate')
-    session = Session(input, Learner(config.session.candidate), config.session)
+    learner = Learner(config.session.learner.candidate)
+    session = Session(input, learner, config.session)
     manager = support.Manager(config.manager)
     while True:
         try:
