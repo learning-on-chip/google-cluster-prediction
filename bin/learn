@@ -25,14 +25,13 @@ def main(config):
     config.output.path = os.path.join(path, 'candidate')
     learner = Learner(config.learner.candidate)
     session = Session(input, learner, config)
-    manager = support.Manager(config.manager)
     while True:
         try:
             while True:
                 session.run_training()
-                if manager.should_save(session.step):
+                if session.step % config.save_each == 0:
                     session.run_saving()
-                if manager.should_validation(session.step):
+                if session.step % config.validate_each == 0:
                     session.run_validation()
         except KeyboardInterrupt:
             print()

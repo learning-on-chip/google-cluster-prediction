@@ -1,7 +1,5 @@
 {
 	"__include": "config/common.json",
-	"manager": {
-		"save_each": 10000,
-		"validate_each": 10000
-	}
+	"save_each": 10000,
+	"validate_each": 10000
 }
