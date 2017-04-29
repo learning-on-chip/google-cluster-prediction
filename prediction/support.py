@@ -19,15 +19,31 @@ class Manager:
 
 
 class Progress:
-    def __init__(self, subject=None, description=None, total_count=None,
-                 report_each=None):
+    def __init__(self, subject=None, description=None, step_size=1,
+                 total_count=None, report_each=None):
         self.subject = subject
         self.description = description
+        self.step_size = step_size
         self.total_count = total_count
         self.report_each = report_each
 
     def advance(self):
+        for _ in range(self.step_size):
+            self._advance()
+
+    def finish(self):
+        log(self.subject, 'Done {} ({})'.format(self.description,
+                                                self.total_count))
+
+    def start(self):
+        self.done_count = 0
+        log(self.subject, 'Start {}...'.format(self.description))
+
+    def _advance(self):
         self.done_count += 1
+        if self.total_count is not None and self.done_count > self.total_count:
+            raise Exception(
+                'exceeded the total count ({})'.format(self.total_count))
         if self.report_each is None:
             return
         if self.done_count % self.report_each != 0:
@@ -37,14 +53,6 @@ class Progress:
         else:
             message = format_percentage(self.done_count, self.total_count)
         log(self.subject, '{}: {}', title(self.description), message)
-
-    def finish(self):
-        log(self.subject, 'Done {} ({})'.format(self.description,
-                                                self.total_count))
-
-    def start(self):
-        self.done_count = 0
-        log(self.subject, 'Start {}...'.format(self.description))
 
 
 class Standard:

@@ -129,6 +129,11 @@ class Instance:
         self.dimension_count = meta['dimension_count']
         self.sample_count = meta['sample_count']
         self.batch_size = config.get('batch_size', 1)
+        if self.sample_count % self.batch_size > 0:
+            raise Exception(
+                ('expected the number of samples ({}) to be ' +
+                 'divisible by the batch size ({})').format(self.sample_count,
+                                                            self.batch_size))
         with tf.variable_scope('state'):
             self.state = State()
         with tf.variable_scope('source'):
@@ -155,20 +160,20 @@ class Instance:
             self.y = tf.pad(self.x[:, 1:, :], [[0, 0], [0, 1], [0, 0]])
 
     def iterate(self, session, step_count=None):
-        for i in range(step_count if step_count else self.sample_count):
+        if step_count is None:
+            step_count = self.sample_count // self.batch_size
+        for i in range(step_count):
             self.state.advance()
             yield i
         raise StopIteration()
 
     def restore(self, session):
         self.state.restore(session)
+        support.log(self, 'Restored step: {}, sample: {}'.format(
+            self.state.step, self.batch_size * self.state.step))
 
     def save(self, session):
         self.state.save(session)
-
-    @property
-    def step(self):
-        return self.state.step
 
 
 class Fake:
@@ -245,10 +250,8 @@ class State:
     def restore(self, session):
         state = session.run(self.current)
         self.step = state[0]
-        support.log(self, 'Restored step: {}'.format(self.step))
 
     def save(self, session):
-        feed = {
+        session.run(self.assign_new, {
             self.new: [self.step],
-        }
-        session.run(self.assign_new, feed)
+        })

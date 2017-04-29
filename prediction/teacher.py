@@ -10,6 +10,7 @@ class Tester:
         self.future_length = config.future_length
         self.progress = support.Progress(
             subject=self, description='testing',
+            step_size=self.input.batch_size,
             total_count=self.input.sample_count,
             report_each=config.get('report_each', None))
 
@@ -50,6 +51,7 @@ class Trainer:
             zip(gradient, learner.parameters))
         self.progress = support.Progress(
             subject=self, description='training',
+            step_size=self.input.batch_size,
             report_each=config.get('report_each', None))
         self.progress.start()
 
@@ -72,6 +74,7 @@ class Validator:
                 tf.squared_difference(learner.y, learner.y_hat))
         self.progress = support.Progress(
             subject=self, description='validation',
+            step_size=self.input.batch_size,
             total_count=self.input.sample_count,
             report_each=config.get('report_each', None))
 

@@ -19,9 +19,9 @@ class Saver:
         if len(paths) == 0:
             self._notify('restore', session)
             return
-        step_counts = sorted(list(paths.keys()))
+        steps = sorted(list(paths.keys()))
         if self.auto is None:
-            options = ['Load ' + paths[key] for key in step_counts]
+            options = ['Load ' + paths[key] for key in steps]
             i = support.prompt('Start anew', *options)
             if i == 0:
                 self._notify('restore', session)
@@ -31,8 +31,8 @@ class Saver:
         elif self.auto is True:
             i = -1
         else:
-            i = step_counts.index(self.auto)
-        path = paths[step_counts[i]]
+            i = steps.index(self.auto)
+        path = paths[steps[i]]
         self.backend.restore(session, path)
         support.log(self, 'Restore: {}', path)
         self._notify('restore', session)
@@ -49,8 +49,8 @@ class Saver:
     def _find(path):
         paths = {}
         for path in support.scan(path, 'session-*.meta'):
-            step_count = int(re.search('.*session-(.*).meta', path).group(1))
-            paths[step_count] = re.sub('.meta$', '', path)
+            step = int(re.search('.*session-(.*).meta', path).group(1))
+            paths[step] = re.sub('.meta$', '', path)
         return paths
 
     def _notify(self, action, session):

@@ -77,7 +77,7 @@ class Session:
 
     @property
     def step(self):
-        return self.trainer.input.step
+        return self.trainer.input.state.step
 
 
 def summarize_dynamic(summarer, step, data, name):
