@@ -6,7 +6,13 @@ RESERVED_KEYS = vars(dict).keys()
 
 class Config(dict):
     def load(path):
-        return Config(json.loads(open(path).read()))
+        config = Config(json.loads(open(path).read()))
+        for key in sorted(config.keys()):
+            if key.startswith('__include'):
+                another = Config(json.loads(open(config.pop(key)).read()))
+                another.update(config)
+                config = another
+        return config
 
     def __init__(self, options={}):
         super(Config, self).__init__()

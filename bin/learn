@@ -15,16 +15,16 @@ import argparse
 def main(config):
     support.loggalize()
     Random.initialize(config.seed)
-    input = Input(config.session.input)
-    path = config.session.output.get('path', support.default_output())
-    config.session.output.path = os.path.join(path, 'reference')
-    learner = Learner(config.session.learner.reference)
-    session = Session(input, learner, config.session)
+    input = Input(config.input)
+    path = config.output.get('path', support.default_output())
+    config.output.path = os.path.join(path, 'reference')
+    learner = Learner(config.learner.reference)
+    session = Session(input, learner, config)
     session.run_comparison('validation')
     session.run_comparison('testing')
-    config.session.output.path = os.path.join(path, 'candidate')
-    learner = Learner(config.session.learner.candidate)
-    session = Session(input, learner, config.session)
+    config.output.path = os.path.join(path, 'candidate')
+    learner = Learner(config.learner.candidate)
+    session = Session(input, learner, config)
     manager = support.Manager(config.manager)
     while True:
         try:
@@ -54,10 +54,8 @@ if __name__ == '__main__':
     parser.add_argument('--output')
     arguments = parser.parse_args()
     config = Config.load(arguments.config)
-    if isinstance(config.session, str):
-        config.session = Config.load(config.session)
     if arguments.input is not None:
-        config.session.input.path = arguments.input
+        config.input.path = arguments.input
     if arguments.output is not None:
-        config.session.output.path = arguments.output
+        config.output.path = arguments.output
     main(config)

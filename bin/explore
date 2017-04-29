@@ -16,13 +16,13 @@ import argparse
 def main(config):
     support.loggalize()
     Random.initialize(config.seed)
-    input = Input(config.session.input)
-    path = config.session.output.get('path', support.default_output())
-    config.session.output.path = os.path.join(path, 'reference')
-    learner = Learner(config.session.learner.reference)
-    session = Session(input, learner, config.session)
+    input = Input(config.input)
+    path = config.output.get('path', support.default_output())
+    config.output.path = os.path.join(path, 'reference')
+    learner = Learner(config.learner.reference)
+    session = Session(input, learner, config)
     session.run_comparison('testing')
-    config.session.output.path = path
+    config.output.path = path
     explorer = Explorer(input, config)
     case, step_count = explorer.run()
     config = explorer.configure(case, restore=step_count)
@@ -37,10 +37,8 @@ if __name__ == '__main__':
     parser.add_argument('--output')
     arguments = parser.parse_args()
     config = Config.load(arguments.config)
-    if isinstance(config.session, str):
-        config.session = Config.load(config.session)
     if arguments.input is not None:
-        config.session.input.path = arguments.input
+        config.input.path = arguments.input
     if arguments.output is not None:
-        config.session.output.path = arguments.output
+        config.output.path = arguments.output
     main(config)

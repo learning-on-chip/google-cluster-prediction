@@ -77,7 +77,7 @@ class Agent:
 class Explorer:
     def __init__(self, input, config):
         self.input = input
-        self.config = config.session
+        self.config = config
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
         self.resource_scale = config.max_step_count / self.tuner.resource

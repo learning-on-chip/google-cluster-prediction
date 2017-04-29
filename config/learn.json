@@ -1,6 +1,6 @@
 {
+	"__include": "config/session.json",
 	"seed": 0,
-	"session": "config/session.json",
 	"manager": {
 		"save_each": 10000,
 		"validate_each": 10000
