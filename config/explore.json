@@ -1,6 +1,5 @@
 {
-	"__include": "config/session.json",
-	"seed": 0,
+	"__include": "config/common.json",
 	"tuner": {
 		"name": "Hyperband",
 		"options": {

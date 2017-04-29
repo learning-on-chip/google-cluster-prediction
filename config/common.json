@@ -1,4 +1,5 @@
 {
+	"seed": 0,
 	"input": {
 		"max_sample_count": 10000,
 		"min_sample_length": 5,
