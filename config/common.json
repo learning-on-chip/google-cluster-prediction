@@ -5,7 +5,9 @@
 		"min_sample_length": 5,
 		"max_sample_length": 50,
 		"training": {
-			"fraction": 0.7
+			"fraction": 0.7,
+			"batch_size": 1,
+			"buckets": []
 		},
 		"validation": {
 			"fraction": 0.1
