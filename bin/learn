@@ -36,13 +36,13 @@ def main(config):
         except KeyboardInterrupt:
             print()
         i = support.prompt('Abort', 'Continue training',
-                           'Stop training and start testing')
+                           'Run testing and continue training',
+                           'Run testing, compare, and quit')
         if i == 0:
             return
-        elif i == 1:
-            continue
         elif i == 2:
-            session.run_comparison('validation')
+            session.run_testing()
+        elif i == 3:
             session.run_comparison('testing')
             return
 
