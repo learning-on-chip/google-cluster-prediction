@@ -10,10 +10,14 @@
 			"buckets": []
 		},
 		"validation": {
-			"fraction": 0.1
+			"fraction": 0.1,
+			"batch_size": 1,
+			"buckets": []
 		},
 		"testing": {
-			"fraction": 0.2
+			"fraction": 0.2,
+			"batch_size": 1,
+			"buckets": []
 		}
 	},
 	"learner": {
