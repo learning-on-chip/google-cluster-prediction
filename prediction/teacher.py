@@ -10,7 +10,6 @@ class Tester:
         self.future_length = config.future_length
         self.progress = support.Progress(
             subject=self, description='testing',
-            step_size=self.input.batch_size,
             total_count=self.input.sample_count,
             report_each=config.get('report_each', None))
 
@@ -20,13 +19,10 @@ class Tester:
         for _ in self.input.iterate(session):
             y, y_hat = self.learner.test(session, self.input,
                                          self.future_length)
-            _, sample_length, dimension_count = y.shape
-            count += sample_length * dimension_count
-            for i in range(sample_length):
-                length = min(sample_length - (i + 1), self.future_length)
-                y_hat[:length, i, :] -= y[0, (i + 1):(i + 1 + length), :]
-                sum += np.sum(y_hat[:, i, :]**2, axis=-1)
-            self.progress.advance()
+            _, batch_size, sample_length, dimension_count = y.shape
+            sum += np.sum((y - y_hat)**2, axis=(1, 2, 3))
+            count += batch_size * sample_length * dimension_count
+            self.progress.advance(batch_size)
         self.progress.finish()
         return {
             'MSE': sum / count,
@@ -51,7 +47,6 @@ class Trainer:
             zip(gradient, learner.parameters))
         self.progress = support.Progress(
             subject=self, description='training',
-            step_size=self.input.batch_size,
             report_each=config.get('report_each', None))
         self.progress.start()
 
@@ -59,7 +54,7 @@ class Trainer:
         sum = 0
         for _ in self.input.iterate(session, step_count):
             sum += self.learner.train(session, self.optimize, self.loss)
-            self.progress.advance()
+            self.progress.advance(self.input.batch_size)
         return {
             'MSE': np.array([sum / step_count]),
         }
@@ -74,7 +69,6 @@ class Validator:
                 tf.squared_difference(learner.y, learner.y_hat))
         self.progress = support.Progress(
             subject=self, description='validation',
-            step_size=self.input.batch_size,
             total_count=self.input.sample_count,
             report_each=config.get('report_each', None))
 
@@ -83,7 +77,7 @@ class Validator:
         self.progress.start()
         for _ in self.input.iterate(session):
             sum += self.learner.validate(session, self.loss)
-            self.progress.advance()
+            self.progress.advance(self.input.batch_size)
         self.progress.finish()
         return {
             'MSE': np.array([sum / self.input.sample_count]),

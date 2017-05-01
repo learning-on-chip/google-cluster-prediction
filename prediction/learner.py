@@ -26,20 +26,24 @@ class Candidate:
 
     def test(self, session, input, future_length):
         x = session.run(input.x)
+        batch_size, sample_length, dimension_count = x.shape
         if future_length == 1:
-            y_hat = session.run(self.y_hat, {self.x: x})
+            y_hat = np.reshape(
+                session.run(self.y_hat, {self.x: x}),
+                [future_length, batch_size, sample_length, dimension_count])
         else:
-            _, sample_length, dimension_count = x.shape
-            y_hat = np.zeros([future_length, sample_length, dimension_count])
+            y_hat = np.zeros(
+                [future_length, batch_size, sample_length, dimension_count])
             for i in range(sample_length):
                 feed = {
                     self.x: x[:, :(i + 1), :],
                 }
                 for j in range(future_length):
-                    y_hat_k, finish = session.run([self.y_hat, self.finish], feed)
-                    y_hat[j, i, :] = y_hat_k[0, -1, :]
+                    y_hat_k, finish = session.run(
+                        [self.y_hat, self.finish], feed)
+                    y_hat[j, :, i, :] = y_hat_k[:, -1, :]
                     feed[self.start] = finish
-                    feed[self.x] = y_hat_k[:1, -1:, :]
+                    feed[self.x] = y_hat_k[:, -1:, :]
         return _time_travel(x, future_length), y_hat
 
     def train(self, session, optimize, loss):
@@ -103,11 +107,12 @@ class Reference:
 
     def test(self, session, input, future_length):
         x = session.run(input.x)
-        _, sample_length, dimension_count = x.shape
-        y_hat = np.zeros([future_length, sample_length, dimension_count])
+        batch_size, sample_length, dimension_count = x.shape
+        y_hat = np.zeros(
+            [future_length, batch_size, sample_length, dimension_count])
         for i in range(sample_length):
             for j in range(future_length):
-                y_hat[j, i, :] = x[0, i, :]
+                y_hat[j, :, i, :] = x[:, i, :]
         return _time_travel(x, future_length), y_hat
 
     def validate(self, session, loss):
@@ -123,10 +128,10 @@ def Learner(config):
             'learner', lambda x, y: Reference(x, y, config))
 
 def _time_travel(x, future_length):
-    _, sample_length, dimension_count = x.shape
-    y = np.empty([future_length, sample_length, dimension_count])
+    batch_size, sample_length, dimension_count = x.shape
+    y = np.empty([future_length, batch_size, sample_length, dimension_count])
     for i in range(sample_length):
         for j in range(future_length):
             k = i + j + 1
-            y[j, i, :] = x[0, k, :] if k < sample_length else 0
+            y[j, :, i, :] = x[:, k, :] if k < sample_length else 0
     return y

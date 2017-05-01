@@ -31,7 +31,7 @@ class Session:
             with tf.variable_scope('testing'):
                 with tf.variable_scope('input'):
                     input = input_('testing')
-                    shape = [1, None, input.dimension_count]
+                    shape = [input.batch_size, None, input.dimension_count]
                     x = tf.placeholder(tf.float32, shape, name='x_proxy')
                     y = tf.placeholder(tf.float32, shape, name='y_proxy')
                 learner = learner_(x, y)

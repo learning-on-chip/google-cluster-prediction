@@ -7,16 +7,15 @@ import os
 
 
 class Progress:
-    def __init__(self, subject=None, description=None, step_size=1,
-                 total_count=None, report_each=None):
+    def __init__(self, subject=None, description=None, total_count=None,
+                 report_each=None):
         self.subject = subject
         self.description = description
-        self.step_size = step_size
         self.total_count = total_count
         self.report_each = report_each
 
-    def advance(self):
-        for _ in range(self.step_size):
+    def advance(self, count=1):
+        for _ in range(count):
             self._advance()
 
     def finish(self):
