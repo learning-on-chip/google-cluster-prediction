@@ -56,12 +56,12 @@ class Trainer:
         self.progress.start()
 
     def run(self, session, step_count):
-        error = None
+        sum = 0
         for _ in self.input.iterate(session, step_count):
-            error = self.learner.train(session, self.optimize, self.loss)
+            sum += self.learner.train(session, self.optimize, self.loss)
             self.progress.advance()
         return {
-            'MSE': np.array([error]),
+            'MSE': np.array([sum / step_count]),
         }
 
 
