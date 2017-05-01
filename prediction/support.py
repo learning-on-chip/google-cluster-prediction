@@ -96,8 +96,13 @@ def log(*arguments):
     logging.info('[%s|%s] %s', name, number, message.format(*arguments))
 
 def loggalize(level=logging.INFO):
-    logging.basicConfig(format='%(asctime)s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S', level=level)
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    formatter = logging.Formatter('%(asctime)s %(message)s',
+                                  datefmt='%Y-%m-%d %H:%M:%S')
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 def prompt(*options):
     print('Choose one of the following options:')
