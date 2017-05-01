@@ -95,12 +95,18 @@ def log(*arguments):
     number = '{:5}'.format(number)[-5:]
     logging.info('[%s|%s] %s', name, number, message.format(*arguments))
 
-def loggalize(level=logging.INFO):
+def loggalize(path=None, level=logging.INFO):
     logger = logging.getLogger()
     logger.setLevel(level)
     formatter = logging.Formatter('%(asctime)s %(message)s',
                                   datefmt='%Y-%m-%d %H:%M:%S')
     handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    if path is None:
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    handler = logging.FileHandler(path)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 

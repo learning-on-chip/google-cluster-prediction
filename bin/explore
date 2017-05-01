@@ -14,10 +14,10 @@ from prediction import support
 import argparse
 
 def main(config):
-    support.loggalize()
+    path = config.output.get('path', support.default_output())
+    support.loggalize(os.path.join(path, 'log.txt'))
     Random.initialize(config.seed)
     input = Input(config.input)
-    path = config.output.get('path', support.default_output())
     config.output.path = os.path.join(path, 'reference')
     learner = Learner(config.learner.reference)
     session = Session(input, learner, config)
