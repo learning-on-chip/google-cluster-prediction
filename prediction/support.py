@@ -137,12 +137,15 @@ def shift(data, amount, axis=0, padding=0):
 def title(text):
     return text[0].upper() + text[1:]
 
-def tokenize(dictionary):
-    chunks = []
-    for key in sorted(dictionary.keys()):
-        alias = ''.join([chunk[0] for chunk in key.split('_')])
-        value = str(dictionary[key])
+def tokenize(object):
+    if not isinstance(object, dict):
+        object = str(object).lower()
         for this, that in [(' ', ''), ('[', '('), (']', ')')]:
-            value = value.replace(this, that)
-        chunks.append('{}={}'.format(alias, value))
-    return ','.join(chunks).lower()
+            object = object.replace(this, that)
+    else:
+        chunks = []
+        for key in sorted(object.keys()):
+            alias = ''.join([chunk[0] for chunk in key.split('_')]).lower()
+            chunks.append('{}={}'.format(alias, tokenize(object[key])))
+        object = ','.join(chunks)
+    return object
