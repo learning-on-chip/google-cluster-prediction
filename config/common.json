@@ -65,7 +65,7 @@
 			"report_each": 10000
 		},
 		"tester": {
-			"future_length": 2,
+			"future_length": 4,
 			"report_each": 10000
 		}
 	},
