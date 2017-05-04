@@ -20,7 +20,7 @@ class Progress:
 
     def finish(self):
         log(self.subject, 'Done {} ({})'.format(self.description,
-                                                self.total_count))
+                                                self.done_count))
 
     def start(self):
         self.done_count = 0

@@ -23,12 +23,10 @@ def main(index_path, min_length=0, max_length=50, report_each=1000000):
         pp.pause(1e-3)
     def _process(length, **_):
         progress.advance()
-        if length < min_length or length > max_length:
-            return
-        samples.append(length)
-        if progress.done_count % report_each > 0:
-            return
-        _update()
+        if length >= min_length and length <= max_length:
+            samples.append(length)
+            if progress.done_count % report_each == 0:
+                _update()
     progress.start()
     Index.decode(index_path, _process)
     progress.finish()
