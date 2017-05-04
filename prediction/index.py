@@ -3,9 +3,10 @@ from . import support
 import os
 
 class Index:
-    def decode(path, callback):
+    def decode(input_path, callback):
+        support.log(Index, 'Input path: {}', input_path)
         count = 0
-        with open(path, 'r') as file:
+        with open(input_path, 'r') as file:
             for record in file:
                 count += 1
                 record = record.split(',')
