@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from prediction import Index
+from prediction import support
+import argparse
+import matplotlib.pyplot as pp
+
+def main(index_path, min_length=0, max_length=50, report_each=1000000):
+    support.loggalize()
+    samples = []
+    progress = support.Progress(description='parsing')
+    pp.figure(figsize=(14, 6), dpi=80, facecolor='w', edgecolor='k')
+    def _update():
+        pp.clf()
+        pp.title('Processed: {}, selected: {}'.format(
+            progress.done_count, support.format_percentage(
+                len(samples), progress.done_count)))
+        pp.hist(samples, bins=(max_length - min_length))
+        pp.pause(1e-3)
+    def _process(length, **_):
+        progress.advance()
+        if length < min_length or length > max_length:
+            return
+        samples.append(length)
+        if progress.done_count % report_each > 0:
+            return
+        _update()
+    progress.start()
+    Index.decode(index_path, _process)
+    progress.finish()
+    _update()
+    pp.show()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', required=True)
+    arguments = parser.parse_args()
+    main(arguments.input)
