@@ -20,7 +20,6 @@ def main(config):
     config.output.path = os.path.join(path, 'reference')
     learner = Learner(config.learner.reference)
     session = Session(input, learner, config)
-    session.run_comparison('validation')
     session.run_comparison('testing')
     config.output.path = os.path.join(path, 'candidate')
     learner = Learner(config.learner.candidate)
