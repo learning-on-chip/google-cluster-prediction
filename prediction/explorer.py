@@ -143,9 +143,10 @@ class Sampler:
 
 def _adjust(config, key, value):
     if key == 'dropout_rate':
-        value = 1 - value
-        config.learner.candidate.dropout.options.input_keep_prob = value[0]
-        config.learner.candidate.dropout.options.output_keep_prob = value[1]
+        config.learner.candidate.dropout.options.update({
+            'input_keep_prob': 1 - value[0],
+            'output_keep_prob': 1 - value[1],
+        })
     elif key == 'layer_count':
         config.learner.candidate.layer_count = value
     elif key == 'learning_rate':
