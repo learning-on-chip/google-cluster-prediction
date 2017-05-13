@@ -71,7 +71,8 @@ class Candidate:
                          initializer=Candidate._initialize(config),
                          reuse=tf.get_variable_scope().reuse,
                          **config.cell.options)
-            cell = rnn.DropoutWrapper(cell, **config.dropout.options)
+            if config.dropout is not None:
+                cell = rnn.DropoutWrapper(cell, **config.dropout.options)
             cells.append(cell)
         cell = rnn.MultiRNNCell(cells)
         start, state = Candidate._start(batch_size, config)
@@ -120,12 +121,18 @@ class Reference:
 
 
 def Learner(config):
+    def _learner(klass, x, y, **overwrite):
+        copy = config.copy()
+        copy.update(overwrite)
+        return klass(x, y, copy)
     if len(config) > 0:
         return tf.make_template(
-            'learner', lambda x, y: Candidate(x, y, config))
+            'learner',
+            lambda x, y, **overwrite: _learner(Candidate, x, y, **overwrite))
     else:
         return tf.make_template(
-            'learner', lambda x, y: Reference(x, y, config))
+            'learner',
+            lambda x, y, **overwrite: _learner(Reference, x, y, **overwrite))
 
 def _time_travel(x, future_length):
     batch_size, sample_length, dimension_count = x.shape

@@ -24,7 +24,7 @@ class Session:
             with tf.variable_scope('validation'):
                 with tf.variable_scope('input'):
                     input = input_('validation')
-                learner = learner_(input.x, input.y)
+                learner = learner_(input.x, input.y, dropout=None)
                 with tf.variable_scope('teacher'):
                     self.validator = Validator(input, learner,
                                                config.teacher.validator)
@@ -34,7 +34,7 @@ class Session:
                     shape = [input.batch_size, None, input.dimension_count]
                     x = tf.placeholder(tf.float32, shape, name='x_proxy')
                     y = tf.placeholder(tf.float32, shape, name='y_proxy')
-                learner = learner_(x, y)
+                learner = learner_(x, y, dropout=None)
                 with tf.variable_scope('teacher'):
                     self.tester = Tester(input, learner, config.teacher.tester)
         with graph.as_default():
