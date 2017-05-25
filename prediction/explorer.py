@@ -54,9 +54,7 @@ class Agent:
                         last_step_count, step_count)
             self.session.run_training(step_count - last_step_count,
                                       summarize=False)
-            error = self.session.run_validation()['MSE']
-            decay = np.reshape(np.exp(-np.arange(len(error))), error.shape)
-            score = np.sum(error * decay)
+            score = np.sum(self.session.run_validation()['MSE'])
             Agent._save(self.output_path, step_count, score)
             self.session.run_saving()
             with self.lock:
