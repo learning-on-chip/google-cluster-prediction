@@ -52,8 +52,7 @@ class Agent:
             assert(last_step_count < step_count)
             support.log(self, 'Learning start: {}, stop: {}',
                         last_step_count, step_count)
-            self.session.run_training(step_count - last_step_count,
-                                      summarize=False)
+            self.session.run_training(step_count - last_step_count)
             score = np.sum(self.session.run_validation()['MSE'])
             Agent._save(self.output_path, step_count, score)
             self.session.run_saving()
