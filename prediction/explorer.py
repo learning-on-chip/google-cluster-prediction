@@ -78,7 +78,7 @@ class Explorer:
         self.config = config
         self.tuner = getattr(tuner, config.tuner.name)
         self.tuner = self.tuner(**config.tuner.options)
-        self.resource_scale = config.max_step_count / self.tuner.resource
+        self.scale = config.max_step_count / self.tuner.resource
         self.sampler = Sampler(config.sampler)
         self.semaphore = threading.BoundedSemaphore(config.concurrent_count)
         self.agents = {}
@@ -94,13 +94,13 @@ class Explorer:
 
     def run(self):
         case, resource, score = self.tuner.run(self._generate, self._assess)
-        step_count = int(self.resource_scale * resource)
+        step_count = int(round(self.scale * resource))
         support.log(self, 'Best case: {}, step: {}, score: {}',
                     case, step_count, score)
         return (case, step_count)
 
     def _assess(self, resource, cases):
-        step_count = int(self.resource_scale * resource)
+        step_count = int(round(self.scale * resource))
         support.log(self, 'Assess cases: {}, stop: {}',
                     len(cases), step_count)
         agents = []
