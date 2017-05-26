@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 import threading
 
 class Random(np.random.RandomState):
@@ -7,6 +8,7 @@ class Random(np.random.RandomState):
     _LOCK = threading.Lock()
 
     def initialize(seed):
+        tf.set_random_seed(seed)
         Random._SEED = seed
 
     def get():
