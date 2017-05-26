@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow as tf
 import threading
+
 
 class Random(np.random.RandomState):
     _SEED = 0
@@ -8,7 +8,6 @@ class Random(np.random.RandomState):
     _LOCK = threading.Lock()
 
     def initialize(seed):
-        tf.set_random_seed(seed)
         Random._SEED = seed
 
     def get():
@@ -18,5 +17,8 @@ class Random(np.random.RandomState):
                 Random._INSTANCES[key] = Random()
             return Random._INSTANCES[key]
 
+    def get_seed():
+        return Random._SEED
+
     def __init__(self):
-        super(Random, self).__init__(Random._SEED)
+        super(Random, self).__init__(Random.get_seed())

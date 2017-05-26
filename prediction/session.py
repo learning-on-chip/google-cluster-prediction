@@ -1,5 +1,6 @@
 from . import support
 from .learner import Learner
+from .random import Random
 from .saver import Saver
 from .teacher import Tester
 from .teacher import Trainer
@@ -14,6 +15,7 @@ class Session:
         self.output = config.output
         graph = tf.Graph()
         with graph.as_default():
+            tf.set_random_seed(Random.get_seed())
             with tf.variable_scope('training'):
                 with tf.variable_scope('input'):
                     input = input_('training')
