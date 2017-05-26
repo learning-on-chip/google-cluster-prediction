@@ -19,10 +19,9 @@ class Tester:
         for _ in self.input.iterate(session):
             y, y_hat = self.learner.test(session, self.input,
                                          self.future_length)
-            _, batch_size, sample_length, dimension_count = y.shape
-            sum += np.sum((y - y_hat)**2, axis=(1, 2, 3))
-            count += batch_size * sample_length * dimension_count
-            self.progress.advance(batch_size)
+            sum += np.mean((y - y_hat)**2, axis=(1, 2, 3))
+            count += 1
+            self.progress.advance(self.input.batch_size)
         self.progress.finish()
         return {
             'MSE': sum / count,
@@ -51,12 +50,13 @@ class Trainer:
         self.progress.start()
 
     def run(self, session, step_count):
-        sum = 0
+        sum, count = 0, 0
         for _ in self.input.iterate(session, step_count):
             sum += self.learner.train(session, self.optimize, self.loss)
+            count += 1
             self.progress.advance(self.input.batch_size)
         return {
-            'MSE': np.array([sum / step_count]),
+            'MSE': np.array([sum / count]),
         }
 
 
@@ -73,12 +73,13 @@ class Validator:
             report_each=config.get('report_each', None))
 
     def run(self, session):
-        sum = 0
+        sum, count = 0, 0
         self.progress.start()
         for _ in self.input.iterate(session):
             sum += self.learner.validate(session, self.loss)
+            count += 1
             self.progress.advance(self.input.batch_size)
         self.progress.finish()
         return {
-            'MSE': np.array([sum / self.input.sample_count]),
+            'MSE': np.array([sum / count]),
         }
