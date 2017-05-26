@@ -126,14 +126,6 @@ def scan(path, name):
     pattern = os.path.join(glob.escape(path), '**', name)
     return sorted(glob.glob(pattern, recursive=True))
 
-def shift(data, amount, axis=0, padding=0):
-    data = np.roll(data, amount, axis=axis)
-    if amount > 0:
-        data[:amount, :] = padding
-    elif amount < 0:
-        data[amount:, :] = padding
-    return data
-
 def title(text):
     return text[0].upper() + text[1:]
 
