@@ -102,7 +102,7 @@ class Input:
         ]
 
     def _partition(available, config):
-        preserved = min(available, config.max_sample_count)
+        preserved = min(available, config.selection.max_sample_count)
         training = int(config.training.fraction * preserved)
         validation = int(config.validation.fraction * preserved)
         testing = int(config.testing.fraction * preserved)
@@ -190,7 +190,7 @@ class Fake:
 
     def _prepare(training_path, validation_path, testing_path, config):
         _, training_count, validation_count, testing_count = \
-            Input._partition(config.max_sample_count, config)
+            Input._partition(config.selection.max_sample_count, config)
         training_metas = Fake._generate(training_count)
         validation_metas = Fake._generate(validation_count)
         testing_metas = Fake._generate(testing_count)
@@ -204,9 +204,9 @@ class Real:
     def _index(config):
         metas = []
         def _callback(path, job, task, length, **_):
-            if length < config.min_sample_length:
+            if length < config.selection.min_sample_length:
                 return
-            if length > config.max_sample_length:
+            if length > config.selection.max_sample_length:
                 return
             metas.append((path, job, task))
         found_count = Index.decode(config.path, _callback)

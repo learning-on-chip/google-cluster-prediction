@@ -1,9 +1,11 @@
 {
 	"seed": 0,
 	"input": {
-		"max_sample_count": 10000,
-		"min_sample_length": 5,
-		"max_sample_length": 50,
+		"selection": {
+			"max_sample_count": 10000,
+			"min_sample_length": 5,
+			"max_sample_length": 50
+		},
 		"training": {
 			"fraction": 0.7,
 			"batch_size": 1,
