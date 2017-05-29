@@ -11,37 +11,39 @@ class Index:
                 count += 1
                 record = record.split(',')
                 callback(
-                    path=record[0],        # Path
-                    user=int(record[1]),   # User
-                    app=int(record[2]),    # App
-                    job=int(record[3]),    # Job
-                    task=int(record[4]),   # Task
-                    length=int(record[5]), # Length
+                    path=record[0],           # Path
+                    user=int(record[1]),      # User
+                    app=int(record[2]),       # App
+                    job=int(record[3]),       # Job
+                    task=int(record[4]),      # Task
+                    length=int(record[5]),    # Length
+                    maximum=float(record[6]), # Maximum
                 )
         return count
 
-    def encode(input_path, meta_path, index_path, report_each=10000):
-        support.log(Index, 'Input path: {}', input_path)
-        support.log(Index, 'Meta path: {}', meta_path)
-        paths = support.scan(input_path, '*.sqlite3')
+    def encode(task_usage_path, job_events_path, index_path, report_each=10000):
+        support.log(Index, 'Task usage path: {}', task_usage_path)
+        support.log(Index, 'Job events path: {}', job_events_path)
+        paths = support.scan(task_usage_path, '*.sqlite3')
         database_count = len(paths)
-        mapping = database.map_job_to_user_app(meta_path)
+        job_events_meta_map = database.map_job_events_meta(job_events_path)
         progress = support.Progress(description='indexing',
                                     total_count=database_count,
                                     report_each=report_each)
         progress.start()
         with open(index_path, 'w') as file:
             for i in range(database_count):
-                data = database.count_job_task_samples(paths[i])
-                for record in data:
-                    meta = mapping[record[0]]
+                task_usage_meta = database.select_task_usage_meta(paths[i])
+                for task_usage_meta in task_usage_meta:
+                    job_events_meta = job_events_meta_map[task_usage_meta[0]]
                     record = [
-                        paths[i],  # Path
-                        meta[0],   # User
-                        meta[1],   # App
-                        record[0], # Job
-                        record[1], # Task
-                        record[2], # Length
+                        paths[i],           # Path
+                        job_events_meta[0], # User
+                        job_events_meta[1], # App
+                        task_usage_meta[0], # Job
+                        task_usage_meta[1], # Task
+                        task_usage_meta[2], # Length
+                        task_usage_meta[3], # Maximum
                     ]
                     file.write(','.join([str(item) for item in record]) + '\n')
                 progress.advance()

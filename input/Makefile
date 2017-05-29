@@ -3,6 +3,6 @@ data:
 	${MAKE} -C source distribute TABLE=task_usage
 	ln -sf source/output/task_usage/distribution $@
 
-meta.sqlite3:
+extra.sqlite3:
 	${MAKE} -C source convert TABLE=job_events
 	ln -sf source/output/job_events.sqlite3 $@

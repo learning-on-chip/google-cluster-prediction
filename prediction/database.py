@@ -1,18 +1,7 @@
 import numpy as np
 import sqlite3
 
-def count_job_task_samples(path):
-    query = """
-        SELECT `job ID`, `task index`, COUNT(*)
-        FROM `task_usage`
-        GROUP BY `job ID`, `task index`
-        ORDER BY `job ID`, `task index`
-    """
-    def _process(cursor):
-        return cursor.fetchall()
-    return _execute(path, query, _process)
-
-def map_job_to_user_app(path):
+def map_job_events_meta(path):
     query = """
         SELECT `job ID`, `user`, `logical job name`
         FROM `job_events`
@@ -40,6 +29,17 @@ def select_task_usage(path, job, task):
     def _process(cursor):
         return np.reshape([row[0] for row in cursor], [-1, 1])
     return _execute(path, query.format(job, task), _process)
+
+def select_task_usage_meta(path):
+    query = """
+        SELECT `job ID`, `task index`, COUNT(*), MAX(`CPU rate`)
+        FROM `task_usage`
+        GROUP BY `job ID`, `task index`
+        ORDER BY `job ID`, `task index`
+    """
+    def _process(cursor):
+        return cursor.fetchall()
+    return _execute(path, query, _process)
 
 def _execute(path, query, process):
     connection = sqlite3.connect(path)

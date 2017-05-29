@@ -10,8 +10,8 @@ learn: input/index.csv
 test:
 	pytest prediction
 
-input/index.csv: input/data input/meta.sqlite3
-	./bin/index --input $< --meta input/meta.sqlite3 --output $@
+input/index.csv: input/data input/extra.sqlite3
+	./bin/index --input $< --extra input/extra.sqlite3 --output $@
 
 input/%:
 	${MAKE} -C input $*

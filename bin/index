@@ -15,7 +15,7 @@ def main(*arguments):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', required=True)
-    parser.add_argument('--meta', required=True)
+    parser.add_argument('--extra', required=True)
     parser.add_argument('--output', required=True)
     arguments = parser.parse_args()
-    main(arguments.input, arguments.meta, arguments.output)
+    main(arguments.input, arguments.extra, arguments.output)
